@@ -28,9 +28,7 @@ export const searchMembershipSchema = z.object({
 // Esquema de validación para crear membresía
 export const createMembershipSchema = z.object({
     // Falta validación del campo código que debe seguir el patrón ^M\d{3}$
-    codigo: z.string()
-        .regex(/^M\d{3}$/, "El código debe tener el formato M seguido de 3 dígitos"),
-    nombre: z.string()
+        nombre: z.string()
         .min(1, 'El nombre es requerido')
         .max(100, 'El nombre no puede exceder los 100 caracteres'),
     descripcion: z.string()

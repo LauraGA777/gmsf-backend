@@ -1,142 +1,196 @@
 GMSF BASE DE DATOS
 
-TABLAS
+-- Tabla de Roles
+CREATE TABLE roles (
+    id SERIAL PRIMARY KEY,
+    codigo VARCHAR(10) NOT NULL UNIQUE CHECK (codigo ~ '^R\d{3}$'),
+    nombre VARCHAR(50) NOT NULL UNIQUE CHECK (LENGTH(nombre) >= 3),
+    descripcion TEXT,
+    estado BOOLEAN DEFAULT true,
+    createdAt TIMESTAMP WITH TIME ZONE NOT NULL,
+    updatedAt TIMESTAMP WITH TIME ZONE NOT NULL
+);
 
+-- Tabla de Permisos
+CREATE TABLE permisos (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE CHECK (LENGTH(nombre) >= 3),
+    estado BOOLEAN DEFAULT true
+);
+
+-- Tabla de Privilegios
+CREATE TABLE privilegios (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL CHECK (LENGTH(nombre) >= 3),
+    id_permiso INTEGER NOT NULL,
+    FOREIGN KEY (id_permiso) REFERENCES permisos(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Tabla de Rol_Permiso
+CREATE TABLE rol_permiso (
+    id_rol INTEGER NOT NULL,
+    id_permiso INTEGER NOT NULL,
+    createdAt TIMESTAMP WITH TIME ZONE NOT NULL,
+    updatedAt TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (id_rol, id_permiso),
+    FOREIGN KEY (id_rol) REFERENCES roles(id),
+    FOREIGN KEY (id_permiso) REFERENCES permisos(id)
+);
+
+-- Tabla de Rol_Privilegio
+CREATE TABLE rol_privilegio (
+    id_rol INTEGER NOT NULL,
+    id_privilegio INTEGER NOT NULL,
+    createdAt TIMESTAMP WITH TIME ZONE NOT NULL,
+    updatedAt TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (id_rol, id_privilegio),
+    FOREIGN KEY (id_rol) REFERENCES roles(id),
+    FOREIGN KEY (id_privilegio) REFERENCES privilegios(id)
+);
+
+-- Tabla de Usuarios
 CREATE TABLE usuarios (
     id SERIAL PRIMARY KEY,
-    codigo VARCHAR(10) UNIQUE NOT NULL CHECK (codigo ~ '^U\d{3}$'),
+    codigo VARCHAR(10) NOT NULL UNIQUE CHECK (codigo ~ '^U\d{3}$'),
     nombre VARCHAR(100) NOT NULL CHECK (LENGTH(nombre) >= 3),
     apellido VARCHAR(100) NOT NULL CHECK (LENGTH(apellido) >= 3),
-    correo VARCHAR(100) UNIQUE NOT NULL CHECK (correo ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-zA-Z]{2,}$'),
+    correo VARCHAR(100) NOT NULL UNIQUE CHECK (correo ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-zA-Z]{2,}$'),
     contrasena_hash VARCHAR(255) NOT NULL,
     telefono VARCHAR(15) CHECK (telefono ~ '^\d{7,15}$'),
     direccion TEXT,
     genero CHAR(1) CHECK (genero IN ('M', 'F', 'O')),
-    tipo_documento VARCHAR(10) CHECK (tipo_documento IN ('CC', 'CE', 'TI', 'PP', 'DIE')),
-    numero_documento VARCHAR(20) UNIQUE NOT NULL,
-    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    asistencias_totales INT DEFAULT 0 CHECK (asistencias_totales >= 0),
-    fecha_nacimiento DATE NOT NULL CHECK (fecha_nacimiento <= (CURRENT_DATE - INTERVAL '15 years')),
-    estado BOOLEAN DEFAULT TRUE,
-    id_rol INT REFERENCES roles(id) ON DELETE SET NULL
+    tipo_documento VARCHAR(10) NOT NULL CHECK (tipo_documento IN ('CC', 'CE', 'TI', 'PP', 'DIE')),
+    numero_documento VARCHAR(20) NOT NULL UNIQUE,
+    fecha_actualizacion TIMESTAMP WITH TIME ZONE,
+    asistencias_totales INTEGER DEFAULT 0 CHECK (asistencias_totales >= 0),
+    fecha_nacimiento TIMESTAMP WITH TIME ZONE NOT NULL CHECK (fecha_nacimiento <= CURRENT_DATE - INTERVAL '15 years'),
+    estado BOOLEAN DEFAULT true,
+    id_rol INTEGER,
+    FOREIGN KEY (id_rol) REFERENCES roles(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
-CREATE TABLE roles (
-    id SERIAL PRIMARY KEY,
-    codigo VARCHAR(10) UNIQUE NOT NULL CHECK (codigo ~ '^R\d{3}$'),
-    nombre VARCHAR(50) UNIQUE NOT NULL,
-    descripcion TEXT,
-    estado BOOLEAN DEFAULT TRUE
-);
-
-CREATE TABLE usuario_rol (
-    id SERIAL PRIMARY KEY,
-    id_usuario INT REFERENCES usuarios(id) ON DELETE CASCADE,
-    id_rol INT REFERENCES roles(id) ON DELETE CASCADE,
-    fecha_inicio DATE NOT NULL,
-    fecha_fin DATE CHECK (fecha_fin > fecha_inicio),
-    UNIQUE (id_usuario, id_rol, fecha_inicio)
-);
-
-CREATE TABLE permisos (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(50) UNIQUE NOT NULL,
-    estado BOOLEAN DEFAULT TRUE
-);
-
-CREATE TABLE privilegios (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(50) NOT NULL,
-    id_permiso INT REFERENCES permisos(id) ON DELETE CASCADE,
-    UNIQUE (nombre, id_permiso)
-);
-
-CREATE TABLE rol_privilegio (
-    id SERIAL PRIMARY KEY,
-    id_rol INT REFERENCES roles(id) ON DELETE CASCADE,
-    id_permiso INT REFERENCES permisos(id) ON DELETE CASCADE,
-    id_privilegio INT REFERENCES privilegios(id) ON DELETE CASCADE,
-    UNIQUE (id_rol, id_permiso, id_privilegio)
-);
-
+-- Tabla de Personas
 CREATE TABLE personas (
     id_persona SERIAL PRIMARY KEY,
-    id_usuario INT REFERENCES usuarios(id) ON DELETE CASCADE,
-    codigo VARCHAR(10) UNIQUE NOT NULL CHECK (codigo ~ '^P\d{3}$'),
-    id_titular INT REFERENCES personas(id_persona) ON DELETE SET NULL,
+    codigo VARCHAR(10) NOT NULL UNIQUE CHECK (codigo ~ '^P\d{3}$'),
+    id_usuario INTEGER,
+    id_titular INTEGER,
     relacion VARCHAR(50),
-    fecha_registro DATE NOT NULL,
-    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    estado BOOLEAN DEFAULT TRUE
+    fecha_registro TIMESTAMP WITH TIME ZONE NOT NULL,
+    fecha_actualizacion TIMESTAMP WITH TIME ZONE NOT NULL,
+    estado BOOLEAN DEFAULT true NOT NULL,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (id_titular) REFERENCES personas(id_persona) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
-CREATE TABLE contactos_emergencia (
-    id SERIAL PRIMARY KEY,
-    id_persona INT REFERENCES personas(id_persona) ON DELETE CASCADE,
-    nombre_contacto VARCHAR(100) NOT NULL,
-    telefono_contacto VARCHAR(15) CHECK (telefono_contacto ~ '^\d{7,15}$'),
-    relacion_contacto VARCHAR(50),
-    es_mismo_beneficiario BOOLEAN DEFAULT FALSE,
-    fecha_registro DATE NOT NULL,
-    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
+-- Tabla de Entrenadores
 CREATE TABLE entrenadores (
     id SERIAL PRIMARY KEY,
-    codigo VARCHAR(10) UNIQUE NOT NULL CHECK (codigo ~ '^E\d{3}$'),
-    id_usuario INT REFERENCES usuarios(id) ON DELETE CASCADE,
-    fecha_registro DATE NOT NULL,
-    especialidad VARCHAR(100) NOT NULL,
-    estado BOOLEAN DEFAULT TRUE
+    id_usuario INTEGER NOT NULL,
+    codigo VARCHAR(10) NOT NULL UNIQUE CHECK (codigo ~ '^E\d{3}$'),
+    fecha_registro TIMESTAMP WITH TIME ZONE NOT NULL,
+    especialidad VARCHAR(100) NOT NULL CHECK (LENGTH(especialidad) >= 3),
+    estado BOOLEAN DEFAULT true,
+    createdAt TIMESTAMP WITH TIME ZONE NOT NULL,
+    updatedAt TIMESTAMP WITH TIME ZONE NOT NULL,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id) ON DELETE NO ACTION ON UPDATE CASCADE
 );
 
+-- Tabla de Membresias
 CREATE TABLE membresias (
     id SERIAL PRIMARY KEY,
-    codigo VARCHAR(10) UNIQUE NOT NULL CHECK (codigo ~ '^M\d{3}$'),
-    nombre VARCHAR(100) UNIQUE NOT NULL,
+    codigo VARCHAR(10) NOT NULL UNIQUE CHECK (codigo ~ '^M\d{3}$'),
+    nombre VARCHAR(100) NOT NULL UNIQUE CHECK (LENGTH(nombre) >= 3),
     descripcion TEXT,
-    dias_acceso INT CHECK (dias_acceso > 0),
-    vigencia_dias INT CHECK (vigencia_dias >= dias_acceso),
-    precio NUMERIC(10,2) CHECK (precio > 0),
-    fecha_creacion DATE NOT NULL,
-    estado BOOLEAN DEFAULT TRUE
+    dias_acceso INTEGER NOT NULL CHECK (dias_acceso > 0),
+    vigencia_dias INTEGER NOT NULL CHECK (vigencia_dias >= dias_acceso),
+    precio DECIMAL(10,2) NOT NULL CHECK (precio > 0),
+    fecha_creacion TIMESTAMP WITH TIME ZONE NOT NULL,
+    estado BOOLEAN DEFAULT true NOT NULL
 );
 
-CREATE TABLE asistencias (
-    id SERIAL PRIMARY KEY,
-    id_persona INT NOT NULL REFERENCES personas(id_persona),
-    id_contrato INT NOT NULL REFERENCES contratos(id),
-    fecha_uso DATE NOT NULL DEFAULT CURRENT_DATE,
-    hora_registro TIME NOT NULL DEFAULT CURRENT_TIME,
-    estado VARCHAR(20) NOT NULL DEFAULT 'Activo',
-    fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    fecha_actualizacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    usuario_registro INT REFERENCES usuarios(id),
-    usuario_actualizacion INT REFERENCES usuarios(id),
-    CONSTRAINT chk_estado CHECK (estado IN ('Activo', 'Eliminado'))
-);
-
+-- Tabla de Contratos
 CREATE TABLE contratos (
     id SERIAL PRIMARY KEY,
-    codigo VARCHAR(10) UNIQUE NOT NULL CHECK (codigo ~ '^C\d{4}$'),
-    id_persona INT REFERENCES personas(id_persona) ON DELETE CASCADE,
-    id_membresia INT REFERENCES membresias(id) ON DELETE CASCADE,
-    fecha_inicio DATE NOT NULL,
-    fecha_fin DATE NOT NULL CHECK (fecha_fin > fecha_inicio),
-    membresia_precio NUMERIC(10,2) CHECK (membresia_precio > 0),
-    estado VARCHAR(20) CHECK (estado IN ('Activo', 'Congelado', 'Vencido', 'Cancelado', 'Por vencer')),
-    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    usuario_registro INT REFERENCES usuarios(id) ON DELETE SET NULL,
-    usuario_actualizacion INT REFERENCES usuarios(id) ON DELETE SET NULL
+    codigo VARCHAR(10) NOT NULL UNIQUE CHECK (codigo ~ '^C\d{4}$'),
+    id_persona INTEGER NOT NULL,
+    id_membresia INTEGER NOT NULL,
+    fecha_inicio TIMESTAMP WITH TIME ZONE NOT NULL,
+    fecha_fin TIMESTAMP WITH TIME ZONE NOT NULL CHECK (fecha_fin > fecha_inicio),
+    estado VARCHAR(20) NOT NULL CHECK (estado IN ('Activo', 'Congelado', 'Vencido', 'Cancelado', 'Por vencer')),
+    fecha_registro TIMESTAMP WITH TIME ZONE NOT NULL,
+    fecha_actualizacion TIMESTAMP WITH TIME ZONE NOT NULL,
+    usuario_registro INTEGER,
+    usuario_actualizacion INTEGER,
+    membresia_precio DECIMAL(10,2) NOT NULL CHECK (membresia_precio > 0),
+    FOREIGN KEY (id_persona) REFERENCES personas(id_persona) ON DELETE NO ACTION ON UPDATE CASCADE,
+    FOREIGN KEY (id_membresia) REFERENCES membresias(id) ON DELETE NO ACTION ON UPDATE CASCADE,
+    FOREIGN KEY (usuario_registro) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (usuario_actualizacion) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
+-- Tabla de Historial de Contratos
 CREATE TABLE historial_contratos (
     id SERIAL PRIMARY KEY,
-    id_contrato INT REFERENCES contratos(id) ON DELETE CASCADE,
-    estado_anterior VARCHAR(20),
-    estado_nuevo VARCHAR(20),
-    fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    usuario_cambio INT REFERENCES usuarios(id) ON DELETE SET NULL,
-    motivo TEXT
+    id_contrato INTEGER NOT NULL,
+    estado_anterior VARCHAR(20) CHECK (estado_anterior IN ('Activo', 'Congelado', 'Vencido', 'Cancelado', 'Por vencer')),
+    estado_nuevo VARCHAR(20) NOT NULL CHECK (estado_nuevo IN ('Activo', 'Congelado', 'Vencido', 'Cancelado', 'Por vencer')),
+    fecha_cambio TIMESTAMP WITH TIME ZONE NOT NULL,
+    usuario_cambio INTEGER,
+    motivo TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    FOREIGN KEY (id_contrato) REFERENCES contratos(id) ON DELETE NO ACTION ON UPDATE CASCADE,
+    FOREIGN KEY (usuario_cambio) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- Tabla de Asistencias
+CREATE TABLE asistencias (
+    id SERIAL PRIMARY KEY,
+    id_persona INTEGER NOT NULL,
+    id_contrato INTEGER NOT NULL,
+    fecha_uso DATE NOT NULL,
+    hora_registro TIME NOT NULL,
+    estado VARCHAR(20) DEFAULT 'Activo' NOT NULL CHECK (estado IN ('Activo', 'Eliminado')),
+    fecha_registro TIMESTAMP WITH TIME ZONE NOT NULL,
+    fecha_actualizacion TIMESTAMP WITH TIME ZONE NOT NULL,
+    usuario_registro INTEGER,
+    usuario_actualizacion INTEGER,
+    FOREIGN KEY (id_persona) REFERENCES personas(id_persona) ON DELETE NO ACTION ON UPDATE CASCADE,
+    FOREIGN KEY (id_contrato) REFERENCES contratos(id) ON DELETE NO ACTION ON UPDATE CASCADE,
+    FOREIGN KEY (usuario_registro) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (usuario_actualizacion) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- Tabla de Contactos de Emergencia
+CREATE TABLE contactos_emergencia (
+    id SERIAL PRIMARY KEY,
+    id_persona INTEGER NOT NULL,
+    nombre_contacto VARCHAR(100) NOT NULL CHECK (LENGTH(nombre_contacto) >= 3),
+    telefono_contacto VARCHAR(15) NOT NULL CHECK (telefono_contacto ~ '^\d{7,15}$'),
+    relacion_contacto VARCHAR(50),
+    es_mismo_beneficiario BOOLEAN DEFAULT false NOT NULL,
+    fecha_registro TIMESTAMP WITH TIME ZONE NOT NULL,
+    fecha_actualizacion TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    FOREIGN KEY (id_persona) REFERENCES personas(id_persona) ON DELETE NO ACTION ON UPDATE CASCADE
+);
+
+-- Tabla de Entrenamientos
+CREATE TABLE entrenamientos (
+    id SERIAL PRIMARY KEY,
+    titulo VARCHAR(100) NOT NULL CHECK (LENGTH(titulo) >= 3),
+    descripcion TEXT,
+    fecha_inicio TIMESTAMP WITH TIME ZONE NOT NULL,
+    fecha_fin TIMESTAMP WITH TIME ZONE NOT NULL CHECK (fecha_fin > fecha_inicio),
+    id_entrenador INTEGER NOT NULL,
+    id_cliente INTEGER NOT NULL,
+    estado VARCHAR(20) DEFAULT 'Programado' NOT NULL CHECK (estado IN ('Programado', 'En proceso', 'Completado', 'Cancelado')),
+    notas TEXT,
+    fecha_creacion TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    FOREIGN KEY (id_entrenador) REFERENCES usuarios(id) ON DELETE NO ACTION ON UPDATE CASCADE,
+    FOREIGN KEY (id_cliente) REFERENCES personas(id_persona) ON DELETE NO ACTION ON UPDATE CASCADE
 );
