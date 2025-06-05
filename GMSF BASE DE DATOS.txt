@@ -1,0 +1,142 @@
+GMSF BASE DE DATOS
+
+TABLAS
+
+CREATE TABLE usuarios (
+    id SERIAL PRIMARY KEY,
+    codigo VARCHAR(10) UNIQUE NOT NULL CHECK (codigo ~ '^U\d{3}$'),
+    nombre VARCHAR(100) NOT NULL CHECK (LENGTH(nombre) >= 3),
+    apellido VARCHAR(100) NOT NULL CHECK (LENGTH(apellido) >= 3),
+    correo VARCHAR(100) UNIQUE NOT NULL CHECK (correo ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-zA-Z]{2,}$'),
+    contrasena_hash VARCHAR(255) NOT NULL,
+    telefono VARCHAR(15) CHECK (telefono ~ '^\d{7,15}$'),
+    direccion TEXT,
+    genero CHAR(1) CHECK (genero IN ('M', 'F', 'O')),
+    tipo_documento VARCHAR(10) CHECK (tipo_documento IN ('CC', 'CE', 'TI', 'PP', 'DIE')),
+    numero_documento VARCHAR(20) UNIQUE NOT NULL,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    asistencias_totales INT DEFAULT 0 CHECK (asistencias_totales >= 0),
+    fecha_nacimiento DATE NOT NULL CHECK (fecha_nacimiento <= (CURRENT_DATE - INTERVAL '15 years')),
+    estado BOOLEAN DEFAULT TRUE,
+    id_rol INT REFERENCES roles(id) ON DELETE SET NULL
+);
+
+CREATE TABLE roles (
+    id SERIAL PRIMARY KEY,
+    codigo VARCHAR(10) UNIQUE NOT NULL CHECK (codigo ~ '^R\d{3}$'),
+    nombre VARCHAR(50) UNIQUE NOT NULL,
+    descripcion TEXT,
+    estado BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE usuario_rol (
+    id SERIAL PRIMARY KEY,
+    id_usuario INT REFERENCES usuarios(id) ON DELETE CASCADE,
+    id_rol INT REFERENCES roles(id) ON DELETE CASCADE,
+    fecha_inicio DATE NOT NULL,
+    fecha_fin DATE CHECK (fecha_fin > fecha_inicio),
+    UNIQUE (id_usuario, id_rol, fecha_inicio)
+);
+
+CREATE TABLE permisos (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(50) UNIQUE NOT NULL,
+    estado BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE privilegios (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL,
+    id_permiso INT REFERENCES permisos(id) ON DELETE CASCADE,
+    UNIQUE (nombre, id_permiso)
+);
+
+CREATE TABLE rol_privilegio (
+    id SERIAL PRIMARY KEY,
+    id_rol INT REFERENCES roles(id) ON DELETE CASCADE,
+    id_permiso INT REFERENCES permisos(id) ON DELETE CASCADE,
+    id_privilegio INT REFERENCES privilegios(id) ON DELETE CASCADE,
+    UNIQUE (id_rol, id_permiso, id_privilegio)
+);
+
+CREATE TABLE personas (
+    id_persona SERIAL PRIMARY KEY,
+    id_usuario INT REFERENCES usuarios(id) ON DELETE CASCADE,
+    codigo VARCHAR(10) UNIQUE NOT NULL CHECK (codigo ~ '^P\d{3}$'),
+    id_titular INT REFERENCES personas(id_persona) ON DELETE SET NULL,
+    relacion VARCHAR(50),
+    fecha_registro DATE NOT NULL,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    estado BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE contactos_emergencia (
+    id SERIAL PRIMARY KEY,
+    id_persona INT REFERENCES personas(id_persona) ON DELETE CASCADE,
+    nombre_contacto VARCHAR(100) NOT NULL,
+    telefono_contacto VARCHAR(15) CHECK (telefono_contacto ~ '^\d{7,15}$'),
+    relacion_contacto VARCHAR(50),
+    es_mismo_beneficiario BOOLEAN DEFAULT FALSE,
+    fecha_registro DATE NOT NULL,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE entrenadores (
+    id SERIAL PRIMARY KEY,
+    codigo VARCHAR(10) UNIQUE NOT NULL CHECK (codigo ~ '^E\d{3}$'),
+    id_usuario INT REFERENCES usuarios(id) ON DELETE CASCADE,
+    fecha_registro DATE NOT NULL,
+    especialidad VARCHAR(100) NOT NULL,
+    estado BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE membresias (
+    id SERIAL PRIMARY KEY,
+    codigo VARCHAR(10) UNIQUE NOT NULL CHECK (codigo ~ '^M\d{3}$'),
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    descripcion TEXT,
+    dias_acceso INT CHECK (dias_acceso > 0),
+    vigencia_dias INT CHECK (vigencia_dias >= dias_acceso),
+    precio NUMERIC(10,2) CHECK (precio > 0),
+    fecha_creacion DATE NOT NULL,
+    estado BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE asistencias (
+    id SERIAL PRIMARY KEY,
+    id_persona INT NOT NULL REFERENCES personas(id_persona),
+    id_contrato INT NOT NULL REFERENCES contratos(id),
+    fecha_uso DATE NOT NULL DEFAULT CURRENT_DATE,
+    hora_registro TIME NOT NULL DEFAULT CURRENT_TIME,
+    estado VARCHAR(20) NOT NULL DEFAULT 'Activo',
+    fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    usuario_registro INT REFERENCES usuarios(id),
+    usuario_actualizacion INT REFERENCES usuarios(id),
+    CONSTRAINT chk_estado CHECK (estado IN ('Activo', 'Eliminado'))
+);
+
+CREATE TABLE contratos (
+    id SERIAL PRIMARY KEY,
+    codigo VARCHAR(10) UNIQUE NOT NULL CHECK (codigo ~ '^C\d{4}$'),
+    id_persona INT REFERENCES personas(id_persona) ON DELETE CASCADE,
+    id_membresia INT REFERENCES membresias(id) ON DELETE CASCADE,
+    fecha_inicio DATE NOT NULL,
+    fecha_fin DATE NOT NULL CHECK (fecha_fin > fecha_inicio),
+    membresia_precio NUMERIC(10,2) CHECK (membresia_precio > 0),
+    estado VARCHAR(20) CHECK (estado IN ('Activo', 'Congelado', 'Vencido', 'Cancelado', 'Por vencer')),
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    usuario_registro INT REFERENCES usuarios(id) ON DELETE SET NULL,
+    usuario_actualizacion INT REFERENCES usuarios(id) ON DELETE SET NULL
+);
+
+CREATE TABLE historial_contratos (
+    id SERIAL PRIMARY KEY,
+    id_contrato INT REFERENCES contratos(id) ON DELETE CASCADE,
+    estado_anterior VARCHAR(20),
+    estado_nuevo VARCHAR(20),
+    fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    usuario_cambio INT REFERENCES usuarios(id) ON DELETE SET NULL,
+    motivo TEXT
+);
