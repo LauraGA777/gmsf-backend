@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 import sequelize from "../config/db";
-import { Training, User, Person, Contract } from "../models";
+import { Training, User, Client, Contract } from "../models";
 import { ApiError } from "../errors/apiError";
 
 export class ScheduleService {
@@ -62,7 +62,7 @@ export class ScheduleService {
           attributes: ["id", "nombre", "apellido", "correo"],
         },
         {
-          model: Person,
+          model: Client,
           as: "cliente",
           include: [
             {
@@ -99,7 +99,7 @@ export class ScheduleService {
           attributes: ["id", "nombre", "apellido", "correo", "telefono"],
         },
         {
-          model: Person,
+          model: Client,
           as: "cliente",
           include: [
             {
@@ -134,7 +134,7 @@ export class ScheduleService {
       }
 
       // Validate client exists
-      const client = await Person.findByPk(data.id_cliente, { transaction });
+      const client = await Client.findByPk(data.id_cliente, { transaction });
       if (!client) {
         await transaction.rollback();
         throw new ApiError("Cliente no encontrado", 404);
@@ -343,7 +343,7 @@ export class ScheduleService {
           attributes: ["id", "nombre", "apellido"],
         },
         {
-          model: Person,
+          model: Client,
           as: "cliente",
           include: [
             {
@@ -393,7 +393,7 @@ export class ScheduleService {
       },
       include: [
         {
-          model: Person,
+          model: Client,
           as: "cliente",
           include: [
             {

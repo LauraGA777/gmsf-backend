@@ -3,7 +3,7 @@ import sequelize from "../config/db";
 import {
   Contract,
   ContractHistory,
-  Person,
+  Client,
   Membership,
   User,
 } from "../models";
@@ -57,7 +57,7 @@ export class ContractService {
       where: whereClause,
       include: [
         {
-          model: Person,
+          model: Client,
           as: "persona",
           include: [
             {
@@ -78,7 +78,7 @@ export class ContractService {
         },
         {
           model: User,
-          as: "actualizacion",
+          as: "actualizador",
           attributes: ["id", "nombre", "apellido"],
         },
       ],
@@ -103,7 +103,7 @@ export class ContractService {
     const contract = await Contract.findByPk(id, {
       include: [
         {
-          model: Person,
+          model: Client,
           as: "persona",
           include: [
             {
@@ -124,16 +124,16 @@ export class ContractService {
         },
         {
           model: User,
-          as: "actualizacion",
+          as: "actualizador",
           attributes: ["id", "nombre", "apellido"],
         },
         {
           model: ContractHistory,
-          as: "historial",
+          as: "history",
           include: [
             {
               model: User,
-              as: "usuario",
+              as: "user",
               attributes: ["id", "nombre", "apellido"],
             },
           ],
@@ -154,7 +154,7 @@ export class ContractService {
 
     try {
       // Validate client exists
-      const client = await Person.findByPk(data.id_persona, { transaction });
+      const client = await Client.findByPk(data.id_persona, { transaction });
       if (!client) {
         await transaction.rollback();
         throw new ApiError("Cliente no encontrado", 404);
@@ -456,7 +456,7 @@ export class ContractService {
       include: [
         {
           model: User,
-          as: "usuario",
+          as: "user",
           attributes: ["id", "nombre", "apellido"],
         },
       ],

@@ -1,6 +1,6 @@
 import { DataTypes, Model, type Optional } from "sequelize";
 import sequelize from "../config/db";
-import Person from "./person";
+import Client from "./client.model";
 
 interface EmergencyContactAttributes {
     id: number;
@@ -48,7 +48,7 @@ EmergencyContact.init(
           type: DataTypes.INTEGER,
           allowNull: false,
           references: {
-            model: "personas",
+            model: "clientes",
             key: "id_persona",
           },
         },
@@ -116,14 +116,12 @@ EmergencyContact.init(
   }
 );
 
-// Associations
-EmergencyContact.belongsTo(Person, {
+// Associations - Removed association definitions to handle circular dependency in index.ts
+/*
+EmergencyContact.belongsTo(Client, {
   foreignKey: "id_persona",
   as: "persona",
 });
-Person.hasMany(EmergencyContact, {
-  foreignKey: "id_persona",
-  as: "contactos_emergencia",
-});
+*/
 
 export default EmergencyContact; 

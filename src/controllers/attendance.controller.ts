@@ -4,7 +4,7 @@ import { z } from 'zod';
 import Attendance from '../models/attendance';
 import User from '../models/user';
 import Contract from '../models/contract';
-import Person from '../models/person';
+import Person from '../models/client';
 import Membership from '../models/membership';
 import ApiResponse from '../utils/apiResponse';
 import {

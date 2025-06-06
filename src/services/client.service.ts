@@ -1,8 +1,10 @@
+// Importaciones
 import { Op } from "sequelize";
 import sequelize from "../config/db";
-import { Person, User, EmergencyContact } from "../models";
+import { Client, User, EmergencyContact } from "../models";
 import { ApiError } from "../errors/apiError";
 
+// Servicio para la gestión de clientes
 export class ClientService {
   // Get all clients with pagination and filters
   async findAll(options: any) {
@@ -19,7 +21,7 @@ export class ClientService {
       whereClause.id_titular = id_titular;
     }
 
-    const { count, rows } = await Person.findAndCountAll({
+    const { count, rows } = await Client.findAndCountAll({
       where: whereClause,
       include: [
         {
@@ -43,8 +45,8 @@ export class ClientService {
           required: false,
         },
         {
-          model: Person,
-          as: "titular",
+          model: Client,
+          as: "titularCliente",
           required: false,
           include: [
             {
@@ -55,8 +57,8 @@ export class ClientService {
           ],
         },
         {
-          model: Person,
-          as: "beneficiarios",
+          model: Client,
+          as: "clientesBeneficiarios",
           required: false,
           include: [
             {
@@ -85,7 +87,7 @@ export class ClientService {
 
   // Get client by ID
   async findById(id: number) {
-    const client = await Person.findByPk(id, {
+    const client = await Client.findByPk(id, {
       include: [
         {
           model: User,
@@ -97,8 +99,8 @@ export class ClientService {
           as: "contactos_emergencia",
         },
         {
-          model: Person,
-          as: "titular",
+          model: Client,
+          as: "titularCliente",
           include: [
             {
               model: User,
@@ -108,8 +110,8 @@ export class ClientService {
           ],
         },
         {
-          model: Person,
-          as: "beneficiarios",
+          model: Client,
+          as: "clientesBeneficiarios",
           include: [
             {
               model: User,
@@ -144,6 +146,17 @@ export class ClientService {
     const transaction = await sequelize.transaction();
 
     try {
+      // Validate titular/beneficiario relationship
+      if (data.id_titular) {
+        const titular = await Client.findByPk(data.id_titular, { transaction });
+        if (!titular) {
+          throw new ApiError("El titular especificado no existe", 400);
+        }
+        if (titular.id_titular) {
+          throw new ApiError("Un beneficiario no puede ser titular de otro beneficiario", 400);
+        }
+      }
+
       let userId;
 
       // If user data is provided, create a new user or find existing one
@@ -184,14 +197,14 @@ export class ClientService {
       }
 
       // Create client
-      const client = await Person.create(
+      const client = await Client.create(
         {
           id_usuario: userId,
           id_titular: data.id_titular,
           relacion: data.relacion,
           fecha_registro: new Date(),
           estado: data.estado ?? true,
-          codigo: await this.generateUserCode(transaction)
+          codigo: data.codigo
         },
         { transaction }
       );
@@ -220,11 +233,25 @@ export class ClientService {
     const transaction = await sequelize.transaction();
 
     try {
-      const client = await Person.findByPk(id, { transaction });
+      const client = await Client.findByPk(id, { transaction });
 
       if (!client) {
         await transaction.rollback();
         throw new ApiError("Cliente no encontrado", 404);
+      }
+
+      // Validate titular/beneficiario relationship
+      if (data.id_titular) {
+        if (data.id_titular === id) {
+          throw new ApiError("Un cliente no puede ser su propio titular", 400);
+        }
+        const titular = await Client.findByPk(data.id_titular, { transaction });
+        if (!titular) {
+          throw new ApiError("El titular especificado no existe", 400);
+        }
+        if (titular.id_titular) {
+          throw new ApiError("Un beneficiario no puede ser titular de otro beneficiario", 400);
+        }
       }
 
       // Update client data
@@ -293,7 +320,7 @@ export class ClientService {
     const transaction = await sequelize.transaction();
 
     try {
-      const client = await Person.findByPk(id, { transaction });
+      const client = await Client.findByPk(id, { transaction });
 
       if (!client) {
         await transaction.rollback();
@@ -312,17 +339,26 @@ export class ClientService {
 
   // Get client beneficiaries
   async getBeneficiaries(id: number) {
-    const beneficiaries = await Person.findAll({
-      where: { id_titular: id, estado: true },
+    const client = await Client.findByPk(id, {
       include: [
         {
-          model: User,
-          as: "usuario",
-          attributes: { exclude: ["contrasena_hash"] },
+          model: Client,
+          as: "clientesBeneficiarios",
+          include: [
+            {
+              model: User,
+              as: "usuario",
+              attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+            },
+          ],
         },
       ],
     });
 
-    return beneficiaries;
+    if (!client) {
+      throw new ApiError("Cliente no encontrado", 404);
+    }
+
+    return client.clientesBeneficiarios;
   }
 }

@@ -1,6 +1,6 @@
 import { DataTypes, Model, type Optional } from "sequelize"
 import sequelize from "../config/db"
-import Person from "./person"
+import Person from "./client"
 import Membership from "./membership"
 import User from "./user"
 
@@ -54,8 +54,8 @@ Contract.init(
             unique: true,
             validate: {
                 is: {
-                    args: /^C\d{4}$/,
-                    msg: 'El código debe tener el formato C seguido de 4 números'
+                    args: /^P\d{3}$/,
+                    msg: 'El código debe tener el formato P seguido de 3 números'
                 }
             },
         },

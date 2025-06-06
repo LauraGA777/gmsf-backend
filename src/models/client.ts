@@ -2,7 +2,7 @@ import { DataTypes, Model, type Optional } from "sequelize";
 import sequelize from "../config/db";
 import User from "./user";
 
-interface PersonAttributes {
+interface ClientAttributes {
   id_persona: number;
   id_usuario?: number;
   codigo: string;
@@ -13,15 +13,15 @@ interface PersonAttributes {
   estado: boolean;
 }
 
-interface PersonCreationAttributes
+interface ClientCreationAttributes
   extends Optional<
-    PersonAttributes,
+    ClientAttributes,
     "id_persona" | "fecha_actualizacion" | "estado"
-  > { }
+  > {}
 
-class Person
-  extends Model<PersonAttributes, PersonCreationAttributes>
-  implements PersonAttributes {
+class Client
+  extends Model<ClientAttributes, ClientCreationAttributes>
+  implements ClientAttributes {
   public id_persona!: number;
   public id_usuario?: number;
   public codigo!: string;
@@ -36,7 +36,7 @@ class Person
   public readonly updatedAt!: Date;
 }
 
-Person.init(
+Client.init(
   {
     id_persona: {
       type: DataTypes.INTEGER,
@@ -55,27 +55,27 @@ Person.init(
       type: DataTypes.STRING(10),
       allowNull: false,
       unique: {
-        name: 'unique_person_code',
-        msg: 'El código de persona ya existe'
+        name: 'unique_client_code',
+        msg: 'El código de cliente ya existe'
       },
       validate: {
         is: {
           args: /^P\d{3}$/,
-          msg: 'El código debe tener el formato P seguido de 3 números'
+          msg: 'El código debe tener el formato P seguido de 3 dígitos'
         }
-      },
+      }
     },
     id_titular: {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: "personas",
+        model: "clientes",
         key: "id_persona",
       },
       validate: {
         notSelfReference(value: number) {
           if (value === this.id_persona) {
-            throw new Error('Una persona no puede ser su propio titular');
+            throw new Error('Un cliente no puede ser su propio titular');
           }
         }
       }
@@ -119,15 +119,15 @@ Person.init(
   },
   {
     sequelize,
-    modelName: "Person",
-    tableName: "personas",
+    modelName: "Client",
+    tableName: "clientes",
     timestamps: false,
   }
 );
 
 // Associations
-Person.belongsTo(User, { foreignKey: "id_usuario", as: "usuario" });
-Person.belongsTo(Person, { foreignKey: "id_titular", as: "titular" });
-Person.hasMany(Person, { foreignKey: "id_titular", as: "beneficiarios" });
+Client.belongsTo(User, { foreignKey: "id_usuario", as: "usuario" });
+Client.belongsTo(Client, { foreignKey: "id_titular", as: "titularCliente" });
+Client.hasMany(Client, { foreignKey: "id_titular", as: "clientesBeneficiarios" });
 
-export default Person; 
+export default Client; 

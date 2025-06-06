@@ -1,7 +1,7 @@
 import { DataTypes, Model, type Optional } from "sequelize"
 import sequelize from "../config/db"
 import User from "./user"
-import Person from "./person"
+import Person from "./client"
 
 interface TrainingAttributes {
     id: number
@@ -73,7 +73,7 @@ Training.init(
             allowNull: false,
             validate: {
                 isDate: true,
-                isValidStartDate(value: string) {
+                isValidStartDate(value: Date) {
                     if (new Date(value) < new Date()) {
                         throw new Error('La fecha de inicio no puede ser anterior a la fecha actual');
                     }
@@ -86,7 +86,13 @@ Training.init(
             validate: {
                 isDate: true,
                 isAfterStartDate(value: string) {
-                    if (new Date(value) <= new Date(this.fecha_inicio)) {
+                    const startDate = this.fecha_inicio as Date;
+                    if (!startDate) {
+                        throw new Error('La fecha de inicio no está definida');
+                    }
+                    const endDate = new Date(value);
+                    const startDateObj = new Date(startDate);
+                    if (endDate <= startDateObj) {
                         throw new Error('La fecha de fin debe ser posterior a la fecha de inicio');
                     }
                 }
