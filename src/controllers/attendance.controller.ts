@@ -21,25 +21,25 @@ export class AttendanceController {
     public async getAll(req: Request, res: Response) {
         try {
             const validatedParams = listAttendanceSchema.parse(req.query);
-        const { 
-            page = '1', 
-            limit = '10', 
-            orderBy = 'fecha_uso', 
-            direction = 'DESC',
-            fecha_inicio,
-            fecha_fin
+            const {
+                page = '1',
+                limit = '10',
+                orderBy = 'fecha_uso',
+                direction = 'DESC',
+                fecha_inicio,
+                fecha_fin
             } = validatedParams;
 
             const pageNum = parseInt(page);
             const limitNum = parseInt(limit);
-        const offset = (pageNum - 1) * limitNum;
+            const offset = (pageNum - 1) * limitNum;
 
             const whereClause: any = { estado: "Activo" };
-        if (fecha_inicio && fecha_fin) {
+            if (fecha_inicio && fecha_fin) {
                 whereClause.fecha_uso = {
-                [Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)]
-            };
-        }
+                    [Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)]
+                };
+            }
 
             const { count, rows: attendances } = await Attendance.findAndCountAll({
                 where: whereClause,
@@ -50,6 +50,7 @@ export class AttendanceController {
                         attributes: ["codigo", "id_usuario"],
                         include: [{
                             model: User,
+                            as: "usuario",
                             attributes: ["nombre", "apellido", "numero_documento"]
                         }]
                     },
@@ -65,8 +66,8 @@ export class AttendanceController {
             });
 
             return ApiResponse.success(
-                res, 
-                attendances, 
+                res,
+                attendances,
                 "Asistencias obtenidas exitosamente",
                 {
                     total: count,
@@ -89,25 +90,25 @@ export class AttendanceController {
         }
     }
 
-// Buscar asistencias
+    // Buscar asistencias
     public async search(req: Request, res: Response) {
-    try {
+        try {
             const validatedParams = searchAttendanceSchema.parse(req.query);
-        const { 
-            codigo_usuario,
-            nombre_usuario,
+            const {
+                codigo_usuario,
+                nombre_usuario,
                 estado,
-            fecha_inicio,
-            fecha_fin,
-            page = '1',
-            limit = '10',
-            orderBy = 'fecha_uso',
-            direction = 'DESC'
+                fecha_inicio,
+                fecha_fin,
+                page = '1',
+                limit = '10',
+                orderBy = 'fecha_uso',
+                direction = 'DESC'
             } = validatedParams;
 
             const pageNum = parseInt(page);
             const limitNum = parseInt(limit);
-        const offset = (pageNum - 1) * limitNum;
+            const offset = (pageNum - 1) * limitNum;
 
             const whereClause: any = {};
             if (estado) whereClause.estado = estado;
@@ -125,6 +126,7 @@ export class AttendanceController {
                         as: "persona",
                         include: [{
                             model: User,
+                            as: "usuario",
                             where: {
                                 ...(codigo_usuario && { codigo: codigo_usuario }),
                                 ...(nombre_usuario && {
@@ -176,7 +178,7 @@ export class AttendanceController {
         }
     }
 
-    // Registrar nueva asistencia
+    // Registrar nueva asistencia ✅
     public async create(req: Request, res: Response) {
         try {
             const { numero_documento } = req.body;
@@ -184,18 +186,19 @@ export class AttendanceController {
 
             // Buscar persona por número de documento
             const person = await Person.findOne({
-                    include: [{
-                        model: User,
-                    where: { 
-                        numero_documento,
-                        estado: true
-                    }
+                include: [{
+                    model: User,
+                    as: 'usuario',
+                    where: {
+                        numero_documento: numero_documento
+                    },
+                    attributes: ['numero_documento']
                 }]
             });
 
             if (!person) {
                 return ApiResponse.error(
-                    res, 
+                    res,
                     "Persona no encontrada o usuario inactivo",
                     404
                 );
@@ -207,10 +210,10 @@ export class AttendanceController {
                     id_persona: person.id_persona,
                     estado: "Activo",
                     fecha_inicio: {
-                        [Op.lte]: new Date()
+                        [Op.gte]: new Date()
                     },
                     fecha_fin: {
-                        [Op.gte]: new Date()
+                        [Op.lte]: new Date()
                     }
                 }
             });
@@ -244,11 +247,14 @@ export class AttendanceController {
             }
 
             // Validar datos de asistencia
+            const now = new Date();
+            const horaActual = now.toTimeString().split(' ')[0]; // Obtiene HH:MM:SS
+
             const attendanceData = createAttendanceSchema.parse({
                 id_persona: person.id_persona,
                 id_contrato: contract.id,
                 fecha_uso: today,
-                hora_registro: new Date(),
+                hora_registro: horaActual,
                 estado: "Activo",
                 usuario_registro: userId
             });
@@ -274,8 +280,9 @@ export class AttendanceController {
                     {
                         model: Person,
                         as: "persona",
-                    include: [{
-                        model: User,
+                        include: [{
+                            model: User,
+                            as: "usuario",
                             attributes: ["nombre", "apellido", "numero_documento"]
                         }]
                     },
@@ -315,13 +322,13 @@ export class AttendanceController {
         }
     }
 
-// Obtener detalles de una asistencia
+    // Obtener detalles de una asistencia
     public async getById(req: Request, res: Response) {
         try {
             const { id } = idSchema.parse(req.params);
 
             const attendance = await Attendance.findOne({
-                where: { 
+                where: {
                     id,
                     estado: "Activo"
                 },
@@ -329,8 +336,9 @@ export class AttendanceController {
                     {
                         model: Person,
                         as: "persona",
-                include: [{
-                    model: User,
+                        include: [{
+                            model: User,
+                            as: "usuario",
                             attributes: ["nombre", "apellido", "numero_documento"]
                         }]
                     },
@@ -343,9 +351,9 @@ export class AttendanceController {
                         }]
                     }
                 ]
-        });
+            });
 
-        if (!attendance) {
+            if (!attendance) {
                 return ApiResponse.error(
                     res,
                     "Asistencia no encontrada",
@@ -359,9 +367,9 @@ export class AttendanceController {
                 "Detalles de asistencia obtenidos exitosamente"
             );
 
-    } catch (error) {
+        } catch (error) {
             console.error("Error al obtener asistencia:", error);
-        if (error instanceof z.ZodError) {
+            if (error instanceof z.ZodError) {
                 return ApiResponse.error(
                     res,
                     "ID de asistencia inválido",
@@ -457,9 +465,9 @@ export class AttendanceController {
                 "Asistencia eliminada correctamente"
             );
 
-    } catch (error) {
+        } catch (error) {
             console.error("Error al eliminar asistencia:", error);
-        if (error instanceof z.ZodError) {
+            if (error instanceof z.ZodError) {
                 return ApiResponse.error(
                     res,
                     "ID de asistencia inválido",
@@ -483,4 +491,4 @@ export const getAttendanceDetails = attendanceController.getById.bind(attendance
 export const deleteAttendances = attendanceController.delete.bind(attendanceController);
 
 // Exportar el controlador por defecto
-export default attendanceController; 
+export default attendanceController;

@@ -15,7 +15,9 @@ export const createAttendanceSchema = z.object({
         invalid_type_error: 'El ID del contrato debe ser un número'
     }),
     fecha_uso: z.date().default(() => new Date()),
-    hora_registro: z.date().default(() => new Date()),
+    hora_registro: z.string().time({
+        message: 'La hora debe tener un formato válido (HH:MM:SS)'
+    }),
     estado: z.enum(['Activo', 'Eliminado'], {
         required_error: 'El estado es requerido'
     }).default('Activo'),
