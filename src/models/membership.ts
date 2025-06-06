@@ -92,7 +92,7 @@ Membership.init({
     }
 }, {
     sequelize,
-    modelName: 'Membresia',
+    modelName: 'membresia',
     tableName: 'membresias',
     timestamps: false
 });

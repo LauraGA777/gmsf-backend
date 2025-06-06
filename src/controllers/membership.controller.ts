@@ -34,7 +34,7 @@ export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res:
         const { 
             page = '1', 
             limit = '10', 
-            orderBy = 'codigo', // Changed default order to codigo
+            orderBy = 'nombre', 
             direction = 'ASC',
             estado 
         } = listMembershipSchema.parse(req.query);
@@ -43,16 +43,15 @@ export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res:
         const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
         const offset = (pageNum - 1) * limitNum;
 
-        // Construir where según el estado
-        const where = estado !== undefined ? { estado } : {};
+        const validOrderField = ['id', 'codigo', 'nombre', 'precio', 'dias_acceso',
+                    'vigencia_dias'].includes(orderBy) ? orderBy : 'codigo';
 
-        // Obtener membresías y total
+
         const [memberships, total] = await Promise.all([
             Membership.findAll({
-                where,
                 limit: limitNum,
                 offset: offset,
-                order: [['codigo', 'ASC']], // Always order by codigo first
+                order: [[validOrderField, direction]],
                 attributes: [
                     'id',
                     'codigo',
@@ -65,22 +64,8 @@ export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res:
                     'fecha_creacion'
                 ]
             }),
-            Membership.count({ where })
+            Membership.count()
         ]);
-
-        if (memberships.length === 0) {
-            res.status(404).json({
-                status: 'warning',
-                message: 'No se encontraron membresías',
-                data: {
-                    total: 0,
-                    page: pageNum,
-                    limit: limitNum,
-                    totalPages: 0,
-                    memberships: []
-                }
-            });
-        }
 
         // Transformar los datos para la respuesta
         const membershipsList = memberships.map(membership => ({
@@ -105,14 +90,6 @@ export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res:
             }
         });
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            res.status(400).json({
-                status: 'error',
-                message: 'Parámetros de consulta inválidos',
-                errors: error.errors
-            });
-            return;
-        }
         next(error);
     }
 };
