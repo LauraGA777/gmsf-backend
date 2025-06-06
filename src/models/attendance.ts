@@ -9,7 +9,7 @@ interface AttendanceAttributes {
     id_persona: number
     id_contrato: number
     fecha_uso: Date
-    hora_registro: Date
+    hora_registro: string
     estado: "Activo" | "Eliminado"
     fecha_registro: Date
     fecha_actualizacion: Date
@@ -25,7 +25,7 @@ class Attendance extends Model<AttendanceAttributes, AttendanceCreationAttribute
     public id_persona!: number
     public id_contrato!: number
     public fecha_uso!: Date
-    public hora_registro!: Date
+    public hora_registro!: string
     public estado!: "Activo" | "Eliminado"
     public fecha_registro!: Date
     public fecha_actualizacion!: Date
