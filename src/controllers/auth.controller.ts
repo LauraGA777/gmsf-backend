@@ -370,17 +370,32 @@ export const updateProfile = async (req: Request, res: Response): Promise<Respon
             });
         }
 
-        // Campos que no se pueden actualizar
-        const camposProtegidos = ['id', 'contrasena_hash', 'codigo', 'asistencias_totales', 'estado'];
-        camposProtegidos.forEach(campo => {
-            delete datosActualizacion[campo];
+        // Lista de campos permitidos para actualización
+        const camposPermitidos = [
+            'nombre',
+            'apellido',
+            'fecha_nacimiento',
+            'genero',
+            'correo',
+            'telefono',
+            'direccion',
+            'tipo_documento',
+            'numero_documento'
+        ];
+
+        // Filtrar solo los campos permitidos
+        const datosFiltrados: any = {};
+        camposPermitidos.forEach(campo => {
+            if (datosActualizacion[campo] !== undefined) {
+                datosFiltrados[campo] = datosActualizacion[campo];
+            }
         });
 
         // Actualizar fecha_actualizacion
-        datosActualizacion.fecha_actualizacion = new Date();
+        datosFiltrados.fecha_actualizacion = new Date();
 
         // Actualizar usuario
-        await user.update(datosActualizacion);
+        await user.update(datosFiltrados);
 
         // Obtener usuario actualizado sin datos sensibles
         const usuarioActualizado = await User.findByPk(usuarioId, {
@@ -401,21 +416,17 @@ export const updateProfile = async (req: Request, res: Response): Promise<Respon
             message: 'Perfil actualizado exitosamente',
             data: {
                 usuario: {
-                    id: usuarioActualizado.id,
-                    codigo: usuarioActualizado.codigo,
                     nombre: usuarioActualizado.nombre,
                     apellido: usuarioActualizado.apellido,
                     correo: usuarioActualizado.correo,
                     telefono: usuarioActualizado.telefono,
                     direccion: usuarioActualizado.direccion,
-                    genero: usuarioActualizado.genero,
                     tipo_documento: usuarioActualizado.tipo_documento,
                     numero_documento: usuarioActualizado.numero_documento,
                     fecha_nacimiento: usuarioActualizado.fecha_nacimiento,
                     fecha_actualizacion: usuarioActualizado.fecha_actualizacion,
                     asistencias_totales: usuarioActualizado.asistencias_totales,
-                    estado: usuarioActualizado.estado,
-                    id_rol: usuarioActualizado.id_rol
+                    estado: usuarioActualizado.estado
                 }
             }
         });
@@ -428,4 +439,3 @@ export const updateProfile = async (req: Request, res: Response): Promise<Respon
         });
     }
 }; 
-
