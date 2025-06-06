@@ -77,8 +77,13 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
 // Controlador de logout
 export const logout = async (req: Request, res: Response): Promise<Response> => {
     try {
-        // Obtener el token del encabezado
-        const token = req.headers.authorization?.split(' ')[1];
+        // Intentar obtener el token del header
+        let token = req.headers.authorization?.split(' ')[1];
+        
+        // Si no hay token en el header, intentar obtenerlo de las cookies
+        if (!token) {
+            token = req.cookies?.accessToken;
+        }
 
         if (!token) {
             return res.status(401).json({
@@ -89,6 +94,10 @@ export const logout = async (req: Request, res: Response): Promise<Response> => 
 
         // Agregar el token a la lista negra
         TokenBlacklist.add(token);
+
+        // Limpiar la cookie si existe
+        res.clearCookie('accessToken');
+        res.clearCookie('refreshToken');
 
         // Respuesta exitosa
         return res.status(200).json({
@@ -321,7 +330,6 @@ export const getProfile = async (req: Request, res: Response): Promise<Response>
             status: 'success',
             data: {
                 usuario: {
-                    id: user.id,
                     codigo: user.codigo,
                     nombre: user.nombre,
                     apellido: user.apellido,
@@ -334,7 +342,6 @@ export const getProfile = async (req: Request, res: Response): Promise<Response>
                     fecha_nacimiento: user.fecha_nacimiento,
                     asistencias_totales: user.asistencias_totales,
                     estado: user.estado,
-                    id_rol: user.id_rol
                 }
             }
         });
