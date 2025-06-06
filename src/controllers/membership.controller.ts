@@ -34,7 +34,7 @@ export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res:
         const { 
             page = '1', 
             limit = '10', 
-            orderBy = 'nombre', 
+            orderBy = 'codigo', // Changed default order to codigo
             direction = 'ASC',
             estado 
         } = listMembershipSchema.parse(req.query);
@@ -42,10 +42,6 @@ export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res:
         const pageNum = Math.max(1, parseInt(page));
         const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
         const offset = (pageNum - 1) * limitNum;
-
-        // Validar campo de ordenamiento
-        const validOrderFields = ['codigo', 'nombre', 'precio', 'dias_acceso', 'vigencia_dias'];
-        const validOrderField = validOrderFields.includes(orderBy) ? orderBy : 'nombre';
 
         // Construir where según el estado
         const where = estado !== undefined ? { estado } : {};
@@ -56,7 +52,7 @@ export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res:
                 where,
                 limit: limitNum,
                 offset: offset,
-                order: [[validOrderField, direction]],
+                order: [['codigo', 'ASC']], // Always order by codigo first
                 attributes: [
                     'id',
                     'codigo',
@@ -65,22 +61,41 @@ export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res:
                     'dias_acceso',
                     'vigencia_dias',
                     'precio',
-                    'estado'
+                    'estado',
+                    'fecha_creacion'
                 ]
             }),
             Membership.count({ where })
         ]);
 
+        if (memberships.length === 0) {
+            res.status(404).json({
+                status: 'warning',
+                message: 'No se encontraron membresías',
+                data: {
+                    total: 0,
+                    page: pageNum,
+                    limit: limitNum,
+                    totalPages: 0,
+                    memberships: []
+                }
+            });
+        }
+
         // Transformar los datos para la respuesta
         const membershipsList = memberships.map(membership => ({
             ...membership.toJSON(),
             estado: membership.estado ? 'Activo' : 'Inactivo',
-            acceso: `${membership.dias_acceso}/${membership.vigencia_dias} días`
+            acceso: `${membership.dias_acceso}/${membership.vigencia_dias} días`,
+            precio_formato: new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP'
+            }).format(membership.precio)
         }));
 
         res.json({
             status: 'success',
-            message: 'Membresías obtenidas exitosamente',
+            message: `Se encontraron ${total} membresías`,
             data: {
                 total,
                 page: pageNum,
@@ -594,5 +609,5 @@ export const reactivateMembership = async (
         }
         next(error);
     }
-}; 
+};
 
