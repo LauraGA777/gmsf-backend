@@ -1,12 +1,10 @@
 import { z } from "zod";
 
-// Base schema for client data without validation
+// Base schema for client data
 const clientBaseSchema = z.object({
-  id_persona: z.number().optional(),
   id_usuario: z.number().optional(),
   codigo: z
     .string()
-    .trim()
     .regex(
       /^P\d{3}$/,
       "El código debe tener el formato P seguido de 3 dígitos"
@@ -17,88 +15,74 @@ const clientBaseSchema = z.object({
 });
 
 // Schema for creating a new client
-export const createClientSchema = clientBaseSchema
-  .omit({ id_persona: true })
-  .extend({
-    usuario: z
-      .object({
-        nombre: z.string().min(3).max(100),
-        apellido: z.string().min(3).max(100),
-        correo: z.string().email(),
-        contrasena: z.string().min(6),
-        telefono: z
-          .string()
-          .regex(/^\d{7,15}$/)
-          .optional(),
-        direccion: z.string().optional(),
-        genero: z.enum(["M", "F", "O"]).optional(),
-        tipo_documento: z.enum(["CC", "CE", "TI", "PP", "DIE"]).optional(),
-        numero_documento: z.string().min(5).max(20),
-        fecha_nacimiento: z.string().refine(
-          (date) => {
-            const birthDate = new Date(date);
-            const today = new Date();
-            const age = today.getFullYear() - birthDate.getFullYear();
-            return age >= 15;
-          },
-          { message: "El cliente debe tener al menos 15 años" }
-        ),
+export const createClientSchema = clientBaseSchema.extend({
+  usuario: z
+    .object({
+      nombre: z.string().min(3).max(100),
+      apellido: z.string().min(3).max(100),
+      correo: z.string().email(),
+      contrasena: z.string().min(6),
+      telefono: z
+        .string()
+        .regex(/^\d{7,15}$/)
+        .optional(),
+      direccion: z.string().optional(),
+      genero: z.enum(["M", "F", "O"]).optional(),
+      tipo_documento: z.enum(["CC", "CE", "TI", "PP", "DIE"]).optional(),
+      numero_documento: z.string().min(5).max(20),
+      fecha_nacimiento: z.string().refine(
+        (date) => {
+          const birthDate = new Date(date);
+          const today = new Date();
+          const age = today.getFullYear() - birthDate.getFullYear();
+          return age >= 15;
+        },
+        { message: "El cliente debe tener al menos 15 años" }
+      ),
+    })
+    .optional(),
+  contactos_emergencia: z
+    .array(
+      z.object({
+        nombre_contacto: z.string().min(3).max(100),
+        telefono_contacto: z.string().regex(/^\d{7,15}$/),
+        relacion_contacto: z.string().max(50).optional(),
+        es_mismo_beneficiario: z.boolean().default(false),
       })
-      .optional(),
-    contactos_emergencia: z
-      .array(
-        z.object({
-          nombre_contacto: z.string().min(3).max(100),
-          telefono_contacto: z.string().regex(/^\d{7,15}$/),
-          relacion_contacto: z.string().max(50).optional(),
-          es_mismo_beneficiario: z.boolean().default(false),
-        })
-      )
-      .optional(),
-  });
+    )
+    .optional(),
+});
 
 // Schema for updating an existing client
-export const updateClientSchema = clientBaseSchema
-  .partial()
-  .extend({
-    usuario: z
-      .object({
-        nombre: z.string().min(3).max(100).optional(),
-        apellido: z.string().min(3).max(100).optional(),
-        correo: z.string().email().optional(),
-        telefono: z
-          .string()
-          .regex(/^\d{7,15}$/)
-          .optional(),
-        direccion: z.string().optional(),
-        genero: z.enum(["M", "F", "O"]).optional(),
-        tipo_documento: z.enum(["CC", "CE", "TI", "PP", "DIE"]).optional(),
-        numero_documento: z.string().min(5).max(20).optional(),
-        fecha_nacimiento: z.string().optional(),
+export const updateClientSchema = clientBaseSchema.partial().extend({
+  usuario: z
+    .object({
+      nombre: z.string().min(3).max(100).optional(),
+      apellido: z.string().min(3).max(100).optional(),
+      correo: z.string().email().optional(),
+      telefono: z
+        .string()
+        .regex(/^\d{7,15}$/)
+        .optional(),
+      direccion: z.string().optional(),
+      genero: z.enum(["M", "F", "O"]).optional(),
+      tipo_documento: z.enum(["CC", "CE", "TI", "PP", "DIE"]).optional(),
+      numero_documento: z.string().min(5).max(20).optional(),
+      fecha_nacimiento: z.string().optional(),
+    })
+    .optional(),
+  contactos_emergencia: z
+    .array(
+      z.object({
+        id: z.number().optional(),
+        nombre_contacto: z.string().min(3).max(100),
+        telefono_contacto: z.string().regex(/^\d{7,15}$/),
+        relacion_contacto: z.string().max(50).optional(),
+        es_mismo_beneficiario: z.boolean().default(false),
       })
-      .optional(),
-    contactos_emergencia: z
-      .array(
-        z.object({
-          id: z.number().optional(),
-          nombre_contacto: z.string().min(3).max(100),
-          telefono_contacto: z.string().regex(/^\d{7,15}$/),
-          relacion_contacto: z.string().max(50).optional(),
-          es_mismo_beneficiario: z.boolean().default(false),
-        })
-      )
-      .optional(),
-  })
-  .superRefine((data, ctx) => {
-    // Validate titular relationship only for updates where we have id_persona
-    if (data.id_titular && data.id_persona && data.id_titular === data.id_persona) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Un cliente no puede ser su propio titular",
-        path: ["id_titular"]
-      });
-    }
-  });
+    )
+    .optional(),
+});
 
 // Schema for client query parameters
 export const clientQuerySchema = z.object({

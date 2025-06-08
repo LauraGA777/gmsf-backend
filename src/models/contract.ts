@@ -54,8 +54,8 @@ Contract.init(
             unique: true,
             validate: {
                 is: {
-                    args: /^P\d{3}$/,
-                    msg: 'El código debe tener el formato P seguido de 3 números'
+                    args: /^C\d{4}$/,
+                    msg: 'El código debe tener el formato C seguido de 4 números'
                 }
             },
         },
@@ -91,14 +91,7 @@ Contract.init(
             type: DataTypes.DATE,
             allowNull: false,
             validate: {
-                isDate: true,
-                isAfterStartDate(value: unknown) {
-                    const endDate = new Date(value as string | number | Date);
-                    const startDate = new Date(this.fecha_inicio as string | number | Date);
-                    if (endDate <= startDate) {
-                        throw new Error('La fecha de fin debe ser posterior a la fecha de inicio');
-                    }
-                }
+                isDate: true
             }
         },
         membresia_precio: {
@@ -163,13 +156,4 @@ Contract.init(
     },
 )
 
-// Associations
-Contract.belongsTo(Person, { foreignKey: "id_persona", as: "persona" })
-Contract.belongsTo(Membership, { foreignKey: "id_membresia", as: "membresia" })
-Contract.belongsTo(User, { foreignKey: "usuario_registro", as: "registrador" })
-Contract.belongsTo(User, { foreignKey: "usuario_actualizacion", as: "actualizador" })
-
-Person.hasMany(Contract, { foreignKey: "id_persona", as: "contratos" })
-Membership.hasMany(Contract, { foreignKey: "id_membresia", as: "contratos" })
-
-export default Contract 
+export default Contract

@@ -3,7 +3,7 @@ import sequelize from "../config/db";
 import {
   Contract,
   ContractHistory,
-  Client,
+  Person,
   Membership,
   User,
 } from "../models";
@@ -57,7 +57,7 @@ export class ContractService {
       where: whereClause,
       include: [
         {
-          model: Client,
+          model: Person,
           as: "persona",
           include: [
             {
@@ -103,7 +103,7 @@ export class ContractService {
     const contract = await Contract.findByPk(id, {
       include: [
         {
-          model: Client,
+          model: Person,
           as: "persona",
           include: [
             {
@@ -129,11 +129,11 @@ export class ContractService {
         },
         {
           model: ContractHistory,
-          as: "history",
+          as: "historial",
           include: [
             {
               model: User,
-              as: "user",
+              as: "usuario",
               attributes: ["id", "nombre", "apellido"],
             },
           ],
@@ -147,20 +147,19 @@ export class ContractService {
 
     return contract;
   }
-
   // Create a new contract
   async create(data: any) {
     const transaction = await sequelize.transaction();
 
     try {
       // Validate client exists
-      const client = await Client.findByPk(data.id_persona, { transaction });
+      const client = await Person.findByPk(data.id_persona, { transaction });
       if (!client) {
         await transaction.rollback();
         throw new ApiError("Cliente no encontrado", 404);
       }
 
-      // Validate membership exists
+      // Validate membership exists and calculate end date
       const membership = await Membership.findByPk(data.id_membresia, {
         transaction,
       });
@@ -169,6 +168,19 @@ export class ContractService {
         throw new ApiError("Membresía no encontrada", 404);
       }
 
+      // Validate start date is not in the past
+      const startDate = new Date(data.fecha_inicio);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (startDate < today) {
+        await transaction.rollback();
+        throw new ApiError("La fecha de inicio no puede ser anterior a la fecha actual", 400);
+      }
+
+      // Calculate end date based on membership vigencia_dias
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + membership.vigencia_dias);
+
       // Generate contract code
       const lastContract = await Contract.findOne({
         order: [["id", "DESC"]],
@@ -176,10 +188,7 @@ export class ContractService {
       });
 
       const contractCode = lastContract
-        ? `C${String(Number(lastContract.codigo.substring(1)) + 1).padStart(
-            4,
-            "0"
-          )}`
+        ? `C${String(Number(lastContract.codigo.substring(1)) + 1).padStart(4, "0")}`
         : "C0001";
 
       // Create contract
@@ -188,21 +197,26 @@ export class ContractService {
           codigo: contractCode,
           id_persona: data.id_persona,
           id_membresia: data.id_membresia,
-          fecha_inicio: new Date(data.fecha_inicio),
-          fecha_fin: new Date(data.fecha_fin),
-          membresia_precio: data.membresia_precio,
-          estado: data.estado,
+          fecha_inicio: startDate,
+          fecha_fin: endDate,
+          membresia_precio: membership.precio, // Siempre usar el precio de la membresía
+          estado: "Activo",
+          fecha_registro: new Date(),
+          fecha_actualizacion: new Date(),
           usuario_registro: data.usuario_registro,
         },
         { transaction }
-      );      // Create contract history
+      );
+
+      // Create contract history
       await ContractHistory.create(
         {
           id_contrato: contract.id,
           estado_anterior: undefined,
-          estado_nuevo: data.estado,
+          estado_nuevo: "Activo",
+          fecha_cambio: new Date(),
           usuario_cambio: data.usuario_registro,
-          motivo: "Creación de contrato",
+          motivo: "Creación de contrato"
         },
         { transaction }
       );
@@ -329,6 +343,28 @@ export class ContractService {
         throw new ApiError("Contrato no encontrado", 404);
       }
 
+      // Get membership to calculate end date
+      const membership = await Membership.findByPk(data.id_membresia, {
+        transaction,
+      });
+      if (!membership) {
+        await transaction.rollback();
+        throw new ApiError("Membresía no encontrada", 404);
+      }
+
+      // Validate start date is not in the past
+      const startDate = new Date(data.fecha_inicio);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (startDate < today) {
+        await transaction.rollback();
+        throw new ApiError("La fecha de inicio no puede ser anterior a la fecha actual", 400);
+      }
+
+      // Calculate end date based on membership vigencia_dias
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + membership.vigencia_dias);
+
       // Update old contract to 'Vencido' if it's not already
       if (oldContract.estado !== "Vencido") {
         const oldState = oldContract.estado;
@@ -348,8 +384,9 @@ export class ContractService {
             id_contrato: oldContract.id,
             estado_anterior: oldState,
             estado_nuevo: "Vencido",
+            fecha_cambio: new Date(),
             usuario_cambio: data.usuario_registro,
-            motivo: "Renovación de contrato",
+            motivo: "Renovación de contrato"
           },
           { transaction }
         );
@@ -362,10 +399,7 @@ export class ContractService {
       });
 
       const contractCode = lastContract
-        ? `C${String(Number(lastContract.codigo.substring(1)) + 1).padStart(
-            4,
-            "0"
-          )}`
+        ? `C${String(Number(lastContract.codigo.substring(1)) + 1).padStart(4, "0")}`
         : "C0001";
 
       // Create new contract
@@ -374,10 +408,12 @@ export class ContractService {
           codigo: contractCode,
           id_persona: oldContract.id_persona,
           id_membresia: data.id_membresia,
-          fecha_inicio: new Date(data.fecha_inicio),
-          fecha_fin: new Date(data.fecha_fin),
-          membresia_precio: data.membresia_precio,
+          fecha_inicio: startDate,
+          fecha_fin: endDate,
+          membresia_precio: membership.precio, // Siempre usar el precio de la membresía
           estado: "Activo",
+          fecha_registro: new Date(),
+          fecha_actualizacion: new Date(),
           usuario_registro: data.usuario_registro,
         },
         { transaction }
@@ -389,8 +425,9 @@ export class ContractService {
           id_contrato: newContract.id,
           estado_anterior: undefined,
           estado_nuevo: "Activo",
+          fecha_cambio: new Date(),
           usuario_cambio: data.usuario_registro,
-          motivo: "Creación por renovación",
+          motivo: "Creación por renovación"
         },
         { transaction }
       );
@@ -455,10 +492,14 @@ export class ContractService {
       where: { id_contrato: id },
       include: [
         {
-          model: User,
-          as: "user",
-          attributes: ["id", "nombre", "apellido"],
+          model: Contract,
+          as: "contrato"
         },
+        {
+          model: User,
+          as: "usuario",
+          attributes: ["id", "nombre", "apellido"],
+        }
       ],
       order: [["fecha_cambio", "DESC"]],
     });

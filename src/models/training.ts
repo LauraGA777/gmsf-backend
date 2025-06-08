@@ -11,7 +11,7 @@ interface TrainingAttributes {
     fecha_fin: Date
     id_entrenador: number
     id_cliente: number
-    estado: "Programado" | "Completado" | "Cancelado"
+    estado: "Programado" | "En proceso" | "Completado" | "Cancelado"
     notas?: string
     fecha_creacion: Date
 }
@@ -29,7 +29,7 @@ class Training
     public fecha_fin!: Date
     public id_entrenador!: number
     public id_cliente!: number
-    public estado!: "Programado" | "Completado" | "Cancelado"
+    public estado!: "Programado" | "En proceso" | "Completado" | "Cancelado"
     public notas?: string
     public fecha_creacion!: Date
 
@@ -73,7 +73,7 @@ Training.init(
             allowNull: false,
             validate: {
                 isDate: true,
-                isValidStartDate(value: Date) {
+                isValidStartDate(value: string) {
                     if (new Date(value) < new Date()) {
                         throw new Error('La fecha de inicio no puede ser anterior a la fecha actual');
                     }
@@ -85,14 +85,13 @@ Training.init(
             allowNull: false,
             validate: {
                 isDate: true,
-                isAfterStartDate(value: string) {
-                    const startDate = this.fecha_inicio as Date;
-                    if (!startDate) {
-                        throw new Error('La fecha de inicio no está definida');
+                isAfterStartDate(value: string | Date) {
+                    if (!(this as any).fecha_inicio) {
+                        throw new Error('La fecha de inicio es requerida');
                     }
                     const endDate = new Date(value);
-                    const startDateObj = new Date(startDate);
-                    if (endDate <= startDateObj) {
+                    const startDate = new Date((this as any).fecha_inicio);
+                    if (endDate <= startDate) {
                         throw new Error('La fecha de fin debe ser posterior a la fecha de inicio');
                     }
                 }
@@ -120,8 +119,8 @@ Training.init(
             defaultValue: "Programado",
             validate: {
                 isIn: {
-                    args: [["Programado", "Completado", "Cancelado"]],
-                    msg: 'El estado debe ser uno de los siguientes: Programado, Completado, Cancelado'
+                    args: [["Programado", "En proceso", "Completado", "Cancelado"]],
+                    msg: 'El estado debe ser uno de los siguientes: Programado, En proceso, Completado, Cancelado'
                 }
             },
         },

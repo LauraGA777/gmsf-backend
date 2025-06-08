@@ -13,7 +13,7 @@ const trainingBaseSchema = z.object({
   id_entrenador: z.number(),
   id_cliente: z.number(),
   estado: z
-    .enum(["Programado", "Completado", "Cancelado"])
+    .enum(["Programado", "En proceso", "Completado", "Cancelado"])
     .default("Programado"),
   notas: z.string().optional(),
 });
@@ -29,7 +29,7 @@ export const trainingQuerySchema = z.object({
   page: z.string().transform(Number).default("1"),
   limit: z.string().transform(Number).default("10"),
   search: z.string().optional(),
-  estado: z.enum(["Programado", "Completado", "Cancelado"]).optional(),
+  estado: z.enum(["Programado", "En proceso", "Completado", "Cancelado"]).optional(),
   id_entrenador: z.string().transform(Number).optional(),
   id_cliente: z.string().transform(Number).optional(),
   fecha_inicio: z.string().optional(),

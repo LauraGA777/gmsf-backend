@@ -1,9 +1,35 @@
 import { Op } from "sequelize";
 import sequelize from "../config/db";
-import { Training, User, Client, Contract } from "../models";
+import { Training, User, Person, Contract, Trainer } from "../models";
 import { ApiError } from "../errors/apiError";
 
 export class ScheduleService {
+  private _getUpdatedStatus(training: {
+    estado: string;
+    fecha_inicio: Date;
+    fecha_fin: Date;
+  }): "Programado" | "En proceso" | "Completado" | "Cancelado" {
+    const { estado, fecha_inicio, fecha_fin } = training;
+
+    if (estado === "Cancelado" || estado === "Completado") {
+      return estado;
+    }
+
+    const now = new Date();
+    const inicio = new Date(fecha_inicio);
+    const fin = new Date(fecha_fin);
+
+    if (now >= fin) {
+      return "Completado";
+    }
+
+    if (now >= inicio && now < fin) {
+      return "En proceso";
+    }
+
+    return "Programado";
+  }
+
   // Get all training sessions with pagination and filters
   async findAll(options: {
     page?: number;
@@ -62,7 +88,7 @@ export class ScheduleService {
           attributes: ["id", "nombre", "apellido", "correo"],
         },
         {
-          model: Client,
+          model: Person,
           as: "cliente",
           include: [
             {
@@ -78,8 +104,14 @@ export class ScheduleService {
       order: [["fecha_inicio", "ASC"]],
     });
 
+    const updatedRows = rows.map((training) => {
+      const plainTraining = training.get({ plain: true });
+      plainTraining.estado = this._getUpdatedStatus(plainTraining);
+      return plainTraining;
+    });
+
     return {
-      data: rows,
+      data: updatedRows,
       pagination: {
         total: count,
         page,
@@ -99,7 +131,7 @@ export class ScheduleService {
           attributes: ["id", "nombre", "apellido", "correo", "telefono"],
         },
         {
-          model: Client,
+          model: Person,
           as: "cliente",
           include: [
             {
@@ -116,6 +148,8 @@ export class ScheduleService {
       throw new ApiError("Sesión de entrenamiento no encontrada", 404);
     }
 
+    training.estado = this._getUpdatedStatus(training);
+
     return training;
   }
 
@@ -124,19 +158,24 @@ export class ScheduleService {
     const transaction = await sequelize.transaction();
 
     try {
-      // Validate trainer exists
-      const trainer = await User.findByPk(data.id_entrenador, {
+      // Validate trainer exists and is active
+      const trainerUser = await User.findByPk(data.id_entrenador, { transaction });
+      if (!trainerUser || !trainerUser.estado) {
+        throw new ApiError("El entrenador no existe o se encuentra inactivo", 404);
+      }
+
+      const trainerDetails = await Trainer.findOne({
+        where: { id_usuario: data.id_entrenador, estado: true },
         transaction,
       });
-      if (!trainer) {
-        await transaction.rollback();
-        throw new ApiError("Entrenador no encontrado", 404);
+
+      if (!trainerDetails) {
+        throw new ApiError("El usuario no tiene un perfil de entrenador activo", 400);
       }
 
       // Validate client exists
-      const client = await Client.findByPk(data.id_cliente, { transaction });
+      const client = await Person.findByPk(data.id_cliente, { transaction });
       if (!client) {
-        await transaction.rollback();
         throw new ApiError("Cliente no encontrado", 404);
       }
 
@@ -151,7 +190,6 @@ export class ScheduleService {
       });
 
       if (!activeContract) {
-        await transaction.rollback();
         throw new ApiError("El cliente no tiene un contrato activo", 400);
       }
 
@@ -181,7 +219,6 @@ export class ScheduleService {
       });
 
       if (conflicts.length > 0) {
-        await transaction.rollback();
         throw new ApiError("Existe un conflicto de horarios", 400);
       }
 
@@ -206,7 +243,6 @@ export class ScheduleService {
       // Return the created training session with all relations
       return this.findById(training.id);
     } catch (error) {
-      await transaction.rollback();
       throw error;
     }
   }
@@ -219,7 +255,6 @@ export class ScheduleService {
       const training = await Training.findByPk(id, { transaction });
 
       if (!training) {
-        await transaction.rollback();
         throw new ApiError("Sesión de entrenamiento no encontrada", 404);
       }
 
@@ -251,7 +286,6 @@ export class ScheduleService {
         });
 
         if (conflicts.length > 0) {
-          await transaction.rollback();
           throw new ApiError("Existe un conflicto de horarios", 400);
         }
       }
@@ -278,7 +312,6 @@ export class ScheduleService {
       // Return the updated training session with all relations
       return this.findById(id);
     } catch (error) {
-      await transaction.rollback();
       throw error;
     }
   }
@@ -291,7 +324,6 @@ export class ScheduleService {
       const training = await Training.findByPk(id, { transaction });
 
       if (!training) {
-        await transaction.rollback();
         throw new ApiError("Sesión de entrenamiento no encontrada", 404);
       }
 
@@ -309,7 +341,6 @@ export class ScheduleService {
         message: "Sesión de entrenamiento cancelada correctamente",
       };
     } catch (error) {
-      await transaction.rollback();
       throw error;
     }
   }
@@ -343,7 +374,7 @@ export class ScheduleService {
           attributes: ["id", "nombre", "apellido"],
         },
         {
-          model: Client,
+          model: Person,
           as: "cliente",
           include: [
             {
@@ -393,7 +424,7 @@ export class ScheduleService {
       },
       include: [
         {
-          model: Client,
+          model: Person,
           as: "cliente",
           include: [
             {
@@ -408,5 +439,153 @@ export class ScheduleService {
     });
 
     return trainings;
+  }
+
+  // Get daily schedule
+  async getDailySchedule(date: string) {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const trainings = await Training.findAll({
+      where: {
+        fecha_inicio: {
+          [Op.between]: [startOfDay, endOfDay],
+        },
+        estado: { [Op.ne]: "Cancelado" },
+      },
+      include: [
+        {
+          model: User,
+          as: "entrenador",
+          attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+        },
+        {
+          model: Person,
+          as: "cliente",
+          include: [
+            {
+              model: User,
+              as: "usuario",
+              attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+            },
+          ],
+        },
+      ],
+      order: [["fecha_inicio", "ASC"]],
+    });
+
+    return trainings;
+  }
+
+  // Get weekly schedule
+  async getWeeklySchedule(startDate: string, endDate: string) {
+    const trainings = await Training.findAll({
+      where: {
+        fecha_inicio: {
+          [Op.between]: [new Date(startDate), new Date(endDate)],
+        },
+        estado: { [Op.ne]: "Cancelado" },
+      },
+      include: [
+        {
+          model: User,
+          as: "entrenador",
+          attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+        },
+        {
+          model: Person,
+          as: "cliente",
+          include: [
+            {
+              model: User,
+              as: "usuario",
+              attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+            },
+          ],
+        },
+      ],
+      order: [["fecha_inicio", "ASC"]],
+    });
+
+    return trainings;
+  }
+
+  // Get monthly schedule
+  async getMonthlySchedule(year: number, month: number) {
+    const startOfMonth = new Date(year, month - 1, 1);
+    const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+
+    const trainings = await Training.findAll({
+      where: {
+        fecha_inicio: {
+          [Op.between]: [startOfMonth, endOfMonth],
+        },
+        estado: { [Op.ne]: "Cancelado" },
+      },
+      include: [
+        {
+          model: User,
+          as: "entrenador",
+          attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+        },
+        {
+          model: Person,
+          as: "cliente",
+          include: [
+            {
+              model: User,
+              as: "usuario",
+              attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+            },
+          ],
+        },
+      ],
+      order: [["fecha_inicio", "ASC"]],
+    });
+
+    return trainings;
+  }
+
+  // Get active trainers
+  async getActiveTrainers() {
+    const trainers = await User.findAll({
+      where: { estado: true },
+      include: [
+        {
+          model: Trainer,
+          where: { estado: true },
+          required: true,
+          as: "detalles_entrenador"
+        },
+      ],
+      attributes: ["id", "nombre", "apellido", "correo"],
+    });
+    return trainers;
+  }
+
+  // Get active clients with active contracts
+  async getActiveClientsWithContracts() {
+    const clients = await Person.findAll({
+      where: { estado: true },
+      include: [
+        {
+          model: User,
+          as: "usuario",
+          where: { estado: true },
+          required: true,
+          attributes: ["id", "nombre", "apellido", "correo"],
+        },
+        {
+          model: Contract,
+          as: "contratos",
+          where: { estado: "Activo" },
+          required: true,
+        },
+      ],
+    });
+    return clients;
   }
 }

@@ -1,5 +1,5 @@
 import User from "./user"
-import Client from "./client.model"
+import Person from "./client"
 import EmergencyContact from "./emergencyContact"
 import Membership from "./membership"
 import Contract from "./contract"
@@ -8,10 +8,11 @@ import Training from "./training"
 import Role from './role'
 import Permission from './permission'
 import Privilege from './privilege'
+import Trainer from './trainer'
 
 export {
   User,
-  Client,
+  Person,
   EmergencyContact,
   Membership,
   Contract,
@@ -19,7 +20,8 @@ export {
   Training,
   Role,
   Permission,
-  Privilege
+  Privilege,
+  Trainer
 }
 
 // Initialize all models and associations
@@ -27,7 +29,7 @@ export const initModels = () => {
   // All associations are defined in the model files
   return {
     User,
-    Client,
+    Person,
     EmergencyContact,
     Membership,
     Contract,
@@ -35,7 +37,8 @@ export const initModels = () => {
     Training,
     Role,
     Permission,
-    Privilege
+    Privilege,
+    Trainer
   }
 }
 
@@ -73,11 +76,28 @@ Privilege.belongsTo(Permission, {
     as: 'permiso'
 });
 
-// Relaciones de Client
-Client.belongsTo(User, { foreignKey: "id_usuario", as: "usuario" });
-Client.belongsTo(Client, { foreignKey: "id_titular", as: "titularCliente" });
-Client.hasMany(Client, { foreignKey: "id_titular", as: "clientesBeneficiarios" });
-Client.hasMany(EmergencyContact, { foreignKey: "id_persona", as: "contactos_emergencia" });
+// Relaciones de Contract
+Contract.belongsTo(Person, { foreignKey: "id_persona", as: "persona" });
+Contract.belongsTo(Membership, { foreignKey: "id_membresia", as: "membresia" });
+Contract.belongsTo(User, { foreignKey: "usuario_registro", as: "registrador" });
+Contract.belongsTo(User, { foreignKey: "usuario_actualizacion", as: "actualizador" });
+Contract.hasMany(ContractHistory, { foreignKey: "id_contrato", as: "historial" });
 
-// Relaciones de EmergencyContact
-EmergencyContact.belongsTo(Client, { foreignKey: "id_persona", as: "persona" });
+// Relaciones de Person
+Person.hasMany(Contract, { foreignKey: "id_persona", as: "contratos" });
+
+// Relaciones de Membership
+Membership.hasMany(Contract, { foreignKey: "id_membresia", as: "contratos" });
+
+// Relaciones de User
+User.hasMany(Contract, { foreignKey: "usuario_registro", as: "contratos_registrados" });
+User.hasMany(Contract, { foreignKey: "usuario_actualizacion", as: "contratos_actualizados" });
+User.hasMany(ContractHistory, { foreignKey: "usuario_cambio", as: "cambios_contratos" });
+
+// Relaciones de ContractHistory
+ContractHistory.belongsTo(Contract, { foreignKey: "id_contrato", as: "contrato" });
+ContractHistory.belongsTo(User, { foreignKey: "usuario_cambio", as: "usuarioDelCambio" });
+
+// Relaciones de Trainer y User
+Trainer.belongsTo(User, { foreignKey: 'id_usuario', as: 'infoUsuario' });
+User.hasOne(Trainer, { foreignKey: 'id_usuario', as: 'detalles_entrenador' });

@@ -1,6 +1,5 @@
 import { DataTypes, Model, type Optional } from "sequelize"
 import sequelize from "../config/db"
-import Contract from "./contract"
 import User from "./user"
 
 interface ContractHistoryAttributes {
@@ -107,10 +106,4 @@ ContractHistory.init(
   },
 )
 
-// Associations
-ContractHistory.belongsTo(Contract, { foreignKey: "id_contrato", as: "contract" })
-ContractHistory.belongsTo(User, { foreignKey: "usuario_cambio", as: "user" })
-
-Contract.hasMany(ContractHistory, { foreignKey: "id_contrato", as: "history" })
-
-export default ContractHistory 
+export default ContractHistory

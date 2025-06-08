@@ -47,7 +47,6 @@ export class ClientController {
   // Create a new client
   public async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      console.log('CODIGO RECIBIDO:', req.body.codigo);
       const data = createClientSchema.parse(req.body);
       const client = await this.clientService.create(data);
 

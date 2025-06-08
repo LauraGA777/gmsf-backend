@@ -143,4 +143,52 @@ export class ScheduleController {
       next(error);
     }
   }
+
+  // Get daily schedule
+  async getDailySchedule(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { date } = req.params;
+      const schedule = await scheduleService.getDailySchedule(date);
+
+      return ApiResponse.success(
+        res,
+        schedule,
+        "Agenda diaria obtenida correctamente"
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get weekly schedule
+  async getWeeklySchedule(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { startDate, endDate } = req.query as { startDate: string; endDate: string };
+      const schedule = await scheduleService.getWeeklySchedule(startDate, endDate);
+
+      return ApiResponse.success(
+        res,
+        schedule,
+        "Agenda semanal obtenida correctamente"
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get monthly schedule
+  async getMonthlySchedule(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { year, month } = req.query as { year: string; month: string };
+      const schedule = await scheduleService.getMonthlySchedule(parseInt(year), parseInt(month));
+
+      return ApiResponse.success(
+        res,
+        schedule,
+        "Agenda mensual obtenida correctamente"
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
 }
