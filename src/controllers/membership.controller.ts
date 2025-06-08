@@ -20,31 +20,31 @@ const generateMembershipCode = async (): Promise<string> => {
     const lastMembership = await Membership.findOne({
         order: [['codigo', 'DESC']],
     });
-    
-    const lastNumber = lastMembership 
-        ? parseInt(lastMembership.codigo.substring(1)) 
+
+    const lastNumber = lastMembership
+        ? parseInt(lastMembership.codigo.substring(1))
         : 0;
-    
+
     return `M${String(lastNumber + 1).padStart(3, '0')}`;
 };
 
 // Obtener todas las membresías con paginación
 export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { 
-            page = '1', 
-            limit = '10', 
-            orderBy = 'nombre', 
+        const {
+            page = '1',
+            limit = '10',
+            orderBy = 'codigo',
             direction = 'ASC',
-            estado 
+            
         } = listMembershipSchema.parse(req.query);
 
         const pageNum = Math.max(1, parseInt(page));
         const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
         const offset = (pageNum - 1) * limitNum;
 
-        const validOrderField = ['id', 'codigo', 'nombre', 'precio', 'dias_acceso',
-                    'vigencia_dias'].includes(orderBy) ? orderBy : 'codigo';
+        const validOrderFields = ['id', 'codigo', 'nombre', 'precio', 'dias_acceso', 'vigencia_dias'];
+        const validOrderField = validOrderFields.includes(orderBy) ? orderBy : 'codigo';
 
 
         const [memberships, total] = await Promise.all([
@@ -97,7 +97,7 @@ export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res:
 // Buscar membresías
 export const searchMemberships = async (req: Request<{}, {}, {}, SearchParams>, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { 
+        const {
             codigo,
             nombre,
             descripcion,
@@ -411,7 +411,7 @@ export const deactivateMembership = async (
         }*/
 
         // Desactivar la membresía
-        await membership.update({ 
+        await membership.update({
             estado: false
         });
 
@@ -545,7 +545,7 @@ export const reactivateMembership = async (
         }
 
         // Reactivar la membresía
-        await membership.update({ 
+        await membership.update({
             estado: true
         });
 
