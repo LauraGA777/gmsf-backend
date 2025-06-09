@@ -1,5 +1,27 @@
 import { z } from "zod";
 
+const fechaInicioSchema = z
+  .string()
+  .refine((date: string) => !isNaN(Date.parse(date)), {
+    message: "Fecha de inicio inválida",
+  })
+  .refine(
+    (date: string) => {
+      // Use string comparison for dates to avoid timezone issues.
+      // This is the most robust way to compare dates regardless of server/client timezone.
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayString = `${year}-${month}-${day}`;
+
+      return date >= todayString;
+    },
+    {
+      message: "La fecha de inicio no puede ser anterior a la fecha actual",
+    }
+  );
+
 // Base schema for contract data
 const contractBaseSchema = z.object({
   id_persona: z.number({
@@ -8,22 +30,7 @@ const contractBaseSchema = z.object({
   id_membresia: z.number({
     required_error: "El ID de la membresía es requerida",
   }),
-  fecha_inicio: z
-    .string()
-    .refine((date: string) => !isNaN(Date.parse(date)), {
-      message: "Fecha de inicio inválida",
-    })
-    .refine(
-      (date: string) => {
-        const startDate = new Date(date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        return startDate >= today;
-      },
-      {
-        message: "La fecha de inicio no puede ser anterior a la fecha actual",
-      }
-    ),
+  fecha_inicio: fechaInicioSchema,
   usuario_registro: z.number().optional(),
 });
 
@@ -34,23 +41,7 @@ export const createContractSchema = contractBaseSchema;
 export const updateContractSchema = z
   .object({
     id_membresia: z.number().optional(),
-    fecha_inicio: z
-      .string()
-      .refine((date: string) => !isNaN(Date.parse(date)), {
-        message: "Fecha de inicio inválida",
-      })
-      .refine(
-        (date: string) => {
-          const startDate = new Date(date);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          return startDate >= today;
-        },
-        {
-          message: "La fecha de inicio no puede ser anterior a la fecha actual",
-        }
-      )
-      .optional(),
+    fecha_inicio: fechaInicioSchema.optional(),
     estado: z
       .enum(["Activo", "Congelado", "Vencido", "Cancelado", "Por vencer"])
       .optional(),
@@ -85,22 +76,7 @@ export const renewContractSchema = z.object({
   id_membresia: z.number({
     required_error: "El ID de la membresía es requerido",
   }),
-  fecha_inicio: z
-    .string()
-    .refine((date: string) => !isNaN(Date.parse(date)), {
-      message: "Fecha de inicio inválida",
-    })
-    .refine(
-      (date: string) => {
-        const startDate = new Date(date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        return startDate >= today;
-      },
-      {
-        message: "La fecha de inicio no puede ser anterior a la fecha actual",
-      }
-    ),
+  fecha_inicio: fechaInicioSchema,
   usuario_registro: z.number({
     required_error: "El ID del usuario que registra es requerido",
   }),
