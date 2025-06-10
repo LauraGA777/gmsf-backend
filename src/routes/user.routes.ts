@@ -47,7 +47,7 @@ router.post('/:id/deactivate',
 );
 
 // Eliminar usuario permanentemente ✅
-router.delete('/:id', 
+router.delete('/:id/permanent', 
     verifyToken as unknown as RequestHandler,
     isAdmin as unknown as RequestHandler,
     deleteUser as unknown as RequestHandler

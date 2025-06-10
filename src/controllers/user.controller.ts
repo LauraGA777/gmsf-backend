@@ -10,7 +10,6 @@ import ApiResponse from '../utils/apiResponse';
 import UserHistory from '../models/userHistory';
 import Contract from '../models/contract';
 
-
 interface UserData {
     nombre: string;
     apellido: string;
