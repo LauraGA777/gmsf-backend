@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { Op } from 'sequelize';
 import Membership from '../models/membership';
-/* import Contract from '../models/contract'; */
+import Contract from '../models/contract';
 import { z } from 'zod';
 import {
     listMembershipSchema,
@@ -369,16 +369,19 @@ export const updateMembership = async (
 };
 
 // Desactivar membresía
-export const deactivateMembership = async (
-    req: Request<{ id: string }>,
-    res: Response,
-    next: NextFunction
-): Promise<Response | void> => {
+export const deactivateMembership = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
-        // Validar ID
         const { id } = idSchema.parse({ id: req.params.id });
+        const adminId = req.user?.id;
 
-        // Buscar la membresía
+        if (!adminId) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Usuario no autenticado'
+            });
+        }
+
+        // Buscar membresía
         const membership = await Membership.findByPk(id);
         if (!membership) {
             return res.status(404).json({
@@ -387,62 +390,36 @@ export const deactivateMembership = async (
             });
         }
 
-        // Verificar si ya está desactivada
+        // Verificar si ya está inactiva
         if (!membership.estado) {
             return res.status(400).json({
                 status: 'error',
-                message: 'La membresía ya está desactivada'
+                message: 'La membresía ya está inactiva'
             });
         }
 
-        /* // Verificar si hay contratos activos
+        // Verificar si hay contratos activos
         const activeContracts = await Contract.findOne({
             where: {
-                id_membresia: id,
-                estado: true,
-                fecha_fin: {
-                    [Op.gt]: new Date() // fecha_fin mayor que la fecha actual
-                }
+                id_membresia: membership.id,
+                estado: 'Activo'
             }
-        }); 
+        });
 
         if (activeContracts) {
             return res.status(400).json({
                 status: 'error',
                 message: 'No se puede desactivar la membresía porque tiene contratos activos'
             });
-        }*/
+        }
 
         // Desactivar la membresía
-        await membership.update({
-            estado: false
-        });
+        membership.estado = false;
+        await membership.save();
 
-        // Obtener la membresía actualizada
-        const updatedMembership = await Membership.findByPk(id, {
-            attributes: [
-                'id',
-                'codigo',
-                'nombre',
-                'descripcion',
-                'dias_acceso',
-                'vigencia_dias',
-                'precio',
-                'estado',
-                'fecha_creacion'
-            ]
-        });
-
-        return res.json({
+        return res.status(200).json({
             status: 'success',
-            message: 'Membresía desactivada exitosamente',
-            data: {
-                membership: {
-                    ...updatedMembership?.toJSON(),
-                    estado: 'Inactivo',
-                    acceso: `${updatedMembership?.dias_acceso}/${updatedMembership?.vigencia_dias} días`
-                }
-            }
+            message: 'Membresía desactivada exitosamente'
         });
 
     } catch (error) {
