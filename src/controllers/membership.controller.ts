@@ -14,6 +14,7 @@ import {
     CreateMembershipData,
     UpdateMembershipData
 } from '../validators/membership.validator';
+import sequelize from '../config/db';
 
 // Generar código único de membresía
 const generateMembershipCode = async (): Promise<string> => {
@@ -46,12 +47,14 @@ export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res:
         const validOrderFields = ['id', 'codigo', 'nombre', 'precio', 'dias_acceso', 'vigencia_dias'];
         const validOrderField = validOrderFields.includes(orderBy) ? orderBy : 'codigo';
 
-
         const [memberships, total] = await Promise.all([
             Membership.findAll({
                 limit: limitNum,
                 offset: offset,
-                order: [[validOrderField, direction]],
+                order: [
+                    [sequelize.literal('CAST(SUBSTRING(codigo, 2) AS INTEGER)'), direction],
+                    ['codigo', direction]
+                ],
                 attributes: [
                     'id',
                     'codigo',
