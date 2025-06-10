@@ -49,7 +49,7 @@ export const getUsers = async (req: Request<{}, {}, {}, QueryParams>, res: Respo
         const { 
             page = '1', 
             limit = '10', 
-            orderBy = 'nombre', 
+            orderBy = 'id', 
             direction = 'ASC' 
         } = req.query;
 
@@ -57,7 +57,8 @@ export const getUsers = async (req: Request<{}, {}, {}, QueryParams>, res: Respo
         const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
         const offset = (pageNum - 1) * limitNum;
 
-        const validOrderField = ['id', 'nombre', 'apellido', 'correo', 'codigo'].includes(orderBy) ? orderBy : 'id';
+        // Aseguramos que el orden sea por ID
+        const validOrderField = 'id';
 
         const [users, total] = await Promise.all([
             User.findAll({
