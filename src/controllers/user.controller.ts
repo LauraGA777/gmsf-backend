@@ -455,7 +455,7 @@ const deleteUser = async (req: Request, res: Response, next: NextFunction): Prom
     try {
         const { id } = idSchema.parse({ id: req.params.id });
         const adminId = req.user?.id;
-        const { motivo, confirmar } = req.body;
+        const { motivo } = req.body;
 
         if (!adminId) {
             return res.status(401).json({
@@ -503,22 +503,6 @@ const deleteUser = async (req: Request, res: Response, next: NextFunction): Prom
             return res.status(400).json({
                 status: 'error',
                 message: 'El usuario debe estar inactivo por al menos 12 meses para ser eliminado'
-            });
-        }
-
-        // Obtener información del usuario para confirmación
-        const userInfo = {
-            nombre: `${user.nombre} ${user.apellido}`,
-            documento: `${user.tipo_documento} ${user.numero_documento}`,
-            ultimaActividad: user.fecha_actualizacion
-        };
-
-        // Si no se proporciona confirmación, devolver información para confirmar
-        if (!confirmar) {
-            return res.status(200).json({
-                status: 'warning',
-                message: 'Se requiere confirmación para eliminar el usuario',
-                data: userInfo
             });
         }
 
