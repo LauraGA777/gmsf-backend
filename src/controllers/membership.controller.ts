@@ -73,7 +73,7 @@ export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res:
         // Transformar los datos para la respuesta
         const membershipsList = memberships.map(membership => ({
             ...membership.toJSON(),
-            estado: membership.estado ? 'Activo' : 'Inactivo',
+            estado: membership.estado,
             acceso: `${membership.dias_acceso}/${membership.vigencia_dias} días`,
             precio_formato: new Intl.NumberFormat('es-CO', {
                 style: 'currency',
@@ -169,7 +169,7 @@ export const searchMemberships = async (req: Request<{}, {}, {}, SearchParams>, 
         // Transformar los datos para la respuesta
         const membershipsList = memberships.map(membership => ({
             ...membership.toJSON(),
-            estado: membership.estado ? 'Activo' : 'Inactivo',
+            estado: membership.estado,
             acceso: `${membership.dias_acceso}/${membership.vigencia_dias} días`
         }));
 
@@ -255,7 +255,7 @@ export const createMembership = async (req: Request<{}, {}, CreateMembershipData
             data: {
                 membership: {
                     ...membership?.toJSON(),
-                    estado: 'Activo',
+                    estado: membership?.estado,
                     acceso: `${membership?.dias_acceso}/${membership?.vigencia_dias} días`
                 }
             }
@@ -347,7 +347,7 @@ export const updateMembership = async (
             data: {
                 membership: {
                     ...updatedMembership?.toJSON(),
-                    estado: updatedMembership?.estado ? 'Activo' : 'Inactivo',
+                    estado: updatedMembership?.estado,
                     acceso: `${updatedMembership?.dias_acceso}/${updatedMembership?.vigencia_dias} días`
                 }
             }
@@ -469,7 +469,7 @@ export const getMembershipDetails = async (
         // Formatear la respuesta
         const membershipDetails = {
             ...membership.toJSON(),
-            estado: membership.estado ? 'Activo' : 'Inactivo',
+            estado: membership.estado,
             acceso: `${membership.dias_acceso}/${membership.vigencia_dias} días`,
             precio_formato: new Intl.NumberFormat('es-CO', {
                 style: 'currency',
@@ -550,7 +550,7 @@ export const reactivateMembership = async (
             data: {
                 membership: {
                     ...updatedMembership?.toJSON(),
-                    estado: 'Activo',
+                    estado: updatedMembership?.estado,
                     acceso: `${updatedMembership?.dias_acceso}/${updatedMembership?.vigencia_dias} días`
                 }
             }
