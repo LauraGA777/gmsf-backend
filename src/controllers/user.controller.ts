@@ -57,7 +57,7 @@ export const getUsers = async (req: Request<{}, {}, {}, QueryParams>, res: Respo
         const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
         const offset = (pageNum - 1) * limitNum;
 
-        const validOrderField = ['id', 'nombre', 'apellido', 'correo', 'codigo'].includes(orderBy) ? orderBy : 'nombre';
+        const validOrderField = ['id', 'nombre', 'apellido', 'correo', 'codigo'].includes(orderBy) ? orderBy : 'id';
 
         const [users, total] = await Promise.all([
             User.findAll({
