@@ -9,6 +9,7 @@ import { Op, WhereOptions } from 'sequelize';
 import ApiResponse from '../utils/apiResponse';
 import UserHistory from '../models/userHistory';
 import Contract from '../models/contract';
+import sequelize from '../config/db';
 
 interface UserData {
     nombre: string;
@@ -455,7 +456,7 @@ const deleteUser = async (req: Request, res: Response, next: NextFunction): Prom
     try {
         const { id } = idSchema.parse({ id: req.params.id });
         const adminId = req.user?.id;
-        const { motivo } = req.body;
+        const { motivo, confirmar } = req.body;
 
         if (!adminId) {
             return res.status(401).json({
@@ -506,22 +507,56 @@ const deleteUser = async (req: Request, res: Response, next: NextFunction): Prom
             });
         }
 
-        // Registrar el motivo de eliminación en el historial
-        await UserHistory.create({
-            id_usuario: user.id,
-            estado_anterior: user.estado,
-            estado_nuevo: false,
-            usuario_cambio: adminId,
-            motivo: motivo || 'Eliminación de usuario'
-        });
+        // Obtener información del usuario para confirmación
+        const userInfo = {
+            nombre: `${user.nombre} ${user.apellido}`,
+            documento: `${user.tipo_documento} ${user.numero_documento}`,
+            ultimaActividad: user.fecha_actualizacion
+        };
 
-        // Eliminar usuario y sus registros relacionados
-        await user.destroy();
+        // Si no se proporciona confirmación, devolver información para confirmar
+        if (!confirmar) {
+            return res.status(200).json({
+                status: 'warning',
+                message: 'Se requiere confirmación para eliminar el usuario',
+                data: userInfo
+            });
+        }
 
-        return res.status(200).json({
-            status: 'success',
-            message: 'Usuario eliminado exitosamente'
-        });
+        const t = await sequelize.transaction();
+
+        try {
+            // Registrar el motivo de eliminación en el historial
+            await UserHistory.create({
+                id_usuario: user.id,
+                estado_anterior: user.estado,
+                estado_nuevo: false,
+                usuario_cambio: adminId,
+                motivo: motivo || 'Eliminación de usuario'
+            }, { transaction: t });
+
+            // Eliminar registros del historial del usuario
+            await UserHistory.destroy({
+                where: { id_usuario: user.id },
+                transaction: t
+            });
+
+            // Eliminar usuario
+            await user.destroy({ transaction: t });
+
+            // Confirmar transacción
+            await t.commit();
+
+            return res.status(200).json({
+                status: 'success',
+                message: 'Usuario eliminado exitosamente'
+            });
+
+        } catch (error) {
+            // Revertir transacción en caso de error
+            await t.rollback();
+            throw error;
+        }
 
     } catch (error) {
         if (error instanceof z.ZodError) {
