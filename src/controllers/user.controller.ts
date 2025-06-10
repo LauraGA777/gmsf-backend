@@ -456,7 +456,7 @@ const deleteUser = async (req: Request, res: Response, next: NextFunction): Prom
     try {
         const { id } = idSchema.parse({ id: req.params.id });
         const adminId = req.user?.id;
-        const { motivo, confirmar } = req.body;
+        const { motivo } = req.body;
 
         if (!adminId) {
             return res.status(401).json({
@@ -507,26 +507,11 @@ const deleteUser = async (req: Request, res: Response, next: NextFunction): Prom
             });
         }
 
-        // Obtener información del usuario para confirmación
-        const userInfo = {
-            nombre: `${user.nombre} ${user.apellido}`,
-            documento: `${user.tipo_documento} ${user.numero_documento}`,
-            ultimaActividad: user.fecha_actualizacion
-        };
-
-        // Si no se proporciona confirmación, devolver información para confirmar
-        if (!confirmar) {
-            return res.status(200).json({
-                status: 'warning',
-                message: 'Se requiere confirmación para eliminar el usuario',
-                data: userInfo
-            });
-        }
-
+        // Iniciar transacción
         const t = await sequelize.transaction();
 
         try {
-            // Registrar el motivo de eliminación en el historial
+            // 1. Registrar el motivo de eliminación en el historial
             await UserHistory.create({
                 id_usuario: user.id,
                 estado_anterior: user.estado,
@@ -535,14 +520,29 @@ const deleteUser = async (req: Request, res: Response, next: NextFunction): Prom
                 motivo: motivo || 'Eliminación de usuario'
             }, { transaction: t });
 
-            // Eliminar registros del historial del usuario
-            await UserHistory.destroy({
-                where: { id_usuario: user.id },
-                transaction: t
-            });
+            // 2. Desactivar temporalmente la restricción de clave foránea
+            await sequelize.query('SET CONSTRAINTS ALL DEFERRED', { transaction: t });
 
-            // Eliminar usuario
-            await user.destroy({ transaction: t });
+            // 3. Eliminar registros del historial
+            await sequelize.query(
+                'DELETE FROM historial_usuarios WHERE id_usuario = :userId',
+                {
+                    replacements: { userId: user.id },
+                    transaction: t
+                }
+            );
+
+            // 4. Eliminar el usuario
+            await sequelize.query(
+                'DELETE FROM usuarios WHERE id = :userId',
+                {
+                    replacements: { userId: user.id },
+                    transaction: t
+                }
+            );
+
+            // 5. Reactivar las restricciones
+            await sequelize.query('SET CONSTRAINTS ALL IMMEDIATE', { transaction: t });
 
             // Confirmar transacción
             await t.commit();
