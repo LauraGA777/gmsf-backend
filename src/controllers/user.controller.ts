@@ -7,6 +7,8 @@ import { z } from 'zod';
 import { idSchema, updateUserSchema, searchUserSchema } from '../validators/user.validator';
 import { Op, WhereOptions } from 'sequelize';
 import ApiResponse from '../utils/apiResponse';
+import UserHistory from '../models/userHistory';
+import Contract from '../models/contract';
 
 
 interface UserData {
@@ -310,10 +312,18 @@ export const updateUsers = async (req: Request, res: Response, next: NextFunctio
     }
 };
 
-// Desactivar usuario (soft delete)
-export const deactivateUser = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+// Activar usuario
+const activateUser = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
         const { id } = idSchema.parse({ id: req.params.id });
+        const adminId = req.user?.id;
+
+        if (!adminId) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Usuario no autenticado'
+            });
+        }
 
         // Buscar usuario
         const user = await User.findByPk(id);
@@ -324,23 +334,30 @@ export const deactivateUser = async (req: Request, res: Response, next: NextFunc
             });
         }
 
-        // Actualizar estado a false (soft delete)
-        await user.update({ 
-            estado: false,
-            fecha_actualizacion: new Date()
+        // Verificar si ya está activo
+        if (user.estado) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'El usuario ya está activo'
+            });
+        }
+
+        // Registrar el cambio en el historial
+        await UserHistory.create({
+            id_usuario: user.id,
+            estado_anterior: user.estado,
+            estado_nuevo: true,
+            usuario_cambio: adminId
         });
+
+        // Actualizar estado del usuario
+        user.estado = true;
+        user.fecha_actualizacion = new Date();
+        await user.save();
 
         return res.status(200).json({
             status: 'success',
-            message: 'Usuario desactivado exitosamente',
-            data: {
-                usuario: {
-                    id: user.id,
-                    codigo: user.codigo,
-                    estado: user.estado,
-                    fecha_actualizacion: user.fecha_actualizacion
-                }
-            }
+            message: 'Usuario activado exitosamente'
         });
 
     } catch (error) {
@@ -355,10 +372,97 @@ export const deactivateUser = async (req: Request, res: Response, next: NextFunc
     }
 };
 
-// Eliminar usuario físicamente
-export const hardDeleteUser = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+// Desactivar usuario
+const deactivateUser = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
         const { id } = idSchema.parse({ id: req.params.id });
+        const adminId = req.user?.id;
+
+        if (!adminId) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Usuario no autenticado'
+            });
+        }
+
+        // Buscar usuario
+        const user = await User.findByPk(id);
+        if (!user) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Usuario no encontrado'
+            });
+        }
+
+        // Verificar si ya está inactivo
+        if (!user.estado) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'El usuario ya está inactivo'
+            });
+        }
+
+        // Verificar contratos activos
+        const contratosActivos = await Contract.findAll({
+            where: {
+                usuario_registro: user.id,
+                estado: 'Activo'
+            }
+        });
+
+        if (contratosActivos.length > 0) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No se puede desactivar el usuario porque tiene contratos activos',
+                data: {
+                    contratosActivos: contratosActivos.length
+                }
+            });
+        }
+
+        // Registrar el cambio en el historial
+        await UserHistory.create({
+            id_usuario: user.id,
+            estado_anterior: user.estado,
+            estado_nuevo: false,
+            usuario_cambio: adminId
+        });
+
+        // Actualizar estado del usuario
+        user.estado = false;
+        user.fecha_actualizacion = new Date();
+        await user.save();
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Usuario desactivado exitosamente'
+        });
+
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'ID de usuario inválido',
+                errors: error.errors
+            });
+        }
+        next(error);
+    }
+};
+
+// Eliminar usuario permanentemente
+const deleteUser = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+        const { id } = idSchema.parse({ id: req.params.id });
+        const adminId = req.user?.id;
+        const { motivo, confirmar } = req.body;
+
+        if (!adminId) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Usuario no autenticado'
+            });
+        }
 
         // Buscar usuario
         const user = await User.findByPk(id);
@@ -377,48 +481,62 @@ export const hardDeleteUser = async (req: Request, res: Response, next: NextFunc
             });
         }
 
-        // Verificar tiempo de inactividad (12 meses)
-        const docesMesesAtras = new Date();
-        docesMesesAtras.setMonth(docesMesesAtras.getMonth() - 12);
+        // Verificar si tiene contratos (activos o históricos)
+        const contratos = await Contract.findAll({
+            where: {
+                usuario_registro: user.id
+            }
+        });
 
-        if (user.fecha_actualizacion > docesMesesAtras) {
+        if (contratos.length > 0) {
             return res.status(400).json({
                 status: 'error',
-                message: 'El usuario debe estar inactivo por al menos 12 meses para ser eliminado',
-                data: {
-                    fecha_ultima_actualizacion: user.fecha_actualizacion,
-                    fecha_minima_requerida: docesMesesAtras
-                }
+                message: 'No se puede eliminar el usuario porque tiene contratos asociados'
             });
         }
 
-        /* Verificar contratos activos
-        const contratosActivos = await Contract.findOne({
-            where: {
-                id_usuario: id,
-                estado: 'Activo'
-            }
-        }); 
+        // Verificar tiempo de inactividad (12 meses)
+        const doceMesesAtras = new Date();
+        doceMesesAtras.setMonth(doceMesesAtras.getMonth() - 12);
 
-        if (contratosActivos) {
+        if (user.fecha_actualizacion > doceMesesAtras) {
             return res.status(400).json({
                 status: 'error',
-                message: 'No se puede eliminar un usuario con contratos activos'
+                message: 'El usuario debe estar inactivo por al menos 12 meses para ser eliminado'
             });
-        }*/
+        }
+
+        // Obtener información del usuario para confirmación
+        const userInfo = {
+            nombre: `${user.nombre} ${user.apellido}`,
+            documento: `${user.tipo_documento} ${user.numero_documento}`,
+            ultimaActividad: user.fecha_actualizacion
+        };
+
+        // Si no se proporciona confirmación, devolver información para confirmar
+        if (!confirmar) {
+            return res.status(200).json({
+                status: 'warning',
+                message: 'Se requiere confirmación para eliminar el usuario',
+                data: userInfo
+            });
+        }
+
+        // Registrar el motivo de eliminación en el historial
+        await UserHistory.create({
+            id_usuario: user.id,
+            estado_anterior: user.estado,
+            estado_nuevo: false,
+            usuario_cambio: adminId,
+            motivo: motivo || 'Eliminación de usuario'
+        });
 
         // Eliminar usuario y sus registros relacionados
         await user.destroy();
 
         return res.status(200).json({
             status: 'success',
-            message: 'Usuario eliminado exitosamente',
-            data: {
-                usuario: {
-                    id: user.id,
-                    codigo: user.codigo
-                }
-            }
+            message: 'Usuario eliminado exitosamente'
         });
 
     } catch (error) {
@@ -510,7 +628,8 @@ export {
     getUsers as getUser, 
     register as createUser, 
     updateUsers as updateUser, 
-    deactivateUser as deleteUser, 
-    hardDeleteUser as permanentDeleteUser,
+    activateUser,
+    deactivateUser,
+    deleteUser,
     searchUsers as searchUser
 };

@@ -31,13 +31,13 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // Rutas
 app.use('/auth', authRoutes);
+app.use('/attendance', attendanceRoutes);
 app.use('/users', userRoutes);
 app.use('/memberships', membershipRoutes);
 app.use('/contracts', contractRoutes);
 app.use('/clients', clientRoutes);
 app.use('/schedules', scheduleRoutes);
 app.use('/roles', roleRoutes);
-app.use('/attendances', attendanceRoutes);
 app.use('/trainers', trainerRoutes);
 
 // Ruta de prueba

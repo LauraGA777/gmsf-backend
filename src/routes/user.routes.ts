@@ -1,5 +1,5 @@
 import { RequestHandler, Router } from 'express';
-import { getUsers, register, getUsuarioById, updateUser, deleteUser, hardDeleteUser, searchUser } from '../controllers/user.controller';
+import { getUsers, register, getUsuarioById, updateUser, activateUser, deactivateUser, deleteUser, searchUser } from '../controllers/user.controller';
 import { verifyToken, isAdmin } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -32,18 +32,25 @@ router.put('/:id',
     updateUser as unknown as RequestHandler
 );
 
-// Soft delete user route (desactivar) ✅
+// Activar usuario ✅
+router.post('/:id/activate', 
+    verifyToken as unknown as RequestHandler,
+    isAdmin as unknown as RequestHandler,
+    activateUser as unknown as RequestHandler
+);
+
+// Desactivar usuario ✅
+router.post('/:id/deactivate', 
+    verifyToken as unknown as RequestHandler,
+    isAdmin as unknown as RequestHandler,
+    deactivateUser as unknown as RequestHandler
+);
+
+// Eliminar usuario permanentemente ✅
 router.delete('/:id', 
     verifyToken as unknown as RequestHandler,
     isAdmin as unknown as RequestHandler,
     deleteUser as unknown as RequestHandler
-);
-
-// Hard delete user route (eliminación física) ✅
-router.delete('/:id/permanent', 
-    verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
-    hardDeleteUser as unknown as RequestHandler
 );
 
 // Register route ✅

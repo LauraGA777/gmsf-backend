@@ -445,4 +445,4 @@ export const updateProfile = async (req: Request, res: Response): Promise<Respon
             message: 'Error al actualizar el perfil'
         });
     }
-}; 
+};
