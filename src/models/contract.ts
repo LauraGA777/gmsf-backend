@@ -156,7 +156,7 @@ Contract.init(
     },
     {
         sequelize,
-        modelName: "Contrato",
+        modelName: "Contract",
         tableName: "contratos",
         timestamps: false,
         underscored: true,

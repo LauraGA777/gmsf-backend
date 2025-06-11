@@ -58,7 +58,7 @@ ContractHistory.belongsTo(User, { foreignKey: "usuario_cambio", as: "usuarioDelC
 User.hasMany(ContractHistory, { foreignKey: "usuario_cambio", as: "cambios_contratos" });
 
 // Relaciones de Trainer y User
-Trainer.belongsTo(User, { foreignKey: 'id_usuario', as: 'infoUsuario' });
+Trainer.belongsTo(User, { foreignKey: 'id_usuario', as: 'usuario' });
 User.hasOne(Trainer, { foreignKey: 'id_usuario', as: 'detalles_entrenador' });
 
 // Relaciones de Training
