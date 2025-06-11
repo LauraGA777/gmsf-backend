@@ -13,8 +13,14 @@ import {
     createAttendanceSchema,
     updateAttendanceSchema,
     idSchema,
-
 } from '../validators/attendance.validator';
+
+// Esquema de validación para las estadísticas
+const statsQuerySchema = z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
+        message: "El formato de fecha debe ser YYYY-MM-DD"
+    }).transform(date => new Date(date))
+});
 
 export class AttendanceController {
     // Obtener todas las asistencias con paginación y filtros
@@ -478,6 +484,70 @@ export class AttendanceController {
             return ApiResponse.error(res, "Error al eliminar la asistencia");
         }
     }
+
+    // Obtener estadísticas de asistencia
+    public async getStats(req: Request, res: Response) {
+        try {
+            const { date } = statsQuerySchema.parse(req.query);
+            
+            const targetDate = new Date(date);
+            targetDate.setHours(0, 0, 0, 0);
+            const nextDay = new Date(targetDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+
+            // Obtener estadísticas
+            const [total, activos, eliminados] = await Promise.all([
+                Attendance.count({
+                    where: {
+                        fecha_uso: {
+                            [Op.between]: [targetDate, nextDay]
+                        }
+                    }
+                }),
+                Attendance.count({
+                    where: {
+                        fecha_uso: {
+                            [Op.between]: [targetDate, nextDay]
+                        },
+                        estado: "Activo"
+                    }
+                }),
+                Attendance.count({
+                    where: {
+                        fecha_uso: {
+                            [Op.between]: [targetDate, nextDay]
+                        },
+                        estado: "Eliminado"
+                    }
+                })
+            ]);
+
+            return ApiResponse.success(
+                res,
+                {
+                    total,
+                    activos,
+                    eliminados
+                },
+                "Estadísticas de asistencia obtenidas exitosamente"
+            );
+
+        } catch (error) {
+            console.error("Error al obtener estadísticas de asistencia:", error);
+            if (error instanceof z.ZodError) {
+                return ApiResponse.error(
+                    res,
+                    "Parámetros de consulta inválidos",
+                    400,
+                    error.errors.map(err => ({
+                        campo: err.path.join('.'),
+                        mensaje: err.message
+                    }))
+                );
+            }
+            return ApiResponse.error(res, "Error al obtener las estadísticas de asistencia");
+        }
+    }
 }
 
 // Crear una instancia del controlador
@@ -489,6 +559,7 @@ export const getAttendances = attendanceController.getAll.bind(attendanceControl
 export const searchAttendances = attendanceController.search.bind(attendanceController);
 export const getAttendanceDetails = attendanceController.getById.bind(attendanceController);
 export const deleteAttendances = attendanceController.delete.bind(attendanceController);
+export const getAttendanceStats = attendanceController.getStats.bind(attendanceController);
 
 // Exportar el controlador por defecto
 export default attendanceController;

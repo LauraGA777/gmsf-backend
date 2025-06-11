@@ -4,7 +4,8 @@ import {
     getAttendances,
     searchAttendances,
     getAttendanceDetails,
-    deleteAttendances
+    deleteAttendances,
+    getAttendanceStats
 } from '../controllers/attendance.controller';
 import { verifyToken, isAdmin, isTrainerOrAdmin } from '../middlewares/auth.middleware';
 
@@ -29,6 +30,13 @@ router.get('/search',
     verifyToken as unknown as RequestHandler,
     isTrainerOrAdmin as unknown as RequestHandler,
     searchAttendances as unknown as RequestHandler
+);
+
+// Ruta para obtener estadísticas de asistencia (requiere autenticación y ser admin o entrenador) ✅
+router.get('/stats',
+    verifyToken as unknown as RequestHandler,
+    isTrainerOrAdmin as unknown as RequestHandler,
+    getAttendanceStats as unknown as RequestHandler
 );
 
 // Ruta para obtener detalles de una asistencia (requiere autenticación y ser admin o entrenador) ✅
