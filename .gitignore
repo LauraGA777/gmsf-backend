@@ -3,4 +3,10 @@ logs
 
 # Dependency directories
 node_modules
+
+# Vercel directories
 .vercel
+
+#Variables environment
+.env files
+.env
