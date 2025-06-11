@@ -38,17 +38,25 @@ const contractBaseSchema = z.object({
 export const createContractSchema = contractBaseSchema;
 
 // Schema for updating an existing contract
-export const updateContractSchema = z
-  .object({
-    id_membresia: z.number().optional(),
-    fecha_inicio: fechaInicioSchema.optional(),
-    estado: z
-      .enum(["Activo", "Congelado", "Vencido", "Cancelado", "Por vencer"])
-      .optional(),
-    usuario_actualizacion: z.number().optional(),
-    motivo: z.string().optional(),
-  })
-  .partial();
+export const updateContractSchema = z.object({
+  id_membresia: z.number().optional(),
+  fecha_inicio: z
+    .string()
+    .refine((date: string) => !isNaN(Date.parse(date)), {
+        message: "Fecha de inicio inválida",
+    })
+    .optional(),
+  estado: z
+    .enum(["Activo", "Congelado", "Vencido", "Cancelado", "Por vencer"])
+    .optional(),
+  usuario_actualizacion: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() !== '' ? parseInt(val, 10) : val),
+      z.number()
+    )
+    .nullable()
+    .optional(),
+  motivo: z.string().optional(),
+});
 
 // Schema for contract query parameters
 export const contractQuerySchema = z.object({
@@ -66,31 +74,4 @@ export const contractQuerySchema = z.object({
 // Schema for contract ID parameter
 export const contractIdSchema = z.object({
   id: z.string().transform((val: string) => Number(val)),
-});
-
-// Schema for renewing a contract
-export const renewContractSchema = z.object({
-  id_contrato: z.number({
-    required_error: "El ID del contrato es requerido",
-  }),
-  id_membresia: z.number({
-    required_error: "El ID de la membresía es requerido",
-  }),
-  fecha_inicio: fechaInicioSchema,
-  usuario_registro: z.number({
-    required_error: "El ID del usuario que registra es requerido",
-  }),
-});
-
-// Schema for freezing a contract
-export const freezeContractSchema = z.object({
-  id_contrato: z.number({
-    required_error: "El ID del contrato es requerido",
-  }),
-  motivo: z.string({
-    required_error: "El motivo es requerido",
-  }),
-  usuario_actualizacion: z.number({
-    required_error: "El ID del usuario que actualiza es requerido",
-  }),
 });

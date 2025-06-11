@@ -1,6 +1,6 @@
 import { DataTypes, Model, type Optional } from "sequelize"
 import sequelize from "../config/db"
-import Person from "./client"
+import Person from "./person.model"
 import Membership from "./membership"
 import User from "./user"
 
@@ -17,6 +17,12 @@ interface ContractAttributes {
     fecha_actualizacion: Date
     usuario_registro?: number
     usuario_actualizacion?: number
+
+    // Relationships
+    persona?: Person
+    membresia?: Membership
+    registrador?: User
+    actualizador?: User
 }
 
 interface ContractCreationAttributes
@@ -35,6 +41,12 @@ class Contract extends Model<ContractAttributes, ContractCreationAttributes> imp
     public fecha_actualizacion!: Date
     public usuario_registro?: number
     public usuario_actualizacion?: number
+
+    // Relationships
+    public readonly persona?: Person
+    public readonly membresia?: Membership
+    public readonly registrador?: User
+    public readonly actualizador?: User
 
     // Timestamps
     public readonly createdAt!: Date
@@ -80,11 +92,6 @@ Contract.init(
             allowNull: false,
             validate: {
                 isDate: true,
-                isValidStartDate(value: Date) {
-                    if (new Date(value) < new Date()) {
-                        throw new Error('La fecha de inicio no puede ser anterior a la fecha actual');
-                    }
-                }
             }
         },
         fecha_fin: {

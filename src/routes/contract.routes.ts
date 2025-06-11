@@ -40,20 +40,6 @@ router.delete("/:id",
     contractController.delete.bind(contractController) as unknown as RequestHandler
 );
 
-// POST /api/contracts/renew - Renew a contract
-router.post("/renew", 
-    verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
-    contractController.renew.bind(contractController) as unknown as RequestHandler
-);
-
-// POST /api/contracts/freeze - Freeze a contract
-router.post("/freeze", 
-    verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
-    contractController.freeze.bind(contractController) as unknown as RequestHandler
-);
-
 // GET /api/contracts/:id/history - Get contract history
 router.get("/:id/history", 
     verifyToken as unknown as RequestHandler,

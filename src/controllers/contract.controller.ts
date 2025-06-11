@@ -5,8 +5,6 @@ import {
   updateContractSchema,
   contractQuerySchema,
   contractIdSchema,
-  renewContractSchema,
-  freezeContractSchema,
 } from "../validators/contract.validator";
 import ApiResponse from "../utils/apiResponse";
 
@@ -49,6 +47,7 @@ export class ContractController {
   // Create a new contract
   async create(req: Request, res: Response, next: NextFunction) {
     try {
+      console.log("--- DEBUG: Received request body in controller ---", req.body);
       const data = createContractSchema.parse(req.body);
       const contract = await contractService.create(data);
 
@@ -66,10 +65,19 @@ export class ContractController {
 
   // Update an existing contract
   async update(req: Request, res: Response, next: NextFunction) {
+    console.log("--- [Controller] Entering update method ---");
     try {
+      console.log("--- [Controller] Update - Params ---", req.params);
+      console.log("--- [Controller] Update - Body ---", req.body);
+
       const { id } = contractIdSchema.parse(req.params);
+      console.log("--- [Controller] Update - Step 1: Parsed ID ---", { id });
+
       const data = updateContractSchema.parse(req.body);
+      console.log("--- [Controller] Update - Step 2: Parsed body data ---", data);
+
       const contract = await contractService.update(id, data);
+      console.log("--- [Controller] Update - Step 3: Service call successful ---");
 
       return ApiResponse.success(
         res,
@@ -77,6 +85,7 @@ export class ContractController {
         "Contrato actualizado correctamente"
       );
     } catch (error) {
+      console.error("--- [Controller] ERROR in update method ---", error);
       next(error);
     }
   }
@@ -94,38 +103,6 @@ export class ContractController {
         res,
         result,
         "Contrato cancelado correctamente"
-      );
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  // Renew a contract
-  async renew(req: Request, res: Response, next: NextFunction) {
-    try {
-      const data = renewContractSchema.parse(req.body);
-      const contract = await contractService.renew(data);
-
-      return ApiResponse.success(
-        res,
-        contract,
-        "Contrato renovado correctamente"
-      );
-    } catch (error) {
-      next(error);
-    }
-  }
-  // Freeze a contract
-  async freeze(req: Request, res: Response, next: NextFunction) {
-    try {
-      const data = freezeContractSchema.parse(req.body);
-      const { id_contrato, ...freezeData } = data;
-      const contract = await contractService.freeze(id_contrato, freezeData);
-
-      return ApiResponse.success(
-        res,
-        contract,
-        "Contrato congelado correctamente"
       );
     } catch (error) {
       next(error);

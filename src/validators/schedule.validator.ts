@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // Base schema for training session data
 const trainingBaseSchema = z.object({
-  titulo: z.string().min(3).max(100),
+  titulo: z.string().min(1).max(100),
   descripcion: z.string().optional(),
   fecha_inicio: z.string().refine((date) => !isNaN(Date.parse(date)), {
     message: "Fecha de inicio inválida",

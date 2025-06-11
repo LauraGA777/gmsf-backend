@@ -1,7 +1,7 @@
 import { DataTypes, Model, type Optional } from "sequelize"
 import sequelize from "../config/db"
 import User from "./user"
-import Person from "./client"
+import Person from "./person.model"
 
 interface TrainingAttributes {
     id: number
@@ -13,7 +13,10 @@ interface TrainingAttributes {
     id_cliente: number
     estado: "Programado" | "En proceso" | "Completado" | "Cancelado"
     notas?: string
-    fecha_creacion: Date
+    fecha_creacion: Date | null
+    // Relationships
+    entrenador?: User
+    cliente?: Person
 }
 
 interface TrainingCreationAttributes
@@ -31,7 +34,11 @@ class Training
     public id_cliente!: number
     public estado!: "Programado" | "En proceso" | "Completado" | "Cancelado"
     public notas?: string
-    public fecha_creacion!: Date
+    public fecha_creacion!: Date | null
+
+    // Relationships
+    public readonly entrenador?: User
+    public readonly cliente?: Person
 
     // Timestamps
     public readonly createdAt!: Date
@@ -72,12 +79,7 @@ Training.init(
             type: DataTypes.DATE,
             allowNull: false,
             validate: {
-                isDate: true,
-                isValidStartDate(value: string) {
-                    if (new Date(value) < new Date()) {
-                        throw new Error('La fecha de inicio no puede ser anterior a la fecha actual');
-                    }
-                }
+                isDate: true
             }
         },
         fecha_fin: {
@@ -136,11 +138,8 @@ Training.init(
         },
         fecha_creacion: {
             type: DataTypes.DATE,
-            allowNull: false,
+            allowNull: true,
             defaultValue: DataTypes.NOW,
-            validate: {
-                isDate: true
-            }
         },
     },
     {
@@ -151,12 +150,5 @@ Training.init(
         underscored: true,
     },
 )
-
-// Associations
-Training.belongsTo(User, { foreignKey: "id_entrenador", as: "entrenador" })
-Training.belongsTo(Person, { foreignKey: "id_cliente", as: "cliente" })
-
-User.hasMany(Training, { foreignKey: "id_entrenador", as: "entrenamientos_asignados" })
-Person.hasMany(Training, { foreignKey: "id_cliente", as: "entrenamientos" })
 
 export default Training

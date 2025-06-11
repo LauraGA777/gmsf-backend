@@ -128,6 +128,20 @@ export class ClientService {
     return client;
   }
 
+  private async generatePersonCode(transaction: any): Promise<string> {
+    const lastPerson = await Person.findOne({
+      order: [["id_persona", "DESC"]],
+      transaction,
+    });
+
+    if (lastPerson && lastPerson.codigo) {
+      const lastCodeNumber = parseInt(lastPerson.codigo.substring(1), 10);
+      return `P${String(lastCodeNumber + 1).padStart(3, "0")}`;
+    }
+    
+    return "P001";
+  }
+
   private async generateUserCode(transaction: any): Promise<string> {
     const lastUser = await User.findOne({
       order: [["id", "DESC"]],
@@ -184,14 +198,15 @@ export class ClientService {
       }
 
       // Create client
-      const client = await Person.create(
+      const newPerson = await Person.create(
         {
           id_usuario: userId,
           id_titular: data.id_titular,
           relacion: data.relacion,
           fecha_registro: new Date(),
-          estado: data.estado ?? true,
-          codigo: await this.generateUserCode(transaction)
+          fecha_actualizacion: new Date(),
+          estado: data.estado,
+          codigo: await this.generatePersonCode(transaction)
         },
         { transaction }
       );
@@ -200,7 +215,7 @@ export class ClientService {
       if (data.contactos_emergencia && data.contactos_emergencia.length > 0) {
         const contactsData = data.contactos_emergencia.map((contact: any) => ({
           ...contact,
-          id_persona: client.id_persona,
+          id_persona: newPerson.id_persona,
           fecha_registro: new Date(),
         }));
 
@@ -208,7 +223,7 @@ export class ClientService {
       }
 
       await transaction.commit();
-      return this.findById(client.id_persona);
+      return this.findById(newPerson.id_persona);
     } catch (error) {
       await transaction.rollback();
       throw error;

@@ -1,6 +1,6 @@
 import { DataTypes, Model, type Optional } from "sequelize";
 import sequelize from "../config/db";
-import Person from "./client";
+import Person from "./person.model";
 
 interface EmergencyContactAttributes {
     id: number;
@@ -115,15 +115,5 @@ EmergencyContact.init(
     underscored: true,
   }
 );
-
-// Associations
-EmergencyContact.belongsTo(Person, {
-  foreignKey: "id_persona",
-  as: "persona",
-});
-Person.hasMany(EmergencyContact, {
-  foreignKey: "id_persona",
-  as: "contactos_emergencia",
-});
 
 export default EmergencyContact; 

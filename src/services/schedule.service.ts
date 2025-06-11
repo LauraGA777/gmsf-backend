@@ -155,13 +155,19 @@ export class ScheduleService {
 
   // Create a new training session
   async create(data: any) {
+    console.log("SERVICIO: Iniciando la creación del entrenamiento con los datos:", data);
     const transaction = await sequelize.transaction();
 
     try {
-      // Validate trainer exists and is active
+      console.log("SERVICIO: Validando fecha de inicio.");
+      if (new Date(data.fecha_inicio) < new Date()) {
+        throw new ApiError("No se puede agendar un entrenamiento en una fecha pasada.", 400);
+      }
+
+      console.log("SERVICIO: Validando entrenador ID:", data.id_entrenador);
       const trainerUser = await User.findByPk(data.id_entrenador, { transaction });
       if (!trainerUser || !trainerUser.estado) {
-        throw new ApiError("El entrenador no existe o se encuentra inactivo", 404);
+        throw new ApiError("El entrenador no existe o se encuentra inactivo.", 404);
       }
 
       const trainerDetails = await Trainer.findOne({
@@ -170,47 +176,44 @@ export class ScheduleService {
       });
 
       if (!trainerDetails) {
-        throw new ApiError("El usuario no tiene un perfil de entrenador activo", 400);
+        throw new ApiError("El usuario no tiene un perfil de entrenador activo.", 400);
       }
 
-      // Validate client exists
+      console.log("SERVICIO: Validando cliente ID:", data.id_cliente);
       const client = await Person.findByPk(data.id_cliente, { transaction });
       if (!client) {
-        throw new ApiError("Cliente no encontrado", 404);
+        throw new ApiError("Cliente no encontrado.", 404);
       }
 
-      // Validate client has active contract
+      console.log("SERVICIO: Verificando contrato activo para el cliente ID:", data.id_cliente);
       const activeContract = await Contract.findOne({
-        where: {
-          id_persona: data.id_cliente,
-          estado: "Activo",
-          fecha_fin: { [Op.gte]: new Date() },
-        },
-        transaction,
+          where: {
+              id_persona: data.id_cliente,
+              estado: 'Activo'
+          },
+          transaction
       });
 
       if (!activeContract) {
-        throw new ApiError("El cliente no tiene un contrato activo", 400);
+          throw new ApiError("El cliente no tiene un contrato activo para agendar entrenamientos.", 400);
       }
+      console.log(`SERVICIO: El cliente ID ${data.id_cliente} tiene un contrato activo (Contrato ID: ${activeContract.id}).`);
 
-      // Check for scheduling conflicts
+
+      console.log("SERVICIO: Verificando conflictos de horario para entrenador y cliente.");
       const conflicts = await Training.findAll({
         where: {
           [Op.or]: [
             {
               id_entrenador: data.id_entrenador,
-              [Op.and]: [
-                { fecha_inicio: { [Op.lt]: new Date(data.fecha_fin) } },
-                { fecha_fin: { [Op.gt]: new Date(data.fecha_inicio) } },
-              ],
+              fecha_inicio: { [Op.lt]: new Date(data.fecha_fin) },
+              fecha_fin: { [Op.gt]: new Date(data.fecha_inicio) },
               estado: { [Op.ne]: "Cancelado" },
             },
             {
               id_cliente: data.id_cliente,
-              [Op.and]: [
-                { fecha_inicio: { [Op.lt]: new Date(data.fecha_fin) } },
-                { fecha_fin: { [Op.gt]: new Date(data.fecha_inicio) } },
-              ],
+              fecha_inicio: { [Op.lt]: new Date(data.fecha_fin) },
+              fecha_fin: { [Op.gt]: new Date(data.fecha_inicio) },
               estado: { [Op.ne]: "Cancelado" },
             },
           ],
@@ -219,30 +222,34 @@ export class ScheduleService {
       });
 
       if (conflicts.length > 0) {
-        throw new ApiError("Existe un conflicto de horarios", 400);
+        console.warn("SERVICIO: Conflicto de horario detectado.", { conflicts });
+        throw new ApiError("Conflicto de horario: El entrenador o el cliente ya tienen una sesión en ese rango de tiempo.", 409);
       }
 
-      // Create training session
-      const training = await Training.create(
-        {
-          titulo: data.titulo,
-          descripcion: data.descripcion,
-          fecha_inicio: new Date(data.fecha_inicio),
-          fecha_fin: new Date(data.fecha_fin),
-          id_entrenador: data.id_entrenador,
-          id_cliente: data.id_cliente,
-          estado: data.estado || "Programado",
-          notas: data.notas,
-          fecha_creacion: new Date(),
-        },
-        { transaction }
-      );
+      console.log("SERVICIO: No hay conflictos. Creando el entrenamiento en la base de datos.");
+      const trainingDataToCreate = {
+        titulo: data.titulo,
+        descripcion: data.descripcion,
+        fecha_inicio: new Date(data.fecha_inicio),
+        fecha_fin: new Date(data.fecha_fin),
+        id_entrenador: data.id_entrenador,
+        id_cliente: data.id_cliente,
+        estado: data.estado || "Programado",
+        notas: data.notas,
+      };
+      console.log("SERVICIO: Datos finales para la inserción:", trainingDataToCreate);
+      const training = await Training.create(trainingDataToCreate, { transaction });
 
+      console.log("SERVICIO: Entrenamiento creado con ID:", training.id, ". Realizando commit de la transacción.");
       await transaction.commit();
+      console.log("SERVICIO: Transacción completada (commit).");
 
-      // Return the created training session with all relations
-      return this.findById(training.id);
+      // Return the plain created training object to avoid eager loading issues
+      return training.get({ plain: true });
     } catch (error) {
+      console.error("SERVICIO: Error durante la creación del entrenamiento. Revirtiendo transacción.", error);
+      await transaction.rollback();
+      console.log("SERVICIO: Transacción revertida (rollback).");
       throw error;
     }
   }
@@ -256,6 +263,10 @@ export class ScheduleService {
 
       if (!training) {
         throw new ApiError("Sesión de entrenamiento no encontrada", 404);
+      }
+
+      if (data.fecha_inicio && new Date(data.fecha_inicio) < new Date()) {
+        throw new ApiError("No se puede reagendar un entrenamiento a una fecha pasada.", 400);
       }
 
       // Check for scheduling conflicts if dates are being updated
@@ -290,28 +301,26 @@ export class ScheduleService {
         }
       }
 
+      // Prepare data for update, converting dates
+      const updateData: { [key: string]: any } = {};
+      if (data.titulo) updateData.titulo = data.titulo;
+      if (data.descripcion) updateData.descripcion = data.descripcion;
+      if (data.fecha_inicio) updateData.fecha_inicio = new Date(data.fecha_inicio);
+      if (data.fecha_fin) updateData.fecha_fin = new Date(data.fecha_fin);
+      if (data.id_entrenador) updateData.id_entrenador = data.id_entrenador;
+      if (data.id_cliente) updateData.id_cliente = data.id_cliente;
+      if (data.estado) updateData.estado = data.estado;
+      if (data.notas) updateData.notas = data.notas;
+
       // Update training session data
-      await training.update(
-        {
-          titulo: data.titulo,
-          descripcion: data.descripcion,
-          fecha_inicio: data.fecha_inicio
-            ? new Date(data.fecha_inicio)
-            : undefined,
-          fecha_fin: data.fecha_fin ? new Date(data.fecha_fin) : undefined,
-          id_entrenador: data.id_entrenador,
-          id_cliente: data.id_cliente,
-          estado: data.estado,
-          notas: data.notas,
-        },
-        { transaction }
-      );
+      await training.update(updateData, { transaction });
 
       await transaction.commit();
 
-      // Return the updated training session with all relations
-      return this.findById(id);
+      // Return the plain updated training object
+      return training.get({ plain: true });
     } catch (error) {
+      await transaction.rollback();
       throw error;
     }
   }
@@ -551,41 +560,78 @@ export class ScheduleService {
 
   // Get active trainers
   async getActiveTrainers() {
-    const trainers = await User.findAll({
-      where: { estado: true },
-      include: [
-        {
-          model: Trainer,
-          where: { estado: true },
-          required: true,
-          as: "detalles_entrenador"
-        },
-      ],
-      attributes: ["id", "nombre", "apellido", "correo"],
-    });
-    return trainers;
+    console.log("SERVICIO: Iniciando la búsqueda de entrenadores activos.");
+    try {
+      const trainers = await Trainer.findAll({
+        where: { estado: true },
+        include: [
+          {
+            model: User,
+            as: "usuario",
+            required: true,
+            where: { estado: true },
+            attributes: ["id", "nombre", "apellido", "correo"],
+          },
+        ],
+      });
+      const mappedTrainers = trainers.map((trainer) => {
+        const plainTrainer = trainer.get({ plain: true });
+        if (!plainTrainer.usuario) return null;
+        return {
+          id: plainTrainer.usuario.id,
+          nombre: plainTrainer.usuario.nombre,
+          apellido: plainTrainer.usuario.apellido,
+          correo: plainTrainer.usuario.correo,
+          detalles_entrenador: {
+            especialidad: plainTrainer.especialidad,
+          },
+        };
+      }).filter(Boolean);
+      console.log(`SERVICIO: Se encontraron ${mappedTrainers.length} entrenadores activos.`);
+      return mappedTrainers;
+    } catch (error) {
+      console.error("SERVICIO: Error al buscar entrenadores activos:", error);
+      throw error;
+    }
   }
 
   // Get active clients with active contracts
   async getActiveClientsWithContracts() {
-    const clients = await Person.findAll({
-      where: { estado: true },
-      include: [
-        {
-          model: User,
-          as: "usuario",
-          where: { estado: true },
-          required: true,
-          attributes: ["id", "nombre", "apellido", "correo"],
-        },
-        {
-          model: Contract,
-          as: "contratos",
-          where: { estado: "Activo" },
-          required: true,
-        },
-      ],
-    });
-    return clients;
+    console.log("SERVICIO: Iniciando la búsqueda de clientes con contratos activos.");
+    try {
+      const activeContracts = await Contract.findAll({
+        where: { estado: "Activo" },
+        include: [
+          {
+            model: Person,
+            as: "persona",
+            required: true,
+            include: [
+              {
+                model: User,
+                as: "usuario",
+                required: true,
+                attributes: ["id", "nombre", "apellido", "correo"],
+              },
+            ],
+          },
+        ],
+      });
+      
+      const clients = activeContracts
+        .map(contract => contract.persona)
+        .filter((person): person is Person => person != null)
+        .filter((person, index, self) => 
+          index === self.findIndex((p) => (
+            p.id_persona === person.id_persona
+          ))
+        );
+
+      console.log(`SERVICIO: La consulta a la base de datos encontró ${clients.length} clientes únicos con contratos activos.`);
+      return clients;
+    } catch (error) {
+      console.error("SERVICIO: Error al buscar clientes activos con contratos:", error);
+      throw error;
+    }
   }
 }
