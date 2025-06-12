@@ -80,10 +80,4 @@ Trainer.init({
     timestamps: true
 });
 
-// Definir relaciones
-Trainer.belongsTo(User, {
-    foreignKey: 'id_usuario',
-    as: 'usuario'
-});
-
 export default Trainer; 

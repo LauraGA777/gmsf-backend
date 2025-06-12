@@ -575,22 +575,23 @@ export class ScheduleService {
         ],
       });
       const mappedTrainers = trainers.map((trainer) => {
-        const plainTrainer = trainer.get({ plain: true });
-        if (!plainTrainer.usuario) return null;
+        if (!trainer.usuario) return null;
         return {
-          id: plainTrainer.usuario.id,
-          nombre: plainTrainer.usuario.nombre,
-          apellido: plainTrainer.usuario.apellido,
-          correo: plainTrainer.usuario.correo,
-          detalles_entrenador: {
-            especialidad: plainTrainer.especialidad,
-          },
+          id: trainer.usuario.id,
+          name: `${trainer.usuario.nombre} ${trainer.usuario.apellido}`
         };
       }).filter(Boolean);
       console.log(`SERVICIO: Se encontraron ${mappedTrainers.length} entrenadores activos.`);
       return mappedTrainers;
-    } catch (error) {
-      console.error("SERVICIO: Error al buscar entrenadores activos:", error);
+    } catch (error: any) {
+      console.error("----------------- ERROR DETALLADO (ENTRENADORES) -----------------");
+      console.error("MENSAJE:", error.message);
+      console.error("NOMBRE:", error.name);
+      if (error.parent) {
+        console.error("ERROR PADRE (SEQUELIZE):", error.parent);
+      }
+      console.error("STACK:", error.stack);
+      console.error("-----------------------------------------------------------------");
       throw error;
     }
   }
@@ -611,6 +612,7 @@ export class ScheduleService {
                 model: User,
                 as: "usuario",
                 required: true,
+                where: { estado: true },
                 attributes: ["id", "nombre", "apellido", "correo"],
               },
             ],
@@ -619,18 +621,33 @@ export class ScheduleService {
       });
       
       const clients = activeContracts
-        .map(contract => contract.persona)
-        .filter((person): person is Person => person != null)
+        .map(contract => {
+            if (contract.persona && contract.persona.usuario) {
+                return {
+                    id: contract.persona.id_persona,
+                    nombre: contract.persona.usuario.nombre,
+                    apellido: contract.persona.usuario.apellido,
+                    codigo: contract.persona.codigo,
+                };
+            }
+            return null;
+        })
+        .filter((person): person is { id: number; nombre: string; apellido: string; codigo: string; } => person != null)
         .filter((person, index, self) => 
-          index === self.findIndex((p) => (
-            p.id_persona === person.id_persona
-          ))
+          index === self.findIndex((p) => p.id === person.id)
         );
 
       console.log(`SERVICIO: La consulta a la base de datos encontró ${clients.length} clientes únicos con contratos activos.`);
       return clients;
-    } catch (error) {
-      console.error("SERVICIO: Error al buscar clientes activos con contratos:", error);
+    } catch (error: any) {
+      console.error("----------------- ERROR DETALLADO (CLIENTES) -----------------");
+      console.error("MENSAJE:", error.message);
+      console.error("NOMBRE:", error.name);
+      if (error.parent) {
+        console.error("ERROR PADRE (SEQUELIZE):", error.parent);
+      }
+      console.error("STACK:", error.stack);
+      console.error("--------------------------------------------------------------");
       throw error;
     }
   }
