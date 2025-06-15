@@ -7,8 +7,6 @@ interface PersonAttributes {
   id_persona: number;
   codigo: string;
   id_usuario?: number;
-  id_titular?: number;
-  relacion?: string;
   fecha_registro: Date;
   fecha_actualizacion: Date;
   estado: boolean;
@@ -19,7 +17,7 @@ interface PersonAttributes {
 }
 
 interface PersonCreationAttributes
-  extends Optional<PersonAttributes, "id_persona" | "id_usuario" | "id_titular" | "relacion"> {}
+  extends Optional<PersonAttributes, "id_persona" | "id_usuario"> {}
 
 class Person
   extends Model<PersonAttributes, PersonCreationAttributes>
@@ -27,8 +25,6 @@ class Person
   public id_persona!: number;
   public codigo!: string;
   public id_usuario?: number;
-  public id_titular?: number;
-  public relacion?: string;
   public fecha_registro!: Date;
   public fecha_actualizacion!: Date;
   public estado!: boolean;
@@ -38,8 +34,6 @@ class Person
   public readonly updatedAt!: Date;
 
   public readonly usuario?: User;
-  public readonly titular?: Person;
-  public readonly beneficiarios?: Person[];
   public readonly contratos?: Contract[];
   public readonly entrenamientos?: any[];
   public readonly asistencias?: any[];
@@ -71,18 +65,6 @@ Person.init(
         model: "usuarios",
         key: "id",
       },
-    },
-    id_titular: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: "personas",
-        key: "id_persona",
-      },
-    },
-    relacion: {
-      type: DataTypes.STRING(50),
-      allowNull: true,
     },
     fecha_registro: {
       type: DataTypes.DATE,

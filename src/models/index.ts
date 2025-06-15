@@ -10,6 +10,7 @@ import Permission from './permission'
 import Privilege from './privilege'
 import Trainer from './trainer'
 import Attendance from './attendance'
+import Beneficiary from "./beneficiary.model"
 
 // Asociaciones de modelos (centralizadas para asegurar el orden de carga)
 
@@ -44,11 +45,17 @@ User.hasMany(Contract, { foreignKey: "usuario_actualizacion", as: "contratos_act
 Person.belongsTo(User, { foreignKey: 'id_usuario', as: 'usuario' });
 User.hasOne(Person, { foreignKey: 'id_usuario', as: 'persona' });
 
-// Relaciones de Person (Cliente) Titular y Beneficiarios
-Person.belongsTo(Person, { foreignKey: 'id_titular', as: 'titular' });
-Person.hasMany(Person, { foreignKey: 'id_titular', as: 'beneficiarios' });
+// Relaciones de Person (Cliente) y Beneficiarios
 Person.hasMany(EmergencyContact, { foreignKey: 'id_persona', as: 'contactos_emergencia' });
 EmergencyContact.belongsTo(Person, { foreignKey: 'id_persona', as: 'persona' });
+
+// Relaciones de Beneficiarios
+// Una Persona (cliente titular) puede tener muchos registros de Beneficiario
+Person.hasMany(Beneficiary, { foreignKey: 'id_cliente', as: 'beneficiarios' });
+// Cada registro de Beneficiario pertenece a una Persona (el titular)
+Beneficiary.belongsTo(Person, { foreignKey: 'id_cliente', as: 'titular' });
+// Cada registro de Beneficiario también se asocia con una Persona (los detalles del beneficiario)
+Beneficiary.belongsTo(Person, { foreignKey: 'id_persona', as: 'persona_beneficiaria' });
 
 
 // Relaciones de Historial de Contrato
@@ -80,5 +87,6 @@ export {
   Permission,
   Privilege,
   Trainer,
-  Attendance
+  Attendance,
+  Beneficiary
 }

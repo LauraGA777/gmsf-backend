@@ -5,6 +5,7 @@ import {
   updateClientSchema,
   clientQuerySchema,
   clientIdSchema,
+  clientDocumentSchema,
 } from "../validators/client.validator";
 import  ApiResponse  from "../utils/apiResponse";
 
@@ -44,11 +45,30 @@ export class ClientController {
     }
   }
 
+  // Get user by document
+  public async getByDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      console.log("--- [Controller] Check User: Received query params ---", req.query);
+      const { tipo_documento, numero_documento } = clientDocumentSchema.parse(req.query);
+      console.log("--- [Controller] Check User: Parsed params ---", { tipo_documento, numero_documento });
+      const user = await this.clientService.findByDocument(tipo_documento, numero_documento);
+      console.log("--- [Controller] Check User: Service response ---", user);
+
+      ApiResponse.success(res, user, "Usuario encontrado correctamente");
+    } catch (error) {
+      console.error("--- [Controller] ERROR in getByDocument ---", error);
+      next(error);
+    }
+  }
+
   // Create a new client
   public async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      console.log("--- [Controller] Create Client: Received body ---", req.body);
       const data = createClientSchema.parse(req.body);
+      console.log("--- [Controller] Create Client: Parsed data ---", JSON.stringify(data, null, 2));
       const client = await this.clientService.create(data);
+      console.log("--- [Controller] Create Client: Service response ---", client);
 
       ApiResponse.success(
         res,
@@ -58,6 +78,7 @@ export class ClientController {
         201
       );
     } catch (error) {
+      console.error("--- [Controller] ERROR in create ---", error);
       next(error);
     }
   }
