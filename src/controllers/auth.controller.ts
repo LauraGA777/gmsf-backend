@@ -1,3 +1,6 @@
+import Role from '../models/role';
+import Permission from '../models/permission';
+import Privilege from '../models/privilege';
 import bcrypt from 'bcrypt';
 import { Request, Response } from 'express';
 import User from '../models/user';
@@ -303,7 +306,7 @@ export const changePassword = async (req: Request, res: Response): Promise<Respo
 // Obtener perfil del usuario
 export const getProfile = async (req: Request, res: Response): Promise<Response> => {
     try {
-        const usuarioId = req.user?.id; // Obtenemos el ID del usuario del token
+        const usuarioId = req.user?.id;
 
         if (!usuarioId) {
             return res.status(401).json({
@@ -312,8 +315,24 @@ export const getProfile = async (req: Request, res: Response): Promise<Response>
             });
         }
 
-        // Buscar usuario excluyendo datos sensibles
+        // Buscar usuario incluyendo rol con permisos y privilegios
         const user = await User.findByPk(usuarioId, {
+            include: [{
+                model: Role,
+                as: 'rol',
+                include: [
+                    {
+                        model: Permission,
+                        as: 'permisos',
+                        through: { attributes: [] }
+                    },
+                    {
+                        model: Privilege,
+                        as: 'privilegios',
+                        through: { attributes: [] }
+                    }
+                ]
+            }],
             attributes: { 
                 exclude: ['contrasena_hash']
             }
@@ -342,6 +361,8 @@ export const getProfile = async (req: Request, res: Response): Promise<Response>
                     fecha_nacimiento: user.fecha_nacimiento,
                     asistencias_totales: user.asistencias_totales,
                     estado: user.estado,
+                    id_rol: user.id_rol,
+                    rol: user.rol // Incluir información del rol con permisos y privilegios
                 }
             }
         });
