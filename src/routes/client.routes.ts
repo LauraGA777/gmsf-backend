@@ -12,6 +12,13 @@ router.get("/",
     clientController.getAll.bind(clientController) as unknown as RequestHandler
 );
 
+// GET /api/clients/check-user - Check if a user exists by document
+router.get("/check-user",
+    verifyToken as unknown as RequestHandler,
+    isAdmin as unknown as RequestHandler,
+    clientController.getByDocument.bind(clientController) as unknown as RequestHandler
+);
+
 // GET /api/clients/:id - Get client by ID
 router.get("/:id", 
     verifyToken as unknown as RequestHandler,

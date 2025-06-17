@@ -86,9 +86,12 @@ export class ClientController {
   // Update an existing client
   public async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      console.log("--- [Controller] Update Client: Raw body ---", req.body);
       const { id } = clientIdSchema.parse(req.params);
       const data = updateClientSchema.parse(req.body);
+      console.log("--- [Controller] Update Client: Parsed data ---", JSON.stringify(data, null, 2));
       const client = await this.clientService.update(id, data);
+      console.log("--- [Controller] Update Client: Service response ---", client);
 
       ApiResponse.success(
         res,
@@ -96,6 +99,7 @@ export class ClientController {
         "Cliente actualizado correctamente"
       );
     } catch (error) {
+      console.error("--- [Controller] ERROR in update ---", error);
       next(error);
     }
   }

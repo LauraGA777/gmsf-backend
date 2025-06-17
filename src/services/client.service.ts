@@ -57,7 +57,7 @@ export class ClientService {
               include: [{
                 model: User,
                 as: 'usuario',
-                attributes: ["id", "nombre", "apellido"]
+                attributes: { exclude: ["contrasena_hash"] }
               }]
             },
           ],
@@ -105,7 +105,7 @@ export class ClientService {
               include: [{
                 model: User,
                 as: 'usuario',
-                attributes: ["id", "nombre", "apellido", "numero_documento"]
+                attributes: { exclude: ["contrasena_hash"] }
               }]
             },
           ],
@@ -178,6 +178,12 @@ export class ClientService {
       console.log(`--- [Service] _createOrUpdateUser: Updating user by ID: ${userData.id} ---`);
       const user = await User.findByPk(userData.id, { transaction });
       if (!user) throw new ApiError("Usuario no encontrado para actualizar", 404);
+      
+      // No actualizar contraseña si viene vacía
+      if (userData.contrasena === '') {
+        delete userData.contrasena;
+      }
+
       await user.update(userData, { transaction });
       console.log(`--- [Service] _createOrUpdateUser: User ${user.id} updated ---`);
       return user;
@@ -191,10 +197,23 @@ export class ClientService {
   
     if (user) {
       console.log(`--- [Service] _createOrUpdateUser: Found existing user by document, ID: ${user.id}. Updating... ---`);
+      
+      // No actualizar contraseña si viene vacía
+      if (userData.contrasena === '') {
+        delete userData.contrasena;
+      }
+      
       await user.update(userData, { transaction });
       console.log(`--- [Service] _createOrUpdateUser: User ${user.id} updated ---`);
     } else {
       console.log(`--- [Service] _createOrUpdateUser: No user found by document. Creating new user... ---`);
+      
+      // Si no se proporciona contraseña para un nuevo usuario, usar el documento.
+      if (!userData.contrasena) {
+        console.log("--- [Service] _createOrUpdateUser: No password provided for new user, using document number as default. ---");
+        userData.contrasena = userData.numero_documento;
+      }
+      
       const userCode = await this.generateUserCode(transaction);
       console.log(`--- [Service] _createOrUpdateUser: Generated user code: ${userCode} ---`);
       user = await User.create(
@@ -229,21 +248,24 @@ export class ClientService {
       { transaction }
     );
     console.log(`--- [Service] _createPerson: New person created with ID: ${newPerson.id_persona} ---`);
-  
-    if (personData.contactos_emergencia && personData.contactos_emergencia.length > 0) {
-      console.log(`--- [Service] _createPerson: Creating ${personData.contactos_emergencia.length} emergency contacts... ---`);
-      const contactsData = personData.contactos_emergencia.map((contact: any) => ({
-        ...contact,
-        id_persona: newPerson.id_persona,
-        fecha_registro: new Date(),
-      }));
-      await EmergencyContact.bulkCreate(contactsData, { transaction });
-      console.log(`--- [Service] _createPerson: Emergency contacts created. ---`);
-    }
-  
     return newPerson;
   }
-  
+
+  // Create emergency contacts for a person
+  private async _createEmergencyContacts(personId: number, contacts: any[], transaction: Transaction): Promise<void> {
+    if (contacts && contacts.length > 0) {
+      console.log(`--- [Service] _createEmergencyContacts: Creating ${contacts.length} emergency contacts for person ${personId}... ---`);
+      const contactsData = contacts.map((contact: any) => ({
+        ...contact,
+        id_persona: personId,
+        fecha_registro: new Date(),
+        fecha_actualizacion: new Date(),
+      }));
+      await EmergencyContact.bulkCreate(contactsData, { transaction });
+      console.log(`--- [Service] _createEmergencyContacts: Emergency contacts created. ---`);
+    }
+  }
+
   // Create a new client (titular) and potentially beneficiaries
   async create(data: any) {
     console.log("--- [Service] Create Client: Starting transaction with data ---", JSON.stringify(data, null, 2));
@@ -269,19 +291,21 @@ export class ClientService {
         {
           id_usuario: titularUser.id,
           estado: data.estado,
-          contactos_emergencia: data.contactos_emergencia,
         },
         transaction
       );
       console.log(`--- [Service] Create Client: Titular person created with ID: ${titularPerson.id_persona} ---`);
+
+      // 3. Create emergency contacts for titular
+      await this._createEmergencyContacts(titularPerson.id_persona, data.contactos_emergencia, transaction);
   
-      // 3. Create beneficiaries if they exist
+      // 4. Create beneficiaries if they exist
       if (data.beneficiarios && data.beneficiarios.length > 0) {
         console.log(`--- [Service] Create Client: Processing ${data.beneficiarios.length} beneficiaries... ---`);
         for (const [index, bene] of data.beneficiarios.entries()) {
           console.log(`--- [Service] Create Client: Processing beneficiary #${index + 1} ---`, bene);
           
-          // 3a. Create user and person for beneficiary
+          // 4a. Create user and person for beneficiary
           const beneficiaryUser = await this._createOrUpdateUser(bene.usuario, transaction);
           console.log(`--- [Service] Create Client: Beneficiary user processed. ID: ${beneficiaryUser.id} ---`);
           
@@ -289,13 +313,12 @@ export class ClientService {
             {
               id_usuario: beneficiaryUser.id,
               estado: bene.estado,
-              contactos_emergencia: bene.contactos_emergencia,
             },
             transaction
           );
           console.log(`--- [Service] Create Client: Beneficiary person created with ID: ${beneficiaryPerson.id_persona} ---`);
 
-          // 3b. Create the link in the beneficiaries table
+          // 4b. Create the link in the beneficiaries table
           const lastBeneficiary = await Beneficiary.findOne({ order: [['id', 'DESC']], lock: transaction.LOCK.UPDATE, transaction });
           const newCode = lastBeneficiary ? `B${String(parseInt(lastBeneficiary.codigo.substring(1), 10) + 1).padStart(3, '0')}` : 'B001';
 
@@ -310,6 +333,9 @@ export class ClientService {
           }, { transaction });
 
           console.log(`--- [Service] Create Client: Beneficiary link #${index + 1} created. ---`);
+
+          // 4c. Create emergency contacts for beneficiary
+          await this._createEmergencyContacts(beneficiaryPerson.id_persona, bene.contactos_emergencia, transaction);
         }
         console.log(`--- [Service] Create Client: All beneficiaries processed. ---`);
       }
@@ -328,16 +354,17 @@ export class ClientService {
 
   // Update an existing client
   async update(id: number, data: any) {
-    // TODO: This method needs to be refactored to handle the new beneficiary model.
-    // The previous implementation was deleted to avoid compilation errors.
+    console.log("--- [Service] Update Client: ID ---", id);
+    console.log("--- [Service] Update Client: Data ---", JSON.stringify(data, null, 2));
     const transaction = await sequelize.transaction();
     try {
       const person = await Person.findByPk(id, { transaction, include: ['usuario'] });
+      console.log("--- [Service] Update Client: Found person ---", person ? person.toJSON() : null);
       if (!person) {
         throw new ApiError("Cliente (persona) no encontrado", 404);
       }
   
-      // Update person details
+      // 1. Update person details (titular)
       await person.update(
         {
           estado: data.estado,
@@ -346,28 +373,72 @@ export class ClientService {
         { transaction }
       );
   
-      // Update user details
+      // 2. Update user details (titular)
       if (data.usuario && person.usuario) {
         await person.usuario.update(data.usuario, { transaction });
       }
   
-      // Update emergency contacts
+      // 3. Update emergency contacts (Destroy and recreate)
       if (data.contactos_emergencia) {
         await EmergencyContact.destroy({ where: { id_persona: id }, transaction });
-        const contactsData = data.contactos_emergencia.map((contact: any) => ({
-          ...contact,
-          id_persona: id,
-          fecha_registro: new Date(),
-          fecha_actualizacion: new Date(),
-        }));
-        await EmergencyContact.bulkCreate(contactsData, { transaction });
+        if (data.contactos_emergencia.length > 0) {
+            const contactsData = data.contactos_emergencia.map((contact: any) => ({
+            ...contact,
+            id_persona: id,
+            fecha_registro: new Date(),
+            fecha_actualizacion: new Date(),
+            }));
+            await EmergencyContact.bulkCreate(contactsData, { transaction });
+        }
       }
   
-      // TODO: Add logic to update beneficiaries
+      // 4. Update beneficiaries (Destroy links and recreate)
+      if (data.beneficiarios) {
+        // First, delete old beneficiary links
+        await Beneficiary.destroy({ where: { id_cliente: id }, transaction });
+
+        // Then, create the new ones
+        for (const [index, bene] of data.beneficiarios.entries()) {
+          // Re-using the same logic as in `create` method
+          const beneficiaryUser = await this._createOrUpdateUser(bene.usuario, transaction);
+          
+          // For beneficiaries, we always create a new Person record if one doesn't exist for this user.
+          // Note: A user can be a person multiple times if they are a beneficiary of multiple clients.
+          // This is a complex domain decision, for now, we find or create person record.
+          
+          let beneficiaryPerson = await Person.findOne({ where: { id_usuario: beneficiaryUser.id }, transaction });
+          if(!beneficiaryPerson) {
+             beneficiaryPerson = await this._createPerson(
+                {
+                  id_usuario: beneficiaryUser.id,
+                  estado: true,
+                  // Beneficiaries' emergency contacts are associated with their own person record
+                  contactos_emergencia: bene.contactos_emergencia, 
+                },
+                transaction
+              );
+          }
+          
+          const lastBeneficiary = await Beneficiary.findOne({ order: [['id', 'DESC']], lock: transaction.LOCK.UPDATE, transaction });
+          const newCode = lastBeneficiary ? `B${String(parseInt(lastBeneficiary.codigo.substring(1), 10) + 1).padStart(3, '0')}` : 'B001';
+
+          await Beneficiary.create({
+            codigo: newCode,
+            id_persona: beneficiaryPerson.id_persona,
+            id_cliente: person.id_persona,
+            relacion: bene.relacion,
+            fecha_registro: new Date(),
+            fecha_actualizacion: new Date(),
+            estado: true
+          }, { transaction });
+        }
+      }
   
       await transaction.commit();
+      console.log("--- [Service] Update Client: Transaction committed ---");
       return this.findById(id);
     } catch (error) {
+      console.error("--- [Service] Update Client: Error, rolling back ---", error);
       await transaction.rollback();
       throw error;
     }
