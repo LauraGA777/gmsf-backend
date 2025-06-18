@@ -295,6 +295,24 @@ export class ContractService {
         usuario_actualizacion: data.usuario_actualizacion,
       };
 
+      // Handle freezing logic
+      if (data.estado === "Congelado" && oldState !== "Congelado") {
+        updates.fecha_congelacion = new Date();
+      }
+
+      // Handle unfreezing logic
+      if (data.estado === "Activo" && oldState === "Congelado" && contract.fecha_congelacion) {
+        const frozenUntil = new Date();
+        const frozenFrom = new Date(contract.fecha_congelacion);
+        const frozenDuration = frozenUntil.getTime() - frozenFrom.getTime();
+        
+        const currentEndDate = new Date(contract.fecha_fin);
+        const newEndDate = new Date(currentEndDate.getTime() + frozenDuration);
+        
+        updates.fecha_fin = newEndDate;
+        updates.fecha_congelacion = null; // Clear the freeze date
+      }
+
       console.log("--- [Service] Update - Received data ---", data);
 
       const hasMembershipChanged = data.id_membresia && data.id_membresia !== contract.id_membresia;
