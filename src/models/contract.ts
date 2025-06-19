@@ -13,8 +13,6 @@ interface ContractAttributes {
     fecha_fin: Date
     membresia_precio: number
     estado: "Activo" | "Congelado" | "Vencido" | "Cancelado" | "Por vencer"
-    fecha_registro: Date
-    fecha_actualizacion: Date
     usuario_registro?: number
     usuario_actualizacion?: number
     fecha_congelacion?: Date | null
@@ -27,7 +25,7 @@ interface ContractAttributes {
 }
 
 interface ContractCreationAttributes
-    extends Optional<ContractAttributes, "id" | "fecha_registro" | "fecha_actualizacion"> { }
+    extends Optional<ContractAttributes, "id"> { }
 
 class Contract extends Model<ContractAttributes, ContractCreationAttributes> implements ContractAttributes {
     public id!: number
@@ -38,8 +36,6 @@ class Contract extends Model<ContractAttributes, ContractCreationAttributes> imp
     public fecha_fin!: Date
     public membresia_precio!: number
     public estado!: "Activo" | "Congelado" | "Vencido" | "Cancelado" | "Por vencer"
-    public fecha_registro!: Date
-    public fecha_actualizacion!: Date
     public usuario_registro?: number
     public usuario_actualizacion?: number
     public fecha_congelacion?: Date | null
@@ -51,8 +47,8 @@ class Contract extends Model<ContractAttributes, ContractCreationAttributes> imp
     public readonly actualizador?: User
 
     // Timestamps
-    public readonly createdAt!: Date
-    public readonly updatedAt!: Date
+    public readonly fecha_registro!: Date
+    public readonly fecha_actualizacion!: Date
 }
 
 Contract.init(
@@ -123,22 +119,6 @@ Contract.init(
                 }
             },
         },
-        fecha_registro: {
-            type: DataTypes.DATE,
-            allowNull: false,
-            defaultValue: DataTypes.NOW,
-            validate: {
-                isDate: true
-            }
-        },
-        fecha_actualizacion: {
-            type: DataTypes.DATE,
-            allowNull: false,
-            defaultValue: DataTypes.NOW,
-            validate: {
-                isDate: true
-            }
-        },
         usuario_registro: {
             type: DataTypes.INTEGER,
             allowNull: true,
@@ -164,8 +144,10 @@ Contract.init(
         sequelize,
         modelName: "Contract",
         tableName: "contratos",
-        timestamps: false,
+        timestamps: true,
         underscored: true,
+        createdAt: "fecha_registro",
+        updatedAt: "fecha_actualizacion",
     },
 )
 

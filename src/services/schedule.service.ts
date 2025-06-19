@@ -2,6 +2,7 @@ import { Op } from "sequelize";
 import sequelize from "../config/db";
 import { Training, User, Person, Contract, Trainer } from "../models";
 import { ApiError } from "../errors/apiError";
+import { enviarNotificacionEntrenamiento } from "../utils/email.utils";
 
 export class ScheduleService {
   private _getUpdatedStatus(training: {
@@ -83,9 +84,16 @@ export class ScheduleService {
       where: whereClause,
       include: [
         {
-          model: User,
+          model: Trainer,
           as: "entrenador",
-          attributes: ["id", "nombre", "apellido", "correo"],
+          attributes: ["id", "codigo", "especialidad"],
+          include: [
+            {
+              model: User,
+              as: "usuario",
+              attributes: ["id", "nombre", "apellido", "correo"],
+            },
+          ],
         },
         {
           model: Person,
@@ -126,9 +134,16 @@ export class ScheduleService {
     const training = await Training.findByPk(id, {
       include: [
         {
-          model: User,
+          model: Trainer,
           as: "entrenador",
-          attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+          attributes: ["id", "codigo", "especialidad"],
+          include: [
+            {
+              model: User,
+              as: "usuario",
+              attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+            },
+          ],
         },
         {
           model: Person,
@@ -164,40 +179,44 @@ export class ScheduleService {
         throw new ApiError("No se puede agendar un entrenamiento en una fecha pasada.", 400);
       }
 
-      console.log("SERVICIO: Validando entrenador ID:", data.id_entrenador);
+      console.log("SERVICIO: Validando entrenador (usuario) ID:", data.id_entrenador);
       const trainerUser = await User.findByPk(data.id_entrenador, { transaction });
       if (!trainerUser || !trainerUser.estado) {
-        throw new ApiError("El entrenador no existe o se encuentra inactivo.", 404);
+        throw new ApiError("El usuario del entrenador no existe o se encuentra inactivo.", 404);
       }
-
-      const trainerDetails = await Trainer.findOne({
-        where: { id_usuario: data.id_entrenador, estado: true },
-        transaction,
+      
+      const trainerDetails = await Trainer.findOne({ 
+        where: { id_usuario: data.id_entrenador },
+        transaction 
       });
 
-      if (!trainerDetails) {
-        throw new ApiError("El usuario no tiene un perfil de entrenador activo.", 400);
+      if (!trainerDetails || !trainerDetails.estado) {
+        throw new ApiError("El entrenador no está activo o no se encontró su perfil.", 404);
       }
+      
 
       console.log("SERVICIO: Validando cliente ID:", data.id_cliente);
-      const client = await Person.findByPk(data.id_cliente, { transaction });
-      if (!client) {
-        throw new ApiError("Cliente no encontrado.", 404);
+      const client = await Person.findByPk(data.id_cliente, {
+        include: [{ model: User, as: "usuario" }],
+        transaction,
+      });
+      if (!client || !client.usuario) {
+        throw new ApiError("Cliente no encontrado o sin usuario asociado.", 404);
       }
 
-      console.log("SERVICIO: Verificando contrato activo para el cliente ID:", data.id_cliente);
+      console.log("SERVICIO: Verificando contrato activo o por vencer para el cliente ID:", data.id_cliente);
       const activeContract = await Contract.findOne({
           where: {
               id_persona: data.id_cliente,
-              estado: 'Activo'
+              estado: { [Op.in]: ["Activo", "Por Vencer"] }
           },
           transaction
       });
 
       if (!activeContract) {
-          throw new ApiError("El cliente no tiene un contrato activo para agendar entrenamientos.", 400);
+          throw new ApiError("El cliente no tiene un contrato activo o por vencer para agendar entrenamientos.", 400);
       }
-      console.log(`SERVICIO: El cliente ID ${data.id_cliente} tiene un contrato activo (Contrato ID: ${activeContract.id}).`);
+      console.log(`SERVICIO: El cliente ID ${data.id_cliente} tiene un contrato válido (Contrato ID: ${activeContract.id}, Estado: ${activeContract.estado}).`);
 
 
       console.log("SERVICIO: Verificando conflictos de horario para entrenador y cliente.");
@@ -205,7 +224,7 @@ export class ScheduleService {
         where: {
           [Op.or]: [
             {
-              id_entrenador: data.id_entrenador,
+              id_entrenador: trainerDetails.id,
               fecha_inicio: { [Op.lt]: new Date(data.fecha_fin) },
               fecha_fin: { [Op.gt]: new Date(data.fecha_inicio) },
               estado: { [Op.ne]: "Cancelado" },
@@ -232,7 +251,7 @@ export class ScheduleService {
         descripcion: data.descripcion,
         fecha_inicio: new Date(data.fecha_inicio),
         fecha_fin: new Date(data.fecha_fin),
-        id_entrenador: data.id_entrenador,
+        id_entrenador: trainerDetails.id,
         id_cliente: data.id_cliente,
         estado: data.estado || "Programado",
         notas: data.notas,
@@ -244,13 +263,34 @@ export class ScheduleService {
       await transaction.commit();
       console.log("SERVICIO: Transacción completada (commit).");
 
+      // Enviar correo de notificación
+      try {
+        const nombreEntrenador = `${trainerUser.nombre} ${trainerUser.apellido}`;
+        const nombreCliente = `${client.usuario.nombre} ${client.usuario.apellido}`;
+        
+        enviarNotificacionEntrenamiento(client.usuario.correo, nombreCliente, {
+          titulo: training.titulo,
+          descripcion: training.descripcion,
+          fecha_inicio: training.fecha_inicio,
+          fecha_fin: training.fecha_fin,
+          nombreEntrenador,
+        });
+      } catch (emailError) {
+        // El error ya se loguea en la función de email.
+        // No se relanza para no afectar la respuesta al cliente.
+        console.error("SERVICIO: Falló el envío de correo de notificación, pero el entrenamiento fue creado.")
+      }
+
       // Return the plain created training object to avoid eager loading issues
       return training.get({ plain: true });
     } catch (error) {
       console.error("SERVICIO: Error durante la creación del entrenamiento. Revirtiendo transacción.", error);
       await transaction.rollback();
       console.log("SERVICIO: Transacción revertida (rollback).");
-      throw error;
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(`Error al crear el entrenamiento: ${(error as Error).message}`, 500);
     }
   }
 
@@ -307,7 +347,6 @@ export class ScheduleService {
       if (data.descripcion) updateData.descripcion = data.descripcion;
       if (data.fecha_inicio) updateData.fecha_inicio = new Date(data.fecha_inicio);
       if (data.fecha_fin) updateData.fecha_fin = new Date(data.fecha_fin);
-      if (data.id_entrenador) updateData.id_entrenador = data.id_entrenador;
       if (data.id_cliente) updateData.id_cliente = data.id_cliente;
       if (data.estado) updateData.estado = data.estado;
       if (data.notas) updateData.notas = data.notas;
@@ -321,7 +360,11 @@ export class ScheduleService {
       return training.get({ plain: true });
     } catch (error) {
       await transaction.rollback();
-      throw error;
+      console.error(`Error en update de entrenamiento: ${(error as Error).message}`);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(`Error al actualizar el entrenamiento: ${(error as Error).message}`, 500);
     }
   }
 
@@ -378,9 +421,16 @@ export class ScheduleService {
       where: whereClause,
       include: [
         {
-          model: User,
+          model: Trainer,
           as: "entrenador",
-          attributes: ["id", "nombre", "apellido"],
+          attributes: ["id", "codigo", "especialidad"],
+          include: [
+            {
+              model: User,
+              as: "usuario",
+              attributes: ["id", "nombre", "apellido"],
+            },
+          ],
         },
         {
           model: Person,
@@ -412,9 +462,16 @@ export class ScheduleService {
       },
       include: [
         {
-          model: User,
+          model: Trainer,
           as: "entrenador",
-          attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+          attributes: ["id", "codigo", "especialidad"],
+          include: [
+            {
+              model: User,
+              as: "usuario",
+              attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+            },
+          ],
         },
       ],
       order: [["fecha_inicio", "ASC"]],
@@ -467,9 +524,16 @@ export class ScheduleService {
       },
       include: [
         {
-          model: User,
+          model: Trainer,
           as: "entrenador",
-          attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+          attributes: ["id", "codigo", "especialidad"],
+          include: [
+            {
+              model: User,
+              as: "usuario",
+              attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+            },
+          ],
         },
         {
           model: Person,
@@ -500,9 +564,16 @@ export class ScheduleService {
       },
       include: [
         {
-          model: User,
+          model: Trainer,
           as: "entrenador",
-          attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+          attributes: ["id", "codigo", "especialidad"],
+          include: [
+            {
+              model: User,
+              as: "usuario",
+              attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+            },
+          ],
         },
         {
           model: Person,
@@ -536,9 +607,16 @@ export class ScheduleService {
       },
       include: [
         {
-          model: User,
+          model: Trainer,
           as: "entrenador",
-          attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+          attributes: ["id", "codigo", "especialidad"],
+          include: [
+            {
+              model: User,
+              as: "usuario",
+              attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+            },
+          ],
         },
         {
           model: Person,
@@ -578,6 +656,7 @@ export class ScheduleService {
         if (!trainer.usuario) return null;
         return {
           id: trainer.usuario.id,
+          trainerId: trainer.id,
           name: `${trainer.usuario.nombre} ${trainer.usuario.apellido}`
         };
       }).filter(Boolean);
@@ -598,10 +677,10 @@ export class ScheduleService {
 
   // Get active clients with active contracts
   async getActiveClientsWithContracts() {
-    console.log("SERVICIO: Iniciando la búsqueda de clientes con contratos activos.");
+    console.log("SERVICIO: Iniciando la búsqueda de clientes con contratos activos o por vencer.");
     try {
       const activeContracts = await Contract.findAll({
-        where: { estado: "Activo" },
+        where: { estado: { [Op.in]: ["Activo", "Por Vencer"] } },
         include: [
           {
             model: Person,
@@ -637,7 +716,7 @@ export class ScheduleService {
           index === self.findIndex((p) => p.id === person.id)
         );
 
-      console.log(`SERVICIO: La consulta a la base de datos encontró ${clients.length} clientes únicos con contratos activos.`);
+      console.log(`SERVICIO: La consulta a la base de datos encontró ${clients.length} clientes únicos con contratos activos o por vencer.`);
       return clients;
     } catch (error: any) {
       console.error("----------------- ERROR DETALLADO (CLIENTES) -----------------");

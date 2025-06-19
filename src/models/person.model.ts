@@ -7,8 +7,6 @@ interface PersonAttributes {
   id_persona: number;
   codigo: string;
   id_usuario?: number;
-  fecha_registro: Date;
-  fecha_actualizacion: Date;
   estado: boolean;
 
   // Relationships
@@ -25,13 +23,11 @@ class Person
   public id_persona!: number;
   public codigo!: string;
   public id_usuario?: number;
-  public fecha_registro!: Date;
-  public fecha_actualizacion!: Date;
   public estado!: boolean;
 
   // Timestamps
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  public readonly fecha_registro!: Date;
+  public readonly fecha_actualizacion!: Date;
 
   public readonly usuario?: User;
   public readonly contratos?: Contract[];
@@ -66,16 +62,6 @@ Person.init(
         key: "id",
       },
     },
-    fecha_registro: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-    },
-    fecha_actualizacion: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-    },
     estado: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -86,8 +72,10 @@ Person.init(
     sequelize,
     modelName: "Person",
     tableName: "personas",
-    timestamps: false,
+    timestamps: true,
     underscored: true,
+    createdAt: "fecha_registro",
+    updatedAt: "fecha_actualizacion",
   },
 );
 

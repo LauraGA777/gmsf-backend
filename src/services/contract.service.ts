@@ -10,6 +10,22 @@ import {
 import { ApiError } from "../errors/apiError";
 
 export class ContractService {
+  private _calculateNewEndDateOnUnfreeze(contract: Contract): Date {
+    if (!contract.fecha_congelacion) {
+      // Devuelve la fecha de fin actual si no hay fecha de congelación (no debería pasar si la lógica es correcta)
+      return contract.fecha_fin;
+    }
+  
+    const frozenFrom = new Date(contract.fecha_congelacion);
+    const frozenUntil = new Date(); // Ahora
+    const frozenDuration = frozenUntil.getTime() - frozenFrom.getTime();
+    
+    const currentEndDate = new Date(contract.fecha_fin);
+    const newEndDate = new Date(currentEndDate.getTime() + frozenDuration);
+  
+    return newEndDate;
+  }
+
   // Get all contracts with pagination and filters
   async findAll(options: {
     page?: number;
@@ -236,8 +252,6 @@ export class ContractService {
         fecha_fin: endDate,
         membresia_precio: membership.precio, // Always use the price from the DB
         estado: "Activo" as const,
-        fecha_registro: new Date(),
-        fecha_actualizacion: new Date(),
         usuario_registro: data.usuario_registro,
       };
       console.log("--- [Service] Step 5: Attempting to create contract with this data ---", contractToCreate);
@@ -271,7 +285,10 @@ export class ContractService {
     } catch (error) {
       await transaction.rollback();
       console.error("--- [Service] ERROR in create method, transaction rolled back ---", error);
-      throw error;
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(`Error al crear el contrato: ${(error as Error).message}`, 500);
     }
   }
 
@@ -291,7 +308,6 @@ export class ContractService {
 
       const oldState = contract.estado;
       const updates: any = {
-        fecha_actualizacion: new Date(),
         usuario_actualizacion: data.usuario_actualizacion,
       };
 
@@ -301,15 +317,8 @@ export class ContractService {
       }
 
       // Handle unfreezing logic
-      if (data.estado === "Activo" && oldState === "Congelado" && contract.fecha_congelacion) {
-        const frozenUntil = new Date();
-        const frozenFrom = new Date(contract.fecha_congelacion);
-        const frozenDuration = frozenUntil.getTime() - frozenFrom.getTime();
-        
-        const currentEndDate = new Date(contract.fecha_fin);
-        const newEndDate = new Date(currentEndDate.getTime() + frozenDuration);
-        
-        updates.fecha_fin = newEndDate;
+      if (data.estado === "Activo" && oldState === "Congelado") {
+        updates.fecha_fin = this._calculateNewEndDateOnUnfreeze(contract);
         updates.fecha_congelacion = null; // Clear the freeze date
       }
 
@@ -384,7 +393,10 @@ export class ContractService {
     } catch (error) {
       await transaction.rollback();
       console.error(`--- [Service] ERROR in update method for contract ID: ${id} ---`, error);
-      throw error;
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(`Error al actualizar el contrato: ${(error as Error).message}`, 500);
     }
   }
 
@@ -406,7 +418,6 @@ export class ContractService {
       await contract.update(
         {
           estado: "Cancelado",
-          fecha_actualizacion: new Date(),
           usuario_actualizacion: userId,
         },
         { transaction }
@@ -428,7 +439,11 @@ export class ContractService {
       return { success: true, message: "Contrato cancelado correctamente" };
     } catch (error) {
       await transaction.rollback();
-      throw error;
+      console.error(`--- [Service] ERROR in delete method for contract ID: ${id} ---`, error);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(`Error al cancelar el contrato: ${(error as Error).message}`, 500);
     }
   }
 

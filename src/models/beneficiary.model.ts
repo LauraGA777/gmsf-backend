@@ -8,8 +8,6 @@ interface BeneficiaryAttributes {
   id_cliente: number;
   relacion?: string;
   es_titular: boolean;
-  fecha_registro: Date;
-  fecha_actualizacion: Date;
   estado: boolean;
 }
 
@@ -25,13 +23,11 @@ class Beneficiary
   public id_cliente!: number;
   public relacion?: string;
   public es_titular!: boolean;
-  public fecha_registro!: Date;
-  public fecha_actualizacion!: Date;
   public estado!: boolean;
 
   // Timestamps
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  public readonly fecha_registro!: Date;
+  public readonly fecha_actualizacion!: Date;
 }
 
 Beneficiary.init(
@@ -77,16 +73,6 @@ Beneficiary.init(
         allowNull: false,
         defaultValue: false,
     },
-    fecha_registro: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-    },
-    fecha_actualizacion: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-    },
     estado: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -97,8 +83,10 @@ Beneficiary.init(
     sequelize,
     modelName: "Beneficiary",
     tableName: "beneficiarios",
-    timestamps: false,
+    timestamps: true,
     underscored: true,
+    createdAt: "fecha_registro",
+    updatedAt: "fecha_actualizacion",
   },
 );
 

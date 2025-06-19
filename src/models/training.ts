@@ -103,7 +103,7 @@ Training.init(
             type: DataTypes.INTEGER,
             allowNull: false,
             references: {
-                model: "usuarios",
+                model: "entrenadores",
                 key: "id",
             },
         },

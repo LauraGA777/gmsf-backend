@@ -242,8 +242,6 @@ export class ClientService {
         id_usuario: personData.id_usuario,
         estado: personData.estado,
         codigo: personCode,
-        fecha_registro: new Date(),
-        fecha_actualizacion: new Date(),
       },
       { transaction }
     );
@@ -258,8 +256,6 @@ export class ClientService {
       const contactsData = contacts.map((contact: any) => ({
         ...contact,
         id_persona: personId,
-        fecha_registro: new Date(),
-        fecha_actualizacion: new Date(),
       }));
       await EmergencyContact.bulkCreate(contactsData, { transaction });
       console.log(`--- [Service] _createEmergencyContacts: Emergency contacts created. ---`);
@@ -327,8 +323,6 @@ export class ClientService {
             id_persona: beneficiaryPerson.id_persona, // The beneficiary's person ID
             id_cliente: titularPerson.id_persona, // The titular's person ID
             relacion: bene.relacion,
-            fecha_registro: new Date(),
-            fecha_actualizacion: new Date(),
             estado: true
           }, { transaction });
 
@@ -348,7 +342,10 @@ export class ClientService {
     } catch (error) {
       console.error("--- [Service] Create Client: An error occurred. Rolling back transaction. ---", error);
       await transaction.rollback();
-      throw error;
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(`Error al crear el cliente: ${(error as Error).message}`, 500);
     }
   }
 
@@ -368,7 +365,6 @@ export class ClientService {
       await person.update(
         {
           estado: data.estado,
-          fecha_actualizacion: new Date(),
         },
         { transaction }
       );
@@ -385,8 +381,6 @@ export class ClientService {
             const contactsData = data.contactos_emergencia.map((contact: any) => ({
             ...contact,
             id_persona: id,
-            fecha_registro: new Date(),
-            fecha_actualizacion: new Date(),
             }));
             await EmergencyContact.bulkCreate(contactsData, { transaction });
         }
@@ -427,8 +421,6 @@ export class ClientService {
             id_persona: beneficiaryPerson.id_persona,
             id_cliente: person.id_persona,
             relacion: bene.relacion,
-            fecha_registro: new Date(),
-            fecha_actualizacion: new Date(),
             estado: true
           }, { transaction });
         }
@@ -440,7 +432,10 @@ export class ClientService {
     } catch (error) {
       console.error("--- [Service] Update Client: Error, rolling back ---", error);
       await transaction.rollback();
-      throw error;
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(`Error al actualizar el cliente: ${(error as Error).message}`, 500);
     }
   }
 
@@ -462,7 +457,11 @@ export class ClientService {
       return { success: true, message: "Cliente eliminado correctamente" };
     } catch (error) {
       await transaction.rollback();
-      throw error;
+      console.error(`Error en delete cliente: ${(error as Error).message}`);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(`Error al eliminar el cliente: ${(error as Error).message}`, 500);
     }
   }
 

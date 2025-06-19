@@ -69,9 +69,9 @@ Trainer.belongsTo(User, { foreignKey: 'id_usuario', as: 'usuario' });
 User.hasOne(Trainer, { foreignKey: 'id_usuario', as: 'detalles_entrenador' });
 
 // Relaciones de Training
-Training.belongsTo(User, { foreignKey: "id_entrenador", as: "entrenador" });
+Training.belongsTo(Trainer, { foreignKey: "id_entrenador", as: "entrenador" });
 Training.belongsTo(Person, { foreignKey: "id_cliente", as: "cliente" });
-User.hasMany(Training, { foreignKey: "id_entrenador", as: "entrenamientos_asignados" });
+Trainer.hasMany(Training, { foreignKey: "id_entrenador", as: "entrenamientos_asignados" });
 Person.hasMany(Training, { foreignKey: "id_cliente", as: "entrenamientos" });
 
 

@@ -73,14 +73,11 @@ CREATE TABLE usuarios (
 CREATE TABLE personas (
     id_persona SERIAL PRIMARY KEY,
     codigo VARCHAR(10) NOT NULL UNIQUE CHECK (codigo ~ '^P\d{3}$'),
-    id_usuario INTEGER,
-    id_titular INTEGER,
-    relacion VARCHAR(50),
+    id_usuario INTEGER UNIQUE, -- Un usuario solo puede ser una persona
     fecha_registro TIMESTAMP WITH TIME ZONE NOT NULL,
     fecha_actualizacion TIMESTAMP WITH TIME ZONE NOT NULL,
     estado BOOLEAN DEFAULT true NOT NULL,
-    FOREIGN KEY (id_usuario) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
-    FOREIGN KEY (id_titular) REFERENCES personas(id_persona) ON DELETE SET NULL ON UPDATE CASCADE
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- Tabla de Entrenadores
@@ -169,12 +166,9 @@ CREATE TABLE contactos_emergencia (
     nombre_contacto VARCHAR(100) NOT NULL CHECK (LENGTH(nombre_contacto) >= 3),
     telefono_contacto VARCHAR(15) NOT NULL CHECK (telefono_contacto ~ '^\d{7,15}$'),
     relacion_contacto VARCHAR(50),
-    es_mismo_beneficiario BOOLEAN DEFAULT false NOT NULL,
     fecha_registro TIMESTAMP WITH TIME ZONE NOT NULL,
     fecha_actualizacion TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    FOREIGN KEY (id_persona) REFERENCES personas(id_persona) ON DELETE NO ACTION ON UPDATE CASCADE
+    FOREIGN KEY (id_persona) REFERENCES personas(id_persona) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- Tabla de Entrenamientos
@@ -194,3 +188,12 @@ CREATE TABLE entrenamientos (
     FOREIGN KEY (id_entrenador) REFERENCES usuarios(id) ON DELETE NO ACTION ON UPDATE CASCADE,
     FOREIGN KEY (id_cliente) REFERENCES personas(id_persona) ON DELETE NO ACTION ON UPDATE CASCADE
 );
+
+-- Índice para filtrar contratos por su estado de forma más rápida
+CREATE INDEX IF NOT EXISTS idx_contratos_estado ON contratos(estado);
+
+-- Índice para encontrar todos los contratos de una persona de forma más rápida
+CREATE INDEX IF NOT EXISTS idx_contratos_id_persona ON contratos(id_persona);
+
+-- Índice para acelerar las búsquedas de beneficiarios por cliente titular
+CREATE INDEX IF NOT EXISTS idx_beneficiarios_id_cliente ON beneficiarios(id_cliente);
