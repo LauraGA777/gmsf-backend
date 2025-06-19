@@ -187,34 +187,41 @@ export class AttendanceController {
     // Registrar nueva asistencia ✅
     public async create(req: Request, res: Response) {
         try {
-            // 1. Obtener datos de entrada
+            // 1. Validar datos de entrada
             const { numero_documento } = req.body;
             const userId = (req.user as any)?.id;
 
-            // 2. Buscar persona
+            if (!numero_documento || !userId) {
+                console.error('[Attendance] Datos de entrada faltantes:', { numero_documento, userId });
+                return ApiResponse.error(res, "Datos de entrada inválidos", 400);
+            }
+
+            // 2. Buscar persona con mejor manejo de errores
             const person = await Person.findOne({
                 include: [{
                     model: User,
                     as: 'usuario',
                     where: { numero_documento },
-                    attributes: ['numero_documento']
+                    attributes: ['numero_documento', 'id']
                 }]
             });
 
-            if (!person) {
+            if (!person || !person.id_persona) {
+                console.error('[Attendance] Persona no encontrada:', { numero_documento });
                 return ApiResponse.error(res, "Persona no encontrada", 404);
             }
 
-            // 3. Buscar contrato activo
+            // 3. Buscar contrato activo con fecha actual
+            const now = new Date();
             const contract = await Contract.findOne({
                 where: {
                     id_persona: person.id_persona,
                     estado: "Activo",
                     fecha_inicio: {
-                        [Op.lte]: new Date()  // Menor o igual a hoy
+                        [Op.lte]: now
                     },
                     fecha_fin: {
-                        [Op.gte]: new Date()  // Mayor o igual a hoy
+                        [Op.gte]: now
                     }
                 },
                 include: [{
@@ -223,42 +230,23 @@ export class AttendanceController {
                 }]
             });
 
-            // Agregar logs detallados
-            if (contract) {
-                console.log(`[${new Date().toISOString()}] Contrato activo encontrado:`, JSON.stringify({
-                    id: contract.id,
-                    codigo: contract.codigo,
-                    id_persona: contract.id_persona,
-                    id_membresia: contract.id_membresia,
-                    fecha_inicio: contract.fecha_inicio,
-                    fecha_fin: contract.fecha_fin,
-                    precio: contract.membresia_precio,
-                    estado: contract.estado,
-                    fecha_registro: contract.fecha_registro,
-                    fecha_actualizacion: contract.fecha_actualizacion,
-                    usuario_registro: contract.usuario_registro,
-                    usuario_actualizacion: contract.usuario_actualizacion
-                }, null, 2));
-            } else {
-                console.log(`[${new Date().toISOString()}] No se encontró contrato activo para persona ID: ${person.id_persona}`);
+            // 4. Verificar contrato
+            if (!contract || !contract.id) {
+                console.error('[Attendance] Contrato no encontrado:', { person_id: person.id_persona });
+                return ApiResponse.error(res, "No se encontró un contrato activo", 400);
             }
 
-            if (!contract) {
-                return ApiResponse.error(
-                    res,
-                    "No se encontró un contrato activo para esta persona",
-                    400
-                );
-            }
-
-            // 4. Verificar asistencia existente
+            // 5. Verificar asistencia existente
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
             const existingAttendance = await Attendance.findOne({
                 where: {
                     id_persona: person.id_persona,
-                    fecha_uso: today,
+                    fecha_uso: {
+                        [Op.gte]: today,
+                        [Op.lt]: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+                    },
                     estado: "Activo"
                 }
             });
@@ -267,42 +255,84 @@ export class AttendanceController {
                 return ApiResponse.error(res, "Ya registró asistencia hoy", 400);
             }
 
-            // 5. Crear nueva asistencia
-            const attendanceData = createAttendanceSchema.parse({
-                id_persona: person.id_persona,
-                id_contrato: contract.id,
-                fecha_uso: today,
-                hora_registro: new Date().toTimeString().split(' ')[0],
-                estado: "Activo",
-                usuario_registro: userId
-            });
+            // 6. Crear asistencia con try-catch específico
+            let newAttendance;
+            try {
+                const attendanceData = {
+                    id_persona: person.id_persona,
+                    id_contrato: contract.id,
+                    fecha_uso: today,
+                    hora_registro: new Date().toTimeString().split(' ')[0],
+                    estado: "Activo" as "Activo",
+                    usuario_registro: userId,
+                    fecha_registro: new Date(),
+                    fecha_actualizacion: new Date()
+                };
 
-            const newAttendance = await Attendance.create({
-                ...attendanceData,
-                fecha_registro: new Date(),
-                fecha_actualizacion: new Date()
-            });
-
-            // 6. Incrementar contador
-            if (person.id_usuario) {
-                await User.increment('asistencias_totales', {
-                    by: 1,
-                    where: { id: person.id_usuario }
-                });
+                newAttendance = await Attendance.create(attendanceData);
+            } catch (createError) {
+                console.error('[Attendance] Error al crear asistencia:', createError);
+                return ApiResponse.error(res, "Error al crear la asistencia", 500);
             }
 
-            // 7. Retornar respuesta
+            // 7. Incrementar contador de asistencias
+            try {
+                if (person.id_usuario) {
+                    await User.increment('asistencias_totales', {
+                        by: 1,
+                        where: { id: person.id_usuario }
+                    });
+                }
+            } catch (incrementError) {
+                console.error('[Attendance] Error al incrementar contador:', incrementError);
+                // No retornamos error aquí para no afectar el registro principal
+            }
+
+            // 8. Obtener los detalles completos
+            const createdAttendance = await Attendance.findByPk(newAttendance.id, {
+                include: [
+                    {
+                        model: Person,
+                        as: "persona",
+                        attributes: ['id_persona', 'codigo', 'id_usuario', 'id_titular', 'relacion', 'estado'],
+                        include: [{
+                            model: User,
+                            as: "usuario",
+                            attributes: ['nombre', 'apellido', 'numero_documento']
+                        }]
+                    },
+                    {
+                        model: Contract,
+                        as: "contrato",
+                        include: [{
+                            model: Membership,
+                            as: "membresia"
+                        }]
+                    }
+                ]
+            });
+
+            if (!createdAttendance) {
+                console.error('[Attendance] No se pudo obtener la asistencia creada');
+                return ApiResponse.error(res, "Error al obtener los detalles de la asistencia", 500);
+            }
+
+            // 9. Retornar respuesta exitosa
             return ApiResponse.success(
                 res,
-                newAttendance,
+                createdAttendance,
                 "Asistencia registrada exitosamente",
                 undefined,
                 201
             );
 
         } catch (error) {
-            console.error("Error:", error);
-            return ApiResponse.error(res, "Error al registrar asistencia");
+            console.error('[Attendance] Error general:', error);
+            return ApiResponse.error(
+                res,
+                "Error interno al registrar asistencia",
+                500
+            );
         }
     }
 
