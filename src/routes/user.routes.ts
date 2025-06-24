@@ -1,11 +1,11 @@
 import { RequestHandler, Router } from 'express';
-import { getUsers, register, getUsuarioById, updateUser, activateUser, deactivateUser, deleteUser, searchUser } from '../controllers/user.controller';
+import { getUsers, register, getUsuarioById, updateUser, activateUser, deactivateUser, deleteUser, searchUser, getRoles } from '../controllers/user.controller';
 import { verifyToken, isAdmin } from '../middlewares/auth.middleware';
 
 const router = Router();
 
 // Get users route ✅
-router.get('/', 
+router.get('/users', 
     verifyToken as unknown as RequestHandler,
     isAdmin as unknown as RequestHandler,
     getUsers as unknown as RequestHandler
@@ -15,7 +15,7 @@ router.get('/',
 router.get('/roles',
     verifyToken as unknown as RequestHandler,
     isAdmin as unknown as RequestHandler,
-    getUsers as unknown as RequestHandler
+    getRoles as unknown as RequestHandler
 );
 
 // Search users route ✅
