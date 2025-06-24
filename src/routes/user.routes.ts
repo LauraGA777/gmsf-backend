@@ -5,7 +5,7 @@ import { verifyToken, isAdmin } from '../middlewares/auth.middleware';
 const router = Router();
 
 // Get users route ✅
-router.get('/users', 
+router.get('/', 
     verifyToken as unknown as RequestHandler,
     isAdmin as unknown as RequestHandler,
     getUsers as unknown as RequestHandler
