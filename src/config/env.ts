@@ -32,7 +32,7 @@ export const env = cleanEnv(process.env, {
     JWT_REFRESH_SECRET: str(),
     JWT_REFRESH_EXPIRES_IN: str({ default: '7d' }),
 
-   
+    
     // Email configuration
     SMTP_HOST: str({ default: 'smtp.gmail.com' }),
     SMTP_PORT: port({ default: 587 }),

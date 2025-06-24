@@ -84,6 +84,28 @@ export const getUsers = async (req: Request<{}, {}, {}, QueryParams>, res: Respo
     }
 };
 
+// Obtener Roles
+export const getRoles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const roles = await Role.findAll({
+            where: {
+                estado: true
+            }
+        });
+
+        res.json({
+            status: 'success',
+            data: {
+                roles
+            }
+        });
+
+    }
+    catch (error) {
+        next(error);
+    }
+}
+
 // Obtener usuario por ID
 export const getUsuarioById = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {

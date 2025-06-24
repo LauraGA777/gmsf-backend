@@ -11,6 +11,13 @@ router.get('/',
     getUsers as unknown as RequestHandler
 );
 
+// Get roles route ✅
+router.get('/roles',
+    verifyToken as unknown as RequestHandler,
+    isAdmin as unknown as RequestHandler,
+    getUsers as unknown as RequestHandler
+);
+
 // Search users route ✅
 router.get('/search', 
     verifyToken as unknown as RequestHandler,
