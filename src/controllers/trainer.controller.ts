@@ -20,7 +20,7 @@ const generateTrainerCode = async (): Promise<string> => {
 // Listar entrenadores
 export const getTrainers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { pagina = 1, limite = 10, orden = 'fecha_registro', direccion = 'DESC' } = searchTrainerSchema.parse(req.query);
+        const { pagina = 1, limite = 10, orden = 'fecha_registro', direccion = 'ASC' } = searchTrainerSchema.parse(req.query);
         
         const offset = (pagina - 1) * limite;
 
@@ -29,7 +29,15 @@ export const getTrainers = async (req: Request, res: Response, next: NextFunctio
                 include: [{
                     model: User,
                     as: 'usuario',
-                    attributes: ['nombre', 'apellido', 'correo', 'telefono']
+                    attributes: ['nombre',
+                                'apellido',
+                                'correo',
+                                'telefono',
+                                'direccion',
+                                'genero',
+                                'tipo_documento',
+                                'numero_documento',
+                                'fecha_nacimiento']
                 }],
                 limit: limite,
                 offset: offset,
