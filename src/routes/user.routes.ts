@@ -67,4 +67,26 @@ router.post('/register',
     register as unknown as RequestHandler
 );
 
+// Middleware to check if document exists
+router.get('/check-document/:numero_documento',
+    verifyToken as unknown as RequestHandler,
+    isAdmin as unknown as RequestHandler,
+    (req, res, next) => {
+        import('../controllers/user.controller').then(({ checkDocumentExists }) => {
+            return checkDocumentExists(req, res, next);
+        });
+    }
+);
+
+// Middleware to check if email exists
+router.get('/check-email/:email',
+    verifyToken as unknown as RequestHandler,
+    isAdmin as unknown as RequestHandler,
+    (req, res, next) => {
+        import('../controllers/user.controller').then(({ checkEmailExists }) => {
+            return checkEmailExists(req, res, next);
+        });
+    }
+);
+
 export default router;

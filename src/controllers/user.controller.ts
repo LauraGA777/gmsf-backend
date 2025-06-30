@@ -665,6 +665,111 @@ const searchUsers = async (req: Request, res: Response, next: NextFunction): Pro
     }
 };
 
+// Verificar si un número de documento ya existe
+
+export const checkDocumentExists = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+        // Obtener número de documento desde los parámetros de la URL
+        const { numero_documento } = req.params;
+        const { excludeUserId } = req.query; // Para excluir usuario al editar
+        
+        // Validar el número de documento
+        if (!numero_documento) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Número de documento es requerido'
+            });
+        }
+
+        // Construir condiciones de búsqueda
+        const whereConditions: any = { numero_documento };
+        
+        // Si se proporciona excludeUserId, excluir ese usuario de la búsqueda
+        if (excludeUserId) {
+            whereConditions.id = { [Op.ne]: excludeUserId };
+        }
+
+        // Buscar usuario por número de documento
+        const user = await User.findOne({
+            where: whereConditions
+        });
+
+        if (user) {
+            return res.status(200).json({
+                status: 'success',
+                message: 'Número de documento ya existe',
+                data: { exists: true }
+            });
+        }
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Número de documento disponible',
+            data: { exists: false }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Verificar si un correo ya existe
+
+export const checkEmailExists = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+        // Obtener email desde los parámetros de la URL
+        const { email } = req.params;
+        const { excludeUserId } = req.query; // Para excluir usuario al editar
+        
+        // Validar el email
+        if (!email) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Email es requerido'
+            });
+        }
+
+        // Validar formato de email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Formato de email inválido'
+            });
+        }
+
+        // Construir condiciones de búsqueda
+        const whereConditions: any = { correo: email.toLowerCase() };
+        
+        // Si se proporciona excludeUserId, excluir ese usuario de la búsqueda
+        if (excludeUserId) {
+            whereConditions.id = { [Op.ne]: excludeUserId };
+        }
+
+        // Buscar usuario por correo
+        const user = await User.findOne({
+            where: whereConditions
+        });
+
+        if (user) {
+            return res.status(200).json({
+                status: 'success',
+                message: 'Email ya existe',
+                data: { exists: true }
+            });
+        }
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Email disponible',
+            data: { exists: false }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
 export { 
     getUsers as getUser, 
     register as createUser, 
