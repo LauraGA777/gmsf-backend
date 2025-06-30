@@ -186,6 +186,9 @@ export class AttendanceController {
 
     // Registrar nueva asistencia ✅
     public async create(req: Request, res: Response) {
+        const startTime = Date.now();
+        console.log('[Attendance] Iniciando registro de asistencia:', req.body);
+        
         try {
             // 1. Validar datos de entrada
             const { numero_documento } = req.body;
@@ -195,6 +198,8 @@ export class AttendanceController {
                 console.error('[Attendance] Datos de entrada faltantes:', { numero_documento, userId });
                 return ApiResponse.error(res, "Datos de entrada inválidos", 400);
             }
+
+            console.log('[Attendance] Paso 1 completado - Validación exitosa');
 
             // 2. Buscar persona con mejor manejo de errores
             const person = await Person.findOne({
@@ -210,6 +215,8 @@ export class AttendanceController {
                 console.error('[Attendance] Persona no encontrada:', { numero_documento });
                 return ApiResponse.error(res, "Persona no encontrada", 404);
             }
+
+            console.log('[Attendance] Paso 2 completado - Persona encontrada:', person.id_persona);
 
             // 3. Buscar contrato activo con fecha actual
             const now = new Date();
@@ -236,6 +243,8 @@ export class AttendanceController {
                 return ApiResponse.error(res, "No se encontró un contrato activo", 400);
             }
 
+            console.log('[Attendance] Paso 3-4 completado - Contrato encontrado:', contract.id);
+
             // 5. Verificar asistencia existente
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -252,8 +261,11 @@ export class AttendanceController {
             });
 
             if (existingAttendance) {
+                console.log('[Attendance] Asistencia ya existe para hoy:', existingAttendance.id);
                 return ApiResponse.error(res, "Ya registró asistencia hoy", 400);
             }
+
+            console.log('[Attendance] Paso 5 completado - No hay asistencia previa');
 
             // 6. Crear asistencia con try-catch específico
             let newAttendance;
@@ -269,7 +281,9 @@ export class AttendanceController {
                     fecha_actualizacion: new Date()
                 };
 
+                console.log('[Attendance] Creando asistencia con datos:', attendanceData);
                 newAttendance = await Attendance.create(attendanceData);
+                console.log('[Attendance] Paso 6 completado - Asistencia creada:', newAttendance.id);
             } catch (createError) {
                 console.error('[Attendance] Error al crear asistencia:', createError);
                 return ApiResponse.error(res, "Error al crear la asistencia", 500);
@@ -282,39 +296,66 @@ export class AttendanceController {
                         by: 1,
                         where: { id: person.id_usuario }
                     });
+                    console.log('[Attendance] Paso 7 completado - Contador incrementado');
                 }
             } catch (incrementError) {
                 console.error('[Attendance] Error al incrementar contador:', incrementError);
                 // No retornamos error aquí para no afectar el registro principal
             }
 
-            // 8. Obtener los detalles completos
-            const createdAttendance = await Attendance.findByPk(newAttendance.id, {
-                include: [
-                    {
-                        model: Person,
-                        as: "persona",
-                        attributes: ['id_persona', 'codigo', 'id_usuario', 'id_titular', 'relacion', 'estado'],
-                        include: [{
-                            model: User,
-                            as: "usuario",
-                            attributes: ['nombre', 'apellido', 'numero_documento']
-                        }]
-                    },
-                    {
-                        model: Contract,
-                        as: "contrato",
-                        include: [{
-                            model: Membership,
-                            as: "membresia"
-                        }]
-                    }
-                ]
-            });
+            // 8. Obtener los detalles completos con mejor manejo de errores
+            let createdAttendance;
+            try {
+                createdAttendance = await Attendance.findByPk(newAttendance.id, {
+                    include: [
+                        {
+                            model: Person,
+                            as: "persona",
+                            attributes: ['id_persona', 'codigo', 'id_usuario', 'estado'],
+                            include: [{
+                                model: User,
+                                as: "usuario",
+                                attributes: ['nombre', 'apellido', 'numero_documento']
+                            }]
+                        },
+                        {
+                            model: Contract,
+                            as: "contrato",
+                            attributes: ['id', 'codigo', 'estado', 'fecha_inicio', 'fecha_fin'],
+                            include: [{
+                                model: Membership,
+                                as: "membresia",
+                                attributes: ['id', 'nombre', 'descripcion', 'precio']
+                            }]
+                        }
+                    ]
+                });
+            } catch (includeError) {
+                console.error('[Attendance] Error al obtener detalles con includes:', includeError);
+                
+                // Intentar obtener solo la asistencia sin includes como fallback
+                try {
+                    createdAttendance = await Attendance.findByPk(newAttendance.id);
+                } catch (fallbackError) {
+                    console.error('[Attendance] Error en fallback:', fallbackError);
+                    // Si todo falla, devolver la asistencia básica creada
+                    createdAttendance = newAttendance;
+                }
+            }
 
             if (!createdAttendance) {
                 console.error('[Attendance] No se pudo obtener la asistencia creada');
-                return ApiResponse.error(res, "Error al obtener los detalles de la asistencia", 500);
+                // Aunque no se puedan obtener los detalles, la asistencia se creó exitosamente
+                return ApiResponse.success(
+                    res,
+                    { 
+                        id: newAttendance.id,
+                        message: "Asistencia registrada exitosamente, pero no se pudieron obtener todos los detalles"
+                    },
+                    "Asistencia registrada exitosamente",
+                    undefined,
+                    201
+                );
             }
 
             // 9. Retornar respuesta exitosa
@@ -327,7 +368,13 @@ export class AttendanceController {
             );
 
         } catch (error) {
-            console.error('[Attendance] Error general:', error);
+            console.error('[Attendance] Error general no manejado:', error);
+            
+            // Si llegamos aquí y no es un error conocido, es un error inesperado
+            if (error instanceof Error) {
+                console.error('[Attendance] Stack trace:', error.stack);
+            }
+            
             return ApiResponse.error(
                 res,
                 "Error interno al registrar asistencia",
