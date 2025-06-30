@@ -7,6 +7,7 @@ import Contract from '../models/contract';
 import Person from '../models/person.model';
 import Membership from '../models/membership';
 import ApiResponse from '../utils/apiResponse';
+import DateTimeUtils from '../utils/datetime.utils';
 import {
     listAttendanceSchema,
     searchAttendanceSchema,
@@ -188,6 +189,7 @@ export class AttendanceController {
     public async create(req: Request, res: Response) {
         const startTime = Date.now();
         console.log('[Attendance] Iniciando registro de asistencia:', req.body);
+        console.log('[Attendance] Información de zona horaria:', DateTimeUtils.getTimezoneInfo());
         
         try {
             // 1. Validar datos de entrada
@@ -218,8 +220,8 @@ export class AttendanceController {
 
             console.log('[Attendance] Paso 2 completado - Persona encontrada:', person.id_persona);
 
-            // 3. Buscar contrato activo con fecha actual
-            const now = new Date();
+            // 3. Buscar contrato activo con fecha actual en zona horaria de Bogotá
+            const now = DateTimeUtils.nowInBogota();
             const contract = await Contract.findOne({
                 where: {
                     id_persona: person.id_persona,
@@ -245,16 +247,15 @@ export class AttendanceController {
 
             console.log('[Attendance] Paso 3-4 completado - Contrato encontrado:', contract.id);
 
-            // 5. Verificar asistencia existente
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            // 5. Verificar asistencia existente usando zona horaria de Bogotá
+            const todayRange = DateTimeUtils.getTodayRange();
 
             const existingAttendance = await Attendance.findOne({
                 where: {
                     id_persona: person.id_persona,
                     fecha_uso: {
-                        [Op.gte]: today,
-                        [Op.lt]: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+                        [Op.gte]: todayRange.start,
+                        [Op.lte]: todayRange.end
                     },
                     estado: "Activo"
                 }
@@ -273,12 +274,12 @@ export class AttendanceController {
                 const attendanceData = {
                     id_persona: person.id_persona,
                     id_contrato: contract.id,
-                    fecha_uso: today,
-                    hora_registro: new Date().toTimeString().split(' ')[0],
+                    fecha_uso: DateTimeUtils.todayInBogota(),
+                    hora_registro: DateTimeUtils.currentTimeInBogota(),
                     estado: "Activo" as "Activo",
                     usuario_registro: userId,
-                    fecha_registro: new Date(),
-                    fecha_actualizacion: new Date()
+                    fecha_registro: DateTimeUtils.nowInBogota(),
+                    fecha_actualizacion: DateTimeUtils.nowInBogota()
                 };
 
                 console.log('[Attendance] Creando asistencia con datos:', attendanceData);
