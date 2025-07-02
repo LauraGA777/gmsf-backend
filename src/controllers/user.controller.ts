@@ -666,7 +666,6 @@ const searchUsers = async (req: Request, res: Response, next: NextFunction): Pro
 };
 
 // Verificar si un número de documento ya existe
-
 export const checkDocumentExists = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
         // Obtener número de documento desde los parámetros de la URL
@@ -714,7 +713,6 @@ export const checkDocumentExists = async (req: Request, res: Response, next: Nex
 };
 
 // Verificar si un correo ya existe
-
 export const checkEmailExists = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
         // Obtener email desde los parámetros de la URL

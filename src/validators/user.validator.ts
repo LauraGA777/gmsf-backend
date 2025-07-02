@@ -29,4 +29,4 @@ export const searchUserSchema = z.object({
 
 export type IdSchemaType = z.infer<typeof idSchema>;
 export type UpdateUserType = z.infer<typeof updateUserSchema>;
-export type SearchUserType = z.infer<typeof searchUserSchema>; 
+export type SearchUserType = z.infer<typeof searchUserSchema>;
