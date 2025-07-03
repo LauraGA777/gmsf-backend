@@ -1,6 +1,5 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/db';
-import Role from './role';
 
 interface UserAttributes {
     id: number;
@@ -19,10 +18,9 @@ interface UserAttributes {
     fecha_nacimiento: Date;
     estado: boolean;
     id_rol?: number;
-    rol?: Role;
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'fecha_actualizacion' | 'asistencias_totales' | 'estado' | 'rol'> {}
+interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'fecha_actualizacion' | 'asistencias_totales' | 'estado'> {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
     public id!: number;
@@ -41,7 +39,9 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
     public fecha_nacimiento!: Date;
     public estado!: boolean;
     public id_rol!: number;
-    public rol?: Role;
+
+    // Asociaciones (sin importar los tipos)
+    public rol?: any;
 }
 
 User.init({
@@ -181,12 +181,6 @@ User.init({
     modelName: 'User',
     tableName: 'usuarios',
     timestamps: false
-});
-
-// Definir la asociación con Role
-User.belongsTo(Role, {
-    foreignKey: 'id_rol',
-    as: 'rol'
 });
 
 export default User;

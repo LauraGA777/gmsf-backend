@@ -1,8 +1,5 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/db';
-import User from './user';
-import Permission from './permission';
-import Privilege from './privilege';
 
 interface RoleAttributes {
     id: number;
@@ -12,12 +9,9 @@ interface RoleAttributes {
     estado: boolean;
     createdAt?: Date;
     updatedAt?: Date;
-    usuarios?: User[];
-    permisos?: Permission[];
-    privilegios?: Privilege[];
 }
 
-interface RoleCreationAttributes extends Optional<RoleAttributes, 'id' | 'createdAt' | 'updatedAt' | 'usuarios' | 'permisos' | 'privilegios'> {}
+interface RoleCreationAttributes extends Optional<RoleAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
 
 class Role extends Model<RoleAttributes, RoleCreationAttributes> {
     public id!: number;
@@ -28,12 +22,14 @@ class Role extends Model<RoleAttributes, RoleCreationAttributes> {
     public readonly createdAt!: Date;
     public readonly updatedAt!: Date;
 
-    public usuarios?: User[];
-    public permisos?: Permission[];
-    public privilegios?: Privilege[];
+    // Asociaciones (sin importar los tipos)
+    public usuarios?: any[];
+    public permisos?: any[];
+    public privilegios?: any[];
 
-    public setPermisos!: (permisos: Permission[], options?: any) => Promise<void>;
-    public setPrivilegios!: (privilegios: Privilege[], options?: any) => Promise<void>;
+    // Métodos de asociación
+    public setPermisos!: (permisos: any[], options?: any) => Promise<void>;
+    public setPrivilegios!: (privilegios: any[], options?: any) => Promise<void>;
 }
 
 Role.init({
@@ -89,4 +85,4 @@ Role.init({
     timestamps: true
 });
 
-export default Role; 
+export default Role;

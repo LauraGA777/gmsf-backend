@@ -14,7 +14,7 @@ const generateRoleCode = async (): Promise<string> => {
     const lastRole = await Role.findOne({
         order: [['codigo', 'DESC']],
     });
-    
+
     const lastCode = lastRole ? parseInt(lastRole.codigo.substring(1)) : 0;
     const newCode = `R${String(lastCode + 1).padStart(3, '0')}`;
     return newCode;
@@ -24,7 +24,7 @@ const generateRoleCode = async (): Promise<string> => {
 export const getRoles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { pagina = 1, limite = 10, orden = 'nombre', direccion = 'ASC' } = searchRoleSchema.parse(req.query);
-        
+
         const offset = (pagina - 1) * limite;
 
         const [roles, total] = await Promise.all([
@@ -78,12 +78,12 @@ export const getRoles = async (req: Request, res: Response, next: NextFunction):
 // Crear rol
 export const createRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const transaction: Transaction = await sequelize.transaction();
-    
+
     try {
         const roleData = createRoleSchema.parse(req.body);
-        
+
         // Verificar nombre único
-        const existingRole = await Role.findOne({ 
+        const existingRole = await Role.findOne({
             where: { nombre: roleData.nombre },
             transaction
         });
@@ -99,7 +99,7 @@ export const createRole = async (req: Request, res: Response, next: NextFunction
 
         // Verificar que los permisos existan
         const permisos = await Permission.findAll({
-            where: { 
+            where: {
                 id: { [Op.in]: roleData.permisos },
                 estado: true
             },
@@ -117,7 +117,7 @@ export const createRole = async (req: Request, res: Response, next: NextFunction
 
         // Verificar que los privilegios existan
         const privilegios = await Privilege.findAll({
-            where: { 
+            where: {
                 id: { [Op.in]: roleData.privilegios }
             },
             transaction
@@ -188,7 +188,7 @@ export const createRole = async (req: Request, res: Response, next: NextFunction
 // Actualizar rol
 export const updateRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const transaction: Transaction = await sequelize.transaction();
-    
+
     try {
         const { id } = idSchema.parse({ id: req.params.id });
         const updateData = updateRoleSchema.parse(req.body);
@@ -227,7 +227,7 @@ export const updateRole = async (req: Request, res: Response, next: NextFunction
         // Actualizar permisos si se proporcionaron
         if (updateData.permisos) {
             const permisos = await Permission.findAll({
-                where: { 
+                where: {
                     id: { [Op.in]: updateData.permisos },
                     estado: true
                 },
@@ -249,7 +249,7 @@ export const updateRole = async (req: Request, res: Response, next: NextFunction
         // Actualizar privilegios si se proporcionaron
         if (updateData.privilegios) {
             const privilegios = await Privilege.findAll({
-                where: { 
+                where: {
                     id: { [Op.in]: updateData.privilegios }
                 },
                 transaction
@@ -312,7 +312,7 @@ export const updateRole = async (req: Request, res: Response, next: NextFunction
 // Desactivar rol
 export const deactivateRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const transaction: Transaction = await sequelize.transaction();
-    
+
     try {
         const { id } = idSchema.parse({ id: req.params.id });
 
@@ -373,7 +373,7 @@ export const deactivateRole = async (req: Request, res: Response, next: NextFunc
 // Eliminar rol
 export const deleteRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const transaction: Transaction = await sequelize.transaction();
-    
+
     try {
         const { id } = idSchema.parse({ id: req.params.id });
 
@@ -435,7 +435,7 @@ export const deleteRole = async (req: Request, res: Response, next: NextFunction
 export const searchRoles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { q = '', pagina = 1, limite = 10 } = searchRoleSchema.parse(req.query);
-        
+
         const offset = (pagina - 1) * limite;
         const searchTerm = q.trim();
 
@@ -475,23 +475,149 @@ export const searchRoles = async (req: Request, res: Response, next: NextFunctio
 // Listar todos los permisos y privilegios
 export const listPermissionsAndPrivileges = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+        // Obtener permisos con privilegios
         const permisos = await Permission.findAll({
             where: { estado: true },
             include: [{
                 model: Privilege,
                 as: 'privilegios',
-                attributes: ['id', 'nombre']
+                attributes: ['id', 'nombre', 'descripcion', 'codigo']
             }],
+            attributes: ['id', 'nombre', 'descripcion', 'codigo'],
             order: [
                 ['nombre', 'ASC'],
                 [{ model: Privilege, as: 'privilegios' }, 'nombre', 'ASC']
             ]
         });
 
+        // Obtener privilegios independientes (sin permiso padre)
+        const privilegiosIndependientes = await Privilege.findAll({
+            where: { 
+                id_permiso: null 
+            },
+            attributes: ['id', 'nombre', 'descripcion', 'codigo'],
+            order: [['nombre', 'ASC']]
+        });
+
+        // Organizar por módulos (basado en el código o nombre)
+        const modulos = new Map();
+
+        // Procesar permisos
+        permisos.forEach(permiso => {
+            const moduloNombre = extractModuleName(permiso.nombre);
+            
+            if (!modulos.has(moduloNombre)) {
+                modulos.set(moduloNombre, {
+                    nombre: moduloNombre,
+                    permisos: [],
+                    privilegios: []
+                });
+            }
+
+            modulos.get(moduloNombre).permisos.push({
+                id: permiso.id,
+                nombre: permiso.nombre,
+                descripcion: permiso.descripcion,
+                codigo: permiso.codigo,
+                privilegios: permiso.privilegios || []
+            });
+        });
+
+        // Procesar privilegios independientes
+        privilegiosIndependientes.forEach(privilegio => {
+            const moduloNombre = extractModuleName(privilegio.nombre);
+            
+            if (!modulos.has(moduloNombre)) {
+                modulos.set(moduloNombre, {
+                    nombre: moduloNombre,
+                    permisos: [],
+                    privilegios: []
+                });
+            }
+
+            modulos.get(moduloNombre).privilegios.push({
+                id: privilegio.id,
+                nombre: privilegio.nombre,
+                descripcion: privilegio.descripcion,
+                codigo: privilegio.codigo
+            });
+        });
+
+        // Convertir Map a array y ordenar módulos
+        const modulosOrdenados = Array.from(modulos.values()).sort((a, b) => 
+            a.nombre.localeCompare(b.nombre)
+        );
+
         res.status(200).json({
             status: 'success',
-            data: { permisos }
+            data: {
+                modulos: modulosOrdenados,
+                resumen: {
+                    total_modulos: modulosOrdenados.length,
+                    total_permisos: permisos.length,
+                    total_privilegios: privilegiosIndependientes.length + 
+                        permisos.reduce((acc, p) => acc + (p.privilegios?.length || 0), 0)
+                }
+            }
         });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Función auxiliar para extraer nombre del módulo
+function extractModuleName(nombre: string): string {
+    // Extraer módulo basado en patrones comunes
+    const patterns = [
+        /^Gestión de (\w+)/i,
+        /^Administrar (\w+)/i,
+        /^Manejo de (\w+)/i,
+        /^(\w+) - /i,
+        /^(\w+):/i
+    ];
+
+    for (const pattern of patterns) {
+        const match = nombre.match(pattern);
+        if (match) {
+            return match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+        }
+    }
+
+    // Si no encuentra patrón, usar la primera palabra
+    const firstWord = nombre.split(' ')[0];
+    return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
+}
+
+export const listAllPermissionsAndPrivileges = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const [permisos, privilegios] = await Promise.all([
+            Permission.findAll({
+                where: { estado: true },
+                attributes: ['id', 'nombre', 'descripcion', 'codigo'],
+                order: [['nombre', 'ASC']]
+            }),
+            Privilege.findAll({
+                attributes: ['id', 'nombre', 'descripcion', 'codigo', 'id_permiso'],
+                include: [{
+                    model: Permission,
+                    as: 'permiso',
+                    attributes: ['id', 'nombre']
+                }],
+                order: [['nombre', 'ASC']]
+            })
+        ]);
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                permisos,
+                privilegios,
+                total_permisos: permisos.length,
+                total_privilegios: privilegios.length
+            }
+        });
+
     } catch (error) {
         next(error);
     }
@@ -500,7 +626,7 @@ export const listPermissionsAndPrivileges = async (req: Request, res: Response, 
 // Asignar privilegios a un rol
 export const assignPrivileges = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const transaction: Transaction = await sequelize.transaction();
-    
+
     try {
         const { id } = idSchema.parse({ id: req.params.id });
         const { privilegios } = z.object({
@@ -569,7 +695,7 @@ export const assignPrivileges = async (req: Request, res: Response, next: NextFu
 // Retirar privilegios de un rol
 export const removePrivileges = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const transaction: Transaction = await sequelize.transaction();
-    
+
     try {
         const { id } = idSchema.parse({ id: req.params.id });
         const { privilegios } = z.object({
@@ -596,7 +722,7 @@ export const removePrivileges = async (req: Request, res: Response, next: NextFu
 
         // Obtener privilegios actuales
         const privilegiosActuales = role.privilegios?.map(p => p.id) || [];
-        
+
         // Filtrar privilegios a mantener
         const privilegiosRestantes = privilegiosActuales.filter(
             id => !privilegios.includes(id)
@@ -639,4 +765,71 @@ export const removePrivileges = async (req: Request, res: Response, next: NextFu
         }
         next(error);
     }
-}; 
+};
+
+export const getUsersByRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { id } = idSchema.parse({ id: req.params.id });
+        const { pagina = 1, limite = 10, activos = true } = z.object({
+            pagina: z.number().min(1).optional(),
+            limite: z.number().min(1).max(100).optional(),
+            activos: z.boolean().optional()
+        }).parse(req.query);
+
+        const offset = (pagina - 1) * limite;
+
+        // Buscar rol
+        const role = await Role.findByPk(id, {
+            attributes: ['id', 'nombre', 'descripcion', 'estado']
+        });
+
+        if (!role) {
+            res.status(404).json({
+                status: 'error',
+                message: "Rol no encontrado"
+            });
+            return;
+        }
+
+        // Construir condición where para usuarios
+        const userWhere: any = { rol_id: id };
+        if (activos !== undefined) {
+            userWhere.estado = activos;
+        }
+
+        // Obtener usuarios del rol con paginación
+        const [usuarios, total] = await Promise.all([
+            User.findAll({
+                where: userWhere,
+                attributes: ['id', 'codigo', 'nombres', 'apellidos', 'email', 'telefono', 'estado', 'fecha_creacion'],
+                limit: limite,
+                offset: offset,
+                order: [['nombres', 'ASC'], ['apellidos', 'ASC']]
+            }),
+            User.count({ where: userWhere })
+        ]);
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                rol: role,
+                total,
+                pagina,
+                limite,
+                total_paginas: Math.ceil(total / limite),
+                usuarios
+            }
+        });
+
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            res.status(400).json({
+                status: 'error',
+                message: "Parámetros inválidos",
+                errors: error.errors
+            });
+            return;
+        }
+        next(error);
+    }
+};

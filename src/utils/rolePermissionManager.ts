@@ -1,6 +1,7 @@
 import Role from '../models/role';
 import Permission from '../models/permission';
 import Privilege from '../models/privilege';
+import User from '../models/user'; // Asumiendo que existe
 import { PERMISSIONS, PRIVILEGES, PERMISSION_GROUPS } from './permissions';
 
 export class RolePermissionManager {
@@ -13,9 +14,11 @@ export class RolePermissionManager {
         
         for (const permission of permissionsList) {
             await Permission.findOrCreate({
-                where: { nombre: permission },
+                where: { codigo: permission }, // CORREGIDO: Usar código en lugar de nombre
                 defaults: {
-                    nombre: permission,
+                    nombre: permission.replace(/_/g, ' ').toUpperCase(),
+                    codigo: permission,
+                    descripcion: `Permiso para ${permission.replace(/_/g, ' ')}`,
                     estado: true
                 }
             });
@@ -29,20 +32,14 @@ export class RolePermissionManager {
         const privilegesList = Object.values(PRIVILEGES);
         
         for (const privilege of privilegesList) {
-            // Buscar un permiso relacionado para asociar el privilegio
-            const permission = await Permission.findOne({
-                where: { estado: true }
+            await Privilege.findOrCreate({
+                where: { codigo: privilege }, // CORREGIDO: Usar código
+                defaults: {
+                    nombre: privilege.replace(/_/g, ' ').toUpperCase(),
+                    codigo: privilege,
+                    descripcion: `Privilegio para ${privilege.replace(/_/g, ' ')}`
+                }
             });
-            
-            if (permission) {
-                await Privilege.findOrCreate({
-                    where: { nombre: privilege },
-                    defaults: {
-                        nombre: privilege,
-                        id_permiso: permission.id
-                    }
-                });
-            }
         }
     }
 
@@ -60,13 +57,13 @@ export class RolePermissionManager {
 
         const permissionRecords = await Permission.findAll({
             where: {
-                nombre: permissions,
+                codigo: permissions, // CORREGIDO: Usar código
                 estado: true
             }
         });
 
         if (permissionRecords.length !== permissions.length) {
-            const foundPermissions = permissionRecords.map(p => p.nombre);
+            const foundPermissions = permissionRecords.map(p => p.codigo);
             const missingPermissions = permissions.filter(p => !foundPermissions.includes(p));
             throw new Error(`Permisos no encontrados: ${missingPermissions.join(', ')}`);
         }
@@ -88,12 +85,12 @@ export class RolePermissionManager {
 
         const privilegeRecords = await Privilege.findAll({
             where: {
-                nombre: privileges
+                codigo: privileges // CORREGIDO: Usar código
             }
         });
 
         if (privilegeRecords.length !== privileges.length) {
-            const foundPrivileges = privilegeRecords.map(p => p.nombre);
+            const foundPrivileges = privilegeRecords.map(p => p.codigo);
             const missingPrivileges = privileges.filter(p => !foundPrivileges.includes(p));
             throw new Error(`Privilegios no encontrados: ${missingPrivileges.join(', ')}`);
         }
@@ -106,29 +103,60 @@ export class RolePermissionManager {
      */
     static async setupDefaultRoles(): Promise<void> {
         try {
-            // Configurar rol de Administrador
-            await this.assignPermissionsToRole('ADMIN', PERMISSION_GROUPS.ADMIN_PERMISSIONS);
-            await this.assignPrivilegesToRole('ADMIN', [
+            // Crear roles básicos si no existen
+            await Role.findOrCreate({
+                where: { codigo: 'R001' },
+                defaults: {
+                    codigo: 'R001',
+                    nombre: 'Administrador',
+                    descripcion: 'Rol con acceso completo al sistema',
+                    estado: true
+                }
+            });
+
+            await Role.findOrCreate({
+                where: { codigo: 'R002' },
+                defaults: {
+                    codigo: 'R002',
+                    nombre: 'Entrenador',
+                    descripcion: 'Rol para entrenadores del gimnasio',
+                    estado: true
+                }
+            });
+
+            // Configurar permisos para Administrador
+            await this.assignPermissionsToRole('R001', PERMISSION_GROUPS.ADMIN_PERMISSIONS);
+            await this.assignPrivilegesToRole('R001', [
                 PRIVILEGES.SUPER_ADMIN,
                 PRIVILEGES.FULL_USER_ACCESS,
                 PRIVILEGES.BACKUP_RESTORE
             ]);
 
-            // Configurar rol de Entrenador
-            await this.assignPermissionsToRole('TRAINER', PERMISSION_GROUPS.TRAINER_PERMISSIONS);
-            await this.assignPrivilegesToRole('TRAINER', [
+            // Configurar permisos para Entrenador
+            await this.assignPermissionsToRole('R002', PERMISSION_GROUPS.TRAINER_PERMISSIONS);
+            await this.assignPrivilegesToRole('R002', [
                 PRIVILEGES.ASSIGN_TRAINING_PLANS,
                 PRIVILEGES.VIEW_CLIENT_PROGRESS
             ]);
 
             // Configurar rol de Recepcionista (si existe)
             try {
-                await this.assignPermissionsToRole('RECEPTIONIST', PERMISSION_GROUPS.RECEPTIONIST_PERMISSIONS);
-                await this.assignPrivilegesToRole('RECEPTIONIST', [
+                await Role.findOrCreate({
+                    where: { codigo: 'R003' },
+                    defaults: {
+                        codigo: 'R003',
+                        nombre: 'Recepcionista',
+                        descripcion: 'Rol para recepcionistas del gimnasio',
+                        estado: true
+                    }
+                });
+
+                await this.assignPermissionsToRole('R003', PERMISSION_GROUPS.RECEPTIONIST_PERMISSIONS);
+                await this.assignPrivilegesToRole('R003', [
                     PRIVILEGES.READONLY_USER_ACCESS
                 ]);
             } catch (error) {
-                console.log('Rol RECEPTIONIST no encontrado, saltando configuración');
+                console.log('Error configurando rol RECEPTIONIST:', error);
             }
 
             console.log('Roles configurados exitosamente');
@@ -139,36 +167,44 @@ export class RolePermissionManager {
     }
 
     /**
-     * Obtiene todos los permisos de un usuario
+     * Obtiene todos los permisos de un usuario a través de su rol
      */
     static async getUserPermissions(userId: number): Promise<string[]> {
-        const user = await Role.findOne({
+        const user = await User.findOne({ // CORREGIDO: Usar User en lugar de Role
+            where: { id: userId },
             include: [{
-                model: Permission,
-                as: 'permisos',
-                where: { estado: true },
-                required: false
-            }],
-            where: { id: userId }
+                model: Role,
+                as: 'rol', // Asumiendo que la relación se llama 'rol'
+                include: [{
+                    model: Permission,
+                    as: 'permisos',
+                    where: { estado: true },
+                    required: false
+                }]
+            }]
         });
 
-        return user?.permisos?.map(p => p.nombre) || [];
+        return user?.rol?.permisos?.map(p => p.codigo) || [];
     }
 
     /**
-     * Obtiene todos los privilegios de un usuario
+     * Obtiene todos los privilegios de un usuario a través de su rol
      */
     static async getUserPrivileges(userId: number): Promise<string[]> {
-        const user = await Role.findOne({
+        const user = await User.findOne({ // CORREGIDO: Usar User en lugar de Role
+            where: { id: userId },
             include: [{
-                model: Privilege,
-                as: 'privilegios',
-                required: false
-            }],
-            where: { id: userId }
+                model: Role,
+                as: 'rol',
+                include: [{
+                    model: Privilege,
+                    as: 'privilegios',
+                    required: false
+                }]
+            }]
         });
 
-        return user?.privilegios?.map(p => p.nombre) || [];
+        return user?.rol?.privilegios?.map(p => p.codigo) || [];
     }
 
     /**

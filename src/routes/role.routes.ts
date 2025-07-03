@@ -8,7 +8,9 @@ import {
     searchRoles,
     listPermissionsAndPrivileges,
     assignPrivileges,
-    removePrivileges
+    removePrivileges,
+    getUsersByRole,
+    listAllPermissionsAndPrivileges
 } from '../controllers/role.controller';
 import { verifyToken, hasPermission, hasAnyPermission } from '../middlewares/auth.middleware';
 import { PERMISSIONS } from '../utils/permissions';
@@ -77,17 +79,32 @@ router.get('/search',
 
 /**
  * @swagger
- * /api/roles/permissions:
+ * /api/roles/permissions-privileges:
  *   get:
- *     summary: Obtener permisos y privilegios
+ *     summary: Obtener permisos y privilegios organizados por módulo
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
  */
-router.get('/permissions', 
+router.get('/permissions-privileges', 
     verifyToken as unknown as RequestHandler,
     hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
     listPermissionsAndPrivileges as unknown as RequestHandler
+);
+
+/**
+ * @swagger
+ * /api/roles/permissions-privileges/all:
+ *   get:
+ *     summary: Obtener todos los permisos y privilegios (vista simplificada)
+ *     tags: [Roles]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/permissions-privileges/all', 
+    verifyToken as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
+    listAllPermissionsAndPrivileges as unknown as RequestHandler
 );
 
 /**
@@ -271,6 +288,27 @@ router.delete('/:id',
     verifyToken as unknown as RequestHandler,
     hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
     deleteRole as unknown as RequestHandler
+);
+
+/**
+ * @swagger
+ * /api/roles/{id}/users:
+ *   get:
+ *     summary: Obtener usuarios por rol
+ *     tags: [Roles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ */
+router.get('/:id/users', 
+    verifyToken as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.VIEW_USERS) as unknown as RequestHandler,
+    getUsersByRole as unknown as RequestHandler
 );
 
 export default router; 

@@ -6,6 +6,11 @@ class Privilege extends Model {
     public nombre!: string;
     public descripcion!: string;
     public codigo!: string;
+    public id_permiso!: number;
+    
+    // Asociaciones
+    public permiso?: any;
+    public roles?: any[];
 }
 
 Privilege.init({
@@ -53,6 +58,14 @@ Privilege.init({
                 msg: 'El código del privilegio debe tener entre 3 y 100 caracteres'
             }
         }
+    },
+    id_permiso: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'permisos',
+            key: 'id'
+        }
     }
 }, {
     sequelize,
@@ -61,4 +74,4 @@ Privilege.init({
     timestamps: false
 });
 
-export default Privilege; 
+export default Privilege;

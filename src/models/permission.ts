@@ -7,6 +7,10 @@ class Permission extends Model {
     public descripcion!: string;
     public codigo!: string;
     public estado!: boolean;
+    
+    // Asociaciones
+    public privilegios?: any[];
+    public roles?: any[];
 }
 
 Permission.init({
@@ -68,7 +72,7 @@ Permission.init({
     sequelize,
     modelName: 'Permission',
     tableName: 'permisos',
-    timestamps: false
+    timestamps: false // ⚠️ IMPORTANTE: Sin timestamps
 });
 
 export default Permission;
