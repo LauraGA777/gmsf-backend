@@ -566,29 +566,6 @@ export const listPermissionsAndPrivileges = async (req: Request, res: Response, 
     }
 };
 
-// Función auxiliar para extraer nombre del módulo
-function extractModuleName(nombre: string): string {
-    // Extraer módulo basado en patrones comunes
-    const patterns = [
-        /^Gestión de (\w+)/i,
-        /^Administrar (\w+)/i,
-        /^Manejo de (\w+)/i,
-        /^(\w+) - /i,
-        /^(\w+):/i
-    ];
-
-    for (const pattern of patterns) {
-        const match = nombre.match(pattern);
-        if (match) {
-            return match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
-        }
-    }
-
-    // Si no encuentra patrón, usar la primera palabra
-    const firstWord = nombre.split(' ')[0];
-    return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
-}
-
 export const listAllPermissionsAndPrivileges = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const [permisos, privilegios] = await Promise.all([
@@ -622,6 +599,104 @@ export const listAllPermissionsAndPrivileges = async (req: Request, res: Respons
         next(error);
     }
 };
+
+// Función auxiliar para extraer nombre del módulo basado en entidades del sistema
+function extractModuleName(nombre: string): string {
+    // Definir módulos del sistema basados en entidades
+    const modulosEntidades = {
+        // Módulo de Usuarios
+        'usuarios': ['usuario', 'user', 'acceso', 'login', 'auth', 'autenticacion'],
+        'roles': ['rol', 'role', 'permiso', 'privilegio', 'permission', 'privilege'],
+        
+        // Módulo de Clientes
+        'clientes': ['cliente', 'client', 'customer', 'persona', 'person'],
+        'contratos': ['contrato', 'contract', 'acuerdo', 'agreement'],
+        'membresias': ['membresia', 'membership', 'suscripcion', 'subscription'],
+        
+        // Módulo de Entrenamiento
+        'entrenadores': ['entrenador', 'trainer', 'instructor', 'coach'],
+        'entrenamientos': ['entrenamiento', 'training', 'ejercicio', 'workout'],
+        'horarios': ['horario', 'schedule', 'sesion', 'session', 'cita', 'appointment'],
+        
+        // Módulo de Asistencias
+        'asistencias': ['asistencia', 'attendance', 'presencia', 'registro'],
+        
+        // Módulo de Reportes
+        'reportes': ['reporte', 'report', 'estadistica', 'statistic', 'analytic'],
+        
+        // Módulo de Sistema
+        'sistema': ['sistema', 'system', 'configuracion', 'config', 'backup', 'respaldo', 'exportar', 'import'],
+        
+        // Módulo de Administración
+        'administracion': ['admin', 'administra', 'gestiona', 'manage', 'super']
+    };
+
+    const nombreLower = nombre.toLowerCase();
+    
+    // Buscar en qué módulo encaja basándose en las palabras clave
+    for (const [modulo, palabrasClave] of Object.entries(modulosEntidades)) {
+        for (const palabra of palabrasClave) {
+            if (nombreLower.includes(palabra)) {
+                return modulo.charAt(0).toUpperCase() + modulo.slice(1);
+            }
+        }
+    }
+
+    // Si no encuentra una coincidencia específica, usar patrones generales
+    const patterns = [
+        /^Gestión de (\w+)/i,
+        /^Administrar (\w+)/i,
+        /^Manejo de (\w+)/i,
+        /^(\w+) - /i,
+        /^(\w+):/i
+    ];
+
+    for (const pattern of patterns) {
+        const match = nombre.match(pattern);
+        if (match) {
+            const palabra = match[1].toLowerCase();
+            
+            // Mapear palabras específicas a módulos
+            if (palabra.includes('usuario') || palabra.includes('user')) return 'Usuarios';
+            if (palabra.includes('cliente') || palabra.includes('client')) return 'Clientes';
+            if (palabra.includes('entrenador') || palabra.includes('trainer')) return 'Entrenadores';
+            if (palabra.includes('asistencia') || palabra.includes('attendance')) return 'Asistencias';
+            if (palabra.includes('contrato') || palabra.includes('contract')) return 'Contratos';
+            if (palabra.includes('membresia') || palabra.includes('membership')) return 'Membresias';
+            if (palabra.includes('horario') || palabra.includes('schedule')) return 'Horarios';
+            if (palabra.includes('reporte') || palabra.includes('report')) return 'Reportes';
+            if (palabra.includes('rol') || palabra.includes('role')) return 'Roles';
+            
+            return palabra.charAt(0).toUpperCase() + palabra.slice(1);
+        }
+    }
+
+    // Como último recurso, usar la primera palabra significativa
+    const firstWord = nombre.split(' ')[0].toLowerCase();
+    
+    // Mapear palabras específicas
+    if (firstWord.includes('ver') || firstWord.includes('crear') || firstWord.includes('actualizar') || 
+        firstWord.includes('eliminar') || firstWord.includes('gestionar') || firstWord.includes('administrar')) {
+        
+        const secondWord = nombre.split(' ')[1];
+        if (secondWord) {
+            const segundaPalabra = secondWord.toLowerCase();
+            if (segundaPalabra.includes('usuario')) return 'Usuarios';
+            if (segundaPalabra.includes('cliente')) return 'Clientes';
+            if (segundaPalabra.includes('entrenador')) return 'Entrenadores';
+            if (segundaPalabra.includes('asistencia')) return 'Asistencias';
+            if (segundaPalabra.includes('contrato')) return 'Contratos';
+            if (segundaPalabra.includes('membresia')) return 'Membresias';
+            if (segundaPalabra.includes('horario')) return 'Horarios';
+            if (segundaPalabra.includes('reporte')) return 'Reportes';
+            if (segundaPalabra.includes('rol')) return 'Roles';
+            
+            return segundaPalabra.charAt(0).toUpperCase() + segundaPalabra.slice(1);
+        }
+    }
+
+    return firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
+}
 
 // Asignar privilegios a un rol
 export const assignPrivileges = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
