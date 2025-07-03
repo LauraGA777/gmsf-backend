@@ -10,7 +10,8 @@ import {
     assignPrivileges,
     removePrivileges
 } from '../controllers/role.controller';
-import { verifyToken, isAdmin } from '../middlewares/auth.middleware';
+import { verifyToken, hasPermission, hasAnyPermission } from '../middlewares/auth.middleware';
+import { PERMISSIONS } from '../utils/permissions';
 
 const router = Router();
 
@@ -51,7 +52,6 @@ const router = Router();
  */
 router.get('/', 
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
     getRoles as unknown as RequestHandler
 );
 
@@ -71,7 +71,7 @@ router.get('/',
  */
 router.get('/search', 
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.VIEW_ROLES) as unknown as RequestHandler,
     searchRoles as unknown as RequestHandler
 );
 
@@ -86,7 +86,7 @@ router.get('/search',
  */
 router.get('/permissions', 
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
     listPermissionsAndPrivileges as unknown as RequestHandler
 );
 
@@ -131,7 +131,7 @@ router.get('/permissions',
  */
 router.post('/', 
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
     createRole as unknown as RequestHandler
 );
 
@@ -177,7 +177,7 @@ router.post('/',
  */
 router.put('/:id', 
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
     updateRole as unknown as RequestHandler
 );
 
@@ -206,7 +206,7 @@ router.put('/:id',
  */
 router.post('/:id/privileges', 
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.ASSIGN_PERMISSIONS) as unknown as RequestHandler,
     assignPrivileges as unknown as RequestHandler
 );
 
@@ -227,7 +227,7 @@ router.post('/:id/privileges',
  */
 router.delete('/:id/privileges', 
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.ASSIGN_PERMISSIONS) as unknown as RequestHandler,
     removePrivileges as unknown as RequestHandler
 );
 
@@ -248,7 +248,7 @@ router.delete('/:id/privileges',
  */
 router.patch('/:id/deactivate', 
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
     deactivateRole as unknown as RequestHandler
 );
 
@@ -269,7 +269,7 @@ router.patch('/:id/deactivate',
  */
 router.delete('/:id', 
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
     deleteRole as unknown as RequestHandler
 );
 

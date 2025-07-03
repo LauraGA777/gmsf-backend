@@ -1,5 +1,6 @@
 import { RequestHandler, Router } from 'express';
-import { verifyToken, isAdmin } from '../middlewares/auth.middleware';
+import { verifyToken, hasPermission, hasAnyPermission } from '../middlewares/auth.middleware';
+import { PERMISSIONS } from '../utils/permissions';
 import {
     getTrainers,
     createTrainer,
@@ -40,7 +41,7 @@ const router = Router();
  */
 router.get('/', 
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.VIEW_TRAINERS) as unknown as RequestHandler,
     getTrainers as unknown as RequestHandler
 );
 
@@ -76,7 +77,7 @@ router.get('/',
  */
 router.get('/search',
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.VIEW_TRAINERS) as unknown as RequestHandler,
     searchTrainers as unknown as RequestHandler
 );
 
@@ -102,7 +103,7 @@ router.get('/search',
  */
 router.get('/:id',
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.VIEW_TRAINERS) as unknown as RequestHandler,
     getTrainerDetails as unknown as RequestHandler
 );
 
@@ -136,7 +137,7 @@ router.get('/:id',
  */
 router.post('/',
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.CREATE_TRAINERS) as unknown as RequestHandler,
     createTrainer as unknown as RequestHandler
 );
 
@@ -173,7 +174,7 @@ router.post('/',
  */
 router.put('/:id',
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.UPDATE_TRAINERS) as unknown as RequestHandler,
     updateTrainer as unknown as RequestHandler
 );
 
@@ -199,7 +200,7 @@ router.put('/:id',
  */
 router.patch('/:id/deactivate',
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.MANAGE_TRAINERS) as unknown as RequestHandler,
     deactivateTrainer as unknown as RequestHandler
 );
 
@@ -225,7 +226,7 @@ router.patch('/:id/deactivate',
  */
 router.delete('/:id',
     verifyToken as unknown as RequestHandler,
-    isAdmin as unknown as RequestHandler,
+    hasAnyPermission([PERMISSIONS.MANAGE_TRAINERS, PERMISSIONS.DELETE_USERS]) as unknown as RequestHandler,
     deleteTrainer as unknown as RequestHandler
 );
 

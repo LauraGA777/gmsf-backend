@@ -4,6 +4,8 @@ import sequelize from '../config/db';
 class Permission extends Model {
     public id!: number;
     public nombre!: string;
+    public descripcion!: string;
+    public codigo!: string;
     public estado!: boolean;
 }
 
@@ -16,10 +18,6 @@ Permission.init({
     nombre: {
         type: DataTypes.STRING(50),
         allowNull: false,
-        unique: {
-            name: 'unique_permission_name',
-            msg: 'El nombre del permiso ya existe'
-        },
         validate: {
             notEmpty: {
                 msg: 'El nombre del permiso no puede estar vacío'
@@ -27,6 +25,33 @@ Permission.init({
             len: {
                 args: [3, 50],
                 msg: 'El nombre del permiso debe tener entre 3 y 50 caracteres'
+            }
+        }
+    },
+    descripcion: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        validate: {
+            len: {
+                args: [0, 255],
+                msg: 'La descripción no puede exceder 255 caracteres'
+            }
+        }
+    },
+    codigo: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+        unique: {
+            name: 'unique_permission_code',
+            msg: 'El código del permiso ya existe'
+        },
+        validate: {
+            notEmpty: {
+                msg: 'El código del permiso no puede estar vacío'
+            },
+            len: {
+                args: [3, 100],
+                msg: 'El código del permiso debe tener entre 3 y 100 caracteres'
             }
         }
     },
