@@ -63,7 +63,7 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
                     id: user.id,
                     nombre: user.nombre,
                     correo: user.correo,
-                    id_rol: user.id_rol
+                    rol_id: user.rol_id, // Asegúrate de que el modelo User tenga este campo
                 }
             }
         });
@@ -361,7 +361,7 @@ export const getProfile = async (req: Request, res: Response): Promise<Response>
                     fecha_nacimiento: user.fecha_nacimiento,
                     asistencias_totales: user.asistencias_totales,
                     estado: user.estado,
-                    id_rol: user.id_rol,
+                    rol_id: user.rol_id,
                     rol: user.rol // Incluir información del rol con permisos y privilegios
                 }
             }
