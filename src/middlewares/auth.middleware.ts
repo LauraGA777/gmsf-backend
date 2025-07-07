@@ -3,7 +3,6 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import TokenBlacklist from '../utils/token-blacklist';
 import { verifyUser } from '../controllers/auth.controller';
-import User from '../models/user';
 import Role from '../models/role';
 import Permission from '../models/permission';
 import Privilege from '../models/privilege';
