@@ -10,7 +10,9 @@ import {
     assignPrivileges,
     removePrivileges,
     getUsersByRole,
-    listAllPermissionsAndPrivileges
+    listAllPermissionsAndPrivileges,
+    getRoleWithPermissions,
+    getRoleWithPermissionsSimple
 } from '../controllers/role.controller';
 import { verifyToken, hasPermission, hasAnyPermission } from '../middlewares/auth.middleware';
 import { PERMISSIONS } from '../utils/permissions';
@@ -52,6 +54,7 @@ const router = Router();
  *           enum: [ASC, DESC]
  *           default: ASC
  */
+// Trae todos los roles con paginación, ordenamiento y filtrado
 router.get('/', 
     verifyToken as unknown as RequestHandler,
     getRoles as unknown as RequestHandler
@@ -71,6 +74,7 @@ router.get('/',
  *         schema:
  *           type: string
  */
+// Busca roles por nombre
 router.get('/search', 
     verifyToken as unknown as RequestHandler,
     hasPermission(PERMISSIONS.VIEW_ROLES) as unknown as RequestHandler,
@@ -86,6 +90,7 @@ router.get('/search',
  *     security:
  *       - bearerAuth: []
  */
+// Obtiene los permisos y privilegios organizados por módulo
 router.get('/permissions-privileges', 
     verifyToken as unknown as RequestHandler,
     hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
@@ -101,6 +106,7 @@ router.get('/permissions-privileges',
  *     security:
  *       - bearerAuth: []
  */
+// Obtiene todos los permisos y privilegios en un formato simplificado
 router.get('/permissions-privileges/all', 
     verifyToken as unknown as RequestHandler,
     hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
@@ -146,6 +152,7 @@ router.get('/permissions-privileges/all',
  *                   type: integer
  *                 minItems: 1
  */
+// crea un nuevo rol con permisos y privilegios
 router.post('/', 
     verifyToken as unknown as RequestHandler,
     hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
@@ -192,6 +199,7 @@ router.post('/',
  *                   type: integer
  *                 minItems: 1
  */
+// actualiza un rol existente con permisos y privilegios
 router.put('/:id', 
     verifyToken as unknown as RequestHandler,
     hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
@@ -221,6 +229,7 @@ router.put('/:id',
  *             items:
  *               type: integer
  */
+// Asigna privilegios a un rol
 router.post('/:id/privileges', 
     verifyToken as unknown as RequestHandler,
     hasPermission(PERMISSIONS.ASSIGN_PERMISSIONS) as unknown as RequestHandler,
@@ -242,6 +251,7 @@ router.post('/:id/privileges',
  *         schema:
  *           type: integer
  */
+// Elimina privilegios de un rol
 router.delete('/:id/privileges', 
     verifyToken as unknown as RequestHandler,
     hasPermission(PERMISSIONS.ASSIGN_PERMISSIONS) as unknown as RequestHandler,
@@ -263,6 +273,7 @@ router.delete('/:id/privileges',
  *         schema:
  *           type: integer
  */
+// Desactiva un rol
 router.patch('/:id/deactivate', 
     verifyToken as unknown as RequestHandler,
     hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
@@ -284,6 +295,7 @@ router.patch('/:id/deactivate',
  *         schema:
  *           type: integer
  */
+// Elimina un rol
 router.delete('/:id', 
     verifyToken as unknown as RequestHandler,
     hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
@@ -305,10 +317,55 @@ router.delete('/:id',
  *         schema:
  *           type: integer
  */
+// Obtiene los usuarios asociados a un rol específico
 router.get('/:id/users', 
     verifyToken as unknown as RequestHandler,
     hasPermission(PERMISSIONS.VIEW_USERS) as unknown as RequestHandler,
     getUsersByRole as unknown as RequestHandler
+);
+
+/**
+ * @swagger
+ * /api/roles/{id}/permissions:
+ *   get:
+ *     summary: Obtener rol con sus permisos y privilegios organizados por módulo
+ *     tags: [Roles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ */
+// Obtiene un rol con sus permisos y privilegios organizados por módulo
+router.get('/:id/permissions', 
+    verifyToken as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.VIEW_ROLES) as unknown as RequestHandler,
+    getRoleWithPermissions as unknown as RequestHandler
+);
+
+/**
+ * @swagger
+ * /api/roles/{id}/permissions/simple:
+ *   get:
+ *     summary: Obtener rol con sus permisos y privilegios (formato simple)
+ *     tags: [Roles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ */
+// Obtiene un rol con sus permisos y privilegios en un formato simplificado
+router.get('/:id/permissions/simple', 
+    verifyToken as unknown as RequestHandler,
+    hasPermission(PERMISSIONS.VIEW_ROLES) as unknown as RequestHandler,
+    getRoleWithPermissionsSimple as unknown as RequestHandler
 );
 
 export default router; 

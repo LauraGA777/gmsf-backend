@@ -566,6 +566,7 @@ export const listPermissionsAndPrivileges = async (req: Request, res: Response, 
     }
 };
 
+// Listar todos los permisos y privilegios (con formato específico)
 export const listAllPermissionsAndPrivileges = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const [permisos, privilegios] = await Promise.all([
@@ -842,6 +843,208 @@ export const removePrivileges = async (req: Request, res: Response, next: NextFu
     }
 };
 
+// Obtener rol con sus permisos y privilegios
+export const getRoleWithPermissions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { id } = idSchema.parse({ id: req.params.id });
+
+        const role = await Role.findByPk(id, {
+            include: [
+                {
+                    model: Permission,
+                    as: 'permisos',
+                    attributes: ['id', 'nombre', 'descripcion', 'codigo'],
+                    through: { attributes: [] }, // Excluir datos de la tabla intermedia
+                    include: [
+                        {
+                            model: Privilege,
+                            as: 'privilegios',
+                            attributes: ['id', 'nombre', 'descripcion', 'codigo']
+                        }
+                    ]
+                },
+                {
+                    model: Privilege,
+                    as: 'privilegios',
+                    attributes: ['id', 'nombre', 'descripcion', 'codigo', 'id_permiso'],
+                    through: { attributes: [] }, // Excluir datos de la tabla intermedia
+                    include: [
+                        {
+                            model: Permission,
+                            as: 'permiso',
+                            attributes: ['id', 'nombre', 'descripcion', 'codigo'],
+                            required: false
+                        }
+                    ]
+                }
+            ],
+            attributes: ['id', 'codigo', 'nombre', 'descripcion', 'estado', 'createdAt', 'updatedAt']
+        });
+
+        if (!role) {
+            res.status(404).json({
+                status: 'error',
+                message: 'Rol no encontrado'
+            });
+            return;
+        }
+
+        // Organizar permisos y privilegios por módulos
+        const modulos = new Map();
+
+        // Procesar permisos del rol
+        if (role.permisos && role.permisos.length > 0) {
+            role.permisos.forEach((permiso: any) => {
+                const moduloNombre = extractModuleName(permiso.nombre);
+                
+                if (!modulos.has(moduloNombre)) {
+                    modulos.set(moduloNombre, {
+                        nombre: moduloNombre,
+                        permisos: [],
+                        privilegios: []
+                    });
+                }
+
+                modulos.get(moduloNombre).permisos.push({
+                    id: permiso.id,
+                    nombre: permiso.nombre,
+                    descripcion: permiso.descripcion,
+                    codigo: permiso.codigo,
+                    privilegios: permiso.privilegios || []
+                });
+            });
+        }
+
+        // Procesar privilegios del rol
+        if (role.privilegios && role.privilegios.length > 0) {
+            role.privilegios.forEach((privilegio: any) => {
+                const moduloNombre = privilegio.permiso 
+                    ? extractModuleName(privilegio.permiso.nombre)
+                    : extractModuleName(privilegio.nombre);
+                
+                if (!modulos.has(moduloNombre)) {
+                    modulos.set(moduloNombre, {
+                        nombre: moduloNombre,
+                        permisos: [],
+                        privilegios: []
+                    });
+                }
+
+                modulos.get(moduloNombre).privilegios.push({
+                    id: privilegio.id,
+                    nombre: privilegio.nombre,
+                    descripcion: privilegio.descripcion,
+                    codigo: privilegio.codigo,
+                    permiso: privilegio.permiso || null
+                });
+            });
+        }
+
+        // Convertir Map a array y ordenar módulos
+        const modulosOrdenados = Array.from(modulos.values()).sort((a, b) => 
+            a.nombre.localeCompare(b.nombre)
+        );
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                rol: {
+                    id: role.id,
+                    codigo: role.codigo,
+                    nombre: role.nombre,
+                    descripcion: role.descripcion,
+                    estado: role.estado,
+                    createdAt: role.createdAt,
+                    updatedAt: role.updatedAt
+                },
+                modulos: modulosOrdenados,
+                resumen: {
+                    total_modulos: modulosOrdenados.length,
+                    total_permisos: role.permisos?.length || 0,
+                    total_privilegios: role.privilegios?.length || 0
+                }
+            }
+        });
+
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            res.status(400).json({
+                status: 'error',
+                message: 'ID de rol inválido',
+                errors: error.errors
+            });
+            return;
+        }
+        next(error);
+    }
+};
+
+// Obtener rol con permisos y privilegios (formato simple)
+export const getRoleWithPermissionsSimple = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { id } = idSchema.parse({ id: req.params.id });
+
+        const role = await Role.findByPk(id, {
+            include: [
+                {
+                    model: Permission,
+                    as: 'permisos',
+                    attributes: ['id', 'nombre', 'descripcion', 'codigo'],
+                    through: { attributes: [] }
+                },
+                {
+                    model: Privilege,
+                    as: 'privilegios',
+                    attributes: ['id', 'nombre', 'descripcion', 'codigo', 'id_permiso'],
+                    through: { attributes: [] }
+                }
+            ],
+            attributes: ['id', 'codigo', 'nombre', 'descripcion', 'estado', 'createdAt', 'updatedAt']
+        });
+
+        if (!role) {
+            res.status(404).json({
+                status: 'error',
+                message: 'Rol no encontrado'
+            });
+            return;
+        }
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                rol: {
+                    id: role.id,
+                    codigo: role.codigo,
+                    nombre: role.nombre,
+                    descripcion: role.descripcion,
+                    estado: role.estado,
+                    createdAt: role.createdAt,
+                    updatedAt: role.updatedAt
+                },
+                permisos: role.permisos || [],
+                privilegios: role.privilegios || [],
+                resumen: {
+                    total_permisos: role.permisos?.length || 0,
+                    total_privilegios: role.privilegios?.length || 0
+                }
+            }
+        });
+
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            res.status(400).json({
+                status: 'error',
+                message: 'ID de rol inválido',
+                errors: error.errors
+            });
+            return;
+        }
+        next(error);
+    }
+};
+
+// Obtener usuarios por rol
 export const getUsersByRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { id } = idSchema.parse({ id: req.params.id });
