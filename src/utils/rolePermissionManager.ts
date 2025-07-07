@@ -1,50 +1,49 @@
 import Role from '../models/role';
 import Permission from '../models/permission';
 import Privilege from '../models/privilege';
-import User from '../models/user'; // Asumiendo que existe
-import { PERMISSIONS, PRIVILEGES, PERMISSION_GROUPS } from './permissions';
+import User from '../models/user';
+import { PERMISSIONS, PRIVILEGES, PERMISSION_GROUPS, PRIVILEGE_GROUPS } from './permissions';
 
 export class RolePermissionManager {
     
     /**
-     * Crea permisos básicos en la base de datos si no existen
+     * No necesita crear permisos básicos - ya están en BD
+     * Solo verifica que existan
      */
-    static async createBasicPermissions(): Promise<void> {
+    static async verifyBasicPermissions(): Promise<void> {
         const permissionsList = Object.values(PERMISSIONS);
         
         for (const permission of permissionsList) {
-            await Permission.findOrCreate({
-                where: { codigo: permission }, // CORREGIDO: Usar código en lugar de nombre
-                defaults: {
-                    nombre: permission.replace(/_/g, ' ').toUpperCase(),
-                    codigo: permission,
-                    descripcion: `Permiso para ${permission.replace(/_/g, ' ')}`,
-                    estado: true
-                }
+            const exists = await Permission.findOne({
+                where: { codigo: permission }
             });
+            
+            if (!exists) {
+                console.warn(`Permiso ${permission} no encontrado en BD`);
+            }
         }
     }
 
     /**
-     * Crea privilegios básicos en la base de datos si no existen
+     * No necesita crear privilegios básicos - ya están en BD
+     * Solo verifica que existan
      */
-    static async createBasicPrivileges(): Promise<void> {
+    static async verifyBasicPrivileges(): Promise<void> {
         const privilegesList = Object.values(PRIVILEGES);
         
         for (const privilege of privilegesList) {
-            await Privilege.findOrCreate({
-                where: { codigo: privilege }, // CORREGIDO: Usar código
-                defaults: {
-                    nombre: privilege.replace(/_/g, ' ').toUpperCase(),
-                    codigo: privilege,
-                    descripcion: `Privilegio para ${privilege.replace(/_/g, ' ')}`
-                }
+            const exists = await Privilege.findOne({
+                where: { codigo: privilege }
             });
+            
+            if (!exists) {
+                console.warn(`Privilegio ${privilege} no encontrado en BD`);
+            }
         }
     }
 
     /**
-     * Asigna permisos a un rol específico
+     * Asigna permisos a un rol específico usando códigos de BD
      */
     static async assignPermissionsToRole(roleCodigo: string, permissions: string[]): Promise<void> {
         const role = await Role.findOne({
@@ -57,7 +56,7 @@ export class RolePermissionManager {
 
         const permissionRecords = await Permission.findAll({
             where: {
-                codigo: permissions, // CORREGIDO: Usar código
+                codigo: permissions,
                 estado: true
             }
         });
@@ -72,7 +71,7 @@ export class RolePermissionManager {
     }
 
     /**
-     * Asigna privilegios a un rol específico
+     * Asigna privilegios a un rol específico usando códigos de BD
      */
     static async assignPrivilegesToRole(roleCodigo: string, privileges: string[]): Promise<void> {
         const role = await Role.findOne({
@@ -85,7 +84,7 @@ export class RolePermissionManager {
 
         const privilegeRecords = await Privilege.findAll({
             where: {
-                codigo: privileges // CORREGIDO: Usar código
+                codigo: privileges
             }
         });
 
@@ -99,67 +98,29 @@ export class RolePermissionManager {
     }
 
     /**
-     * Configura roles con permisos predefinidos
+     * Configura roles con permisos de BD (ya existentes)
      */
     static async setupDefaultRoles(): Promise<void> {
         try {
-            // Crear roles básicos si no existen
-            await Role.findOrCreate({
-                where: { codigo: 'R001' },
-                defaults: {
-                    codigo: 'R001',
-                    nombre: 'Administrador',
-                    descripcion: 'Rol con acceso completo al sistema',
-                    estado: true
-                }
-            });
+            // Los roles ya existen en BD, solo asignar permisos y privilegios
 
-            await Role.findOrCreate({
-                where: { codigo: 'R002' },
-                defaults: {
-                    codigo: 'R002',
-                    nombre: 'Entrenador',
-                    descripcion: 'Rol para entrenadores del gimnasio',
-                    estado: true
-                }
-            });
-
-            // Configurar permisos para Administrador
+            // Configurar Administrador
             await this.assignPermissionsToRole('R001', PERMISSION_GROUPS.ADMIN_PERMISSIONS);
-            await this.assignPrivilegesToRole('R001', [
-                PRIVILEGES.SUPER_ADMIN,
-                PRIVILEGES.FULL_USER_ACCESS,
-                PRIVILEGES.BACKUP_RESTORE
-            ]);
+            await this.assignPrivilegesToRole('R001', PRIVILEGE_GROUPS.ADMIN_PRIVILEGES);
 
-            // Configurar permisos para Entrenador
+            // Configurar Entrenador  
             await this.assignPermissionsToRole('R002', PERMISSION_GROUPS.TRAINER_PERMISSIONS);
-            await this.assignPrivilegesToRole('R002', [
-                PRIVILEGES.ASSIGN_TRAINING_PLANS,
-                PRIVILEGES.VIEW_CLIENT_PROGRESS
-            ]);
+            await this.assignPrivilegesToRole('R002', PRIVILEGE_GROUPS.TRAINER_PRIVILEGES);
 
-            // Configurar rol de Recepcionista (si existe)
-            try {
-                await Role.findOrCreate({
-                    where: { codigo: 'R003' },
-                    defaults: {
-                        codigo: 'R003',
-                        nombre: 'Recepcionista',
-                        descripcion: 'Rol para recepcionistas del gimnasio',
-                        estado: true
-                    }
-                });
+            // Configurar Cliente
+            await this.assignPermissionsToRole('R003', PERMISSION_GROUPS.CLIENT_PERMISSIONS);
+            await this.assignPrivilegesToRole('R003', PRIVILEGE_GROUPS.CLIENT_PRIVILEGES);
 
-                await this.assignPermissionsToRole('R003', PERMISSION_GROUPS.RECEPTIONIST_PERMISSIONS);
-                await this.assignPrivilegesToRole('R003', [
-                    PRIVILEGES.READONLY_USER_ACCESS
-                ]);
-            } catch (error) {
-                console.log('Error configurando rol RECEPTIONIST:', error);
-            }
+            // Configurar Beneficiario
+            await this.assignPermissionsToRole('R004', PERMISSION_GROUPS.BENEFICIARY_PERMISSIONS);
+            await this.assignPrivilegesToRole('R004', PRIVILEGE_GROUPS.BENEFICIARY_PRIVILEGES);
 
-            console.log('Roles configurados exitosamente');
+            console.log('Roles configurados exitosamente con permisos de BD');
         } catch (error) {
             console.error('Error configurando roles:', error);
             throw error;
@@ -170,11 +131,11 @@ export class RolePermissionManager {
      * Obtiene todos los permisos de un usuario a través de su rol
      */
     static async getUserPermissions(userId: number): Promise<string[]> {
-        const user = await User.findOne({ // CORREGIDO: Usar User en lugar de Role
+        const user = await User.findOne({
             where: { id: userId },
             include: [{
                 model: Role,
-                as: 'rol', // Asumiendo que la relación se llama 'rol'
+                as: 'rol',
                 include: [{
                     model: Permission,
                     as: 'permisos',
@@ -184,14 +145,25 @@ export class RolePermissionManager {
             }]
         });
 
-        return user?.rol?.permisos?.map(p => p.codigo) || [];
+        interface PermissionInstance {
+            codigo: string;
+        }
+        interface RoleInstanceWithPermissions {
+            permisos?: PermissionInstance[];
+        }
+        interface UserInstanceWithRole {
+            rol?: RoleInstanceWithPermissions;
+        }
+
+        const typedUser = user as UserInstanceWithRole | null;
+        return typedUser?.rol?.permisos?.map((p: PermissionInstance) => p.codigo) || [];
     }
 
     /**
      * Obtiene todos los privilegios de un usuario a través de su rol
      */
     static async getUserPrivileges(userId: number): Promise<string[]> {
-        const user = await User.findOne({ // CORREGIDO: Usar User en lugar de Role
+        const user = await User.findOne({
             where: { id: userId },
             include: [{
                 model: Role,
@@ -204,7 +176,18 @@ export class RolePermissionManager {
             }]
         });
 
-        return user?.rol?.privilegios?.map(p => p.codigo) || [];
+        interface PrivilegeInstance {
+            codigo: string;
+        }
+        interface RoleInstanceWithPrivileges {
+            privilegios?: PrivilegeInstance[];
+        }
+        interface UserInstanceWithRolePrivileges {
+            rol?: RoleInstanceWithPrivileges;
+        }
+
+        const typedUser = user as UserInstanceWithRolePrivileges | null;
+        return typedUser?.rol?.privilegios?.map((p: PrivilegeInstance) => p.codigo) || [];
     }
 
     /**
@@ -221,6 +204,20 @@ export class RolePermissionManager {
     static async userHasPrivilege(userId: number, privilege: string): Promise<boolean> {
         const userPrivileges = await this.getUserPrivileges(userId);
         return userPrivileges.includes(privilege);
+    }
+
+    /**
+     * Verifica si un usuario puede realizar una acción específica
+     */
+    static async userCanPerformAction(userId: number, requiredPermission: string, requiredPrivilege?: string): Promise<boolean> {
+        const hasPermission = await this.userHasPermission(userId, requiredPermission);
+        
+        if (!requiredPrivilege) {
+            return hasPermission;
+        }
+        
+        const hasPrivilege = await this.userHasPrivilege(userId, requiredPrivilege);
+        return hasPermission && hasPrivilege;
     }
 }
 

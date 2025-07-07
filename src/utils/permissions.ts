@@ -1,138 +1,291 @@
-// Constantes para permisos del sistema
+// Permisos modulares (para BD)
 export const PERMISSIONS = {
-    // Gestión de usuarios
-    MANAGE_USERS: 'gestionar_usuarios',
-    VIEW_USERS: 'ver_usuarios',
-    CREATE_USERS: 'crear_usuarios',
-    UPDATE_USERS: 'actualizar_usuarios',
-    DELETE_USERS: 'eliminar_usuarios',
-    ACTIVATE_USERS: 'activar_usuarios',
-    DEACTIVATE_USERS: 'desactivar_usuarios',
-    
-    // Gestión de contratos
-    MANAGE_CONTRACTS: 'gestionar_contratos',
-    VIEW_CONTRACTS: 'ver_contratos',
-    CREATE_CONTRACTS: 'crear_contratos',
-    UPDATE_CONTRACTS: 'actualizar_contratos',
-    CANCEL_CONTRACTS: 'cancelar_contratos',
-    
-    // Gestión de asistencias
-    MANAGE_ATTENDANCE: 'gestionar_asistencias',
-    VIEW_ATTENDANCE: 'ver_asistencias',
-    REGISTER_ATTENDANCE: 'registrar_asistencias',
-    
-    // Gestión de clientes
-    MANAGE_CLIENTS: 'gestionar_clientes',
-    VIEW_CLIENTS: 'ver_clientes',
-    CREATE_CLIENTS: 'crear_clientes',
-    UPDATE_CLIENTS: 'actualizar_clientes',
-    
-    // Gestión de entrenamientos y horarios
-    MANAGE_SCHEDULES: 'gestionar_horarios',
-    VIEW_SCHEDULES: 'ver_horarios',
-    CREATE_SCHEDULES: 'crear_horarios',
-    UPDATE_SCHEDULES: 'actualizar_horarios',
-    
-    // Gestión de entrenadores
-    MANAGE_TRAINERS: 'gestionar_entrenadores',
-    VIEW_TRAINERS: 'ver_entrenadores',
-    CREATE_TRAINERS: 'crear_entrenadores',
-    UPDATE_TRAINERS: 'actualizar_entrenadores',
-    
-    // Gestión de membresías
-    MANAGE_MEMBERSHIPS: 'gestionar_membresias',
-    VIEW_MEMBERSHIPS: 'ver_membresias',
-    CREATE_MEMBERSHIPS: 'crear_membresias',
-    UPDATE_MEMBERSHIPS: 'actualizar_membresias',
-    
-    // Gestión de roles y permisos
-    MANAGE_ROLES: 'gestionar_roles',
-    VIEW_ROLES: 'ver_roles',
-    ASSIGN_PERMISSIONS: 'asignar_permisos',
-    
-    // Reportes y sistema
-    VIEW_REPORTS: 'ver_reportes',
-    EXPORT_DATA: 'exportar_datos',
-    SYSTEM_CONFIG: 'configuracion_sistema'
+    // Módulos principales
+    ASISTENCIAS: 'ASISTENCIAS',
+    CLIENTES: 'CLIENTES', 
+    MEMBRESIAS: 'MEMBRESIAS',
+    HORARIOS: 'HORARIOS',
+    ENTRENADORES: 'ENTRENADORES',
+
+    // Permisos granulares para las rutas (mapean a módulos)
+    // Asistencias
+    REGISTER_ATTENDANCE: 'ASISTENCIAS',
+    VIEW_ATTENDANCE: 'ASISTENCIAS',
+    MANAGE_ATTENDANCE: 'ASISTENCIAS',
+
+    // Clientes
+    VIEW_CLIENTS: 'CLIENTES',
+    CREATE_CLIENTS: 'CLIENTES',
+    UPDATE_CLIENTS: 'CLIENTES',
+    MANAGE_CLIENTS: 'CLIENTES',
+
+    // Contratos (mapea a MEMBRESIAS)
+    VIEW_CONTRACTS: 'MEMBRESIAS',
+    CREATE_CONTRACTS: 'MEMBRESIAS',
+    UPDATE_CONTRACTS: 'MEMBRESIAS',
+    CANCEL_CONTRACTS: 'MEMBRESIAS',
+    MANAGE_CONTRACTS: 'MEMBRESIAS',
+
+    // Membresías
+    VIEW_MEMBERSHIPS: 'MEMBRESIAS',
+    CREATE_MEMBERSHIPS: 'MEMBRESIAS',
+    UPDATE_MEMBERSHIPS: 'MEMBRESIAS',
+    MANAGE_MEMBERSHIPS: 'MEMBRESIAS',
+
+    // Horarios
+    VIEW_SCHEDULES: 'HORARIOS',
+    CREATE_SCHEDULES: 'HORARIOS',
+    UPDATE_SCHEDULES: 'HORARIOS',
+    MANAGE_SCHEDULES: 'HORARIOS',
+
+    // Entrenadores
+    VIEW_TRAINERS: 'ENTRENADORES',
+    CREATE_TRAINERS: 'ENTRENADORES',
+    UPDATE_TRAINERS: 'ENTRENADORES',
+    MANAGE_TRAINERS: 'ENTRENADORES',
+
+    // Roles (mapea a sistema general)
+    VIEW_ROLES: 'ENTRENADORES', // Los administradores pueden gestionar roles
+    MANAGE_ROLES: 'ENTRENADORES',
+    ASSIGN_PERMISSIONS: 'ENTRENADORES',
+
+    // Usuarios (mapea a sistema general)
+    VIEW_USERS: 'CLIENTES', // Ver usuarios es parte de gestión de clientes
+    CREATE_USERS: 'CLIENTES',
+    UPDATE_USERS: 'CLIENTES',
+    ACTIVATE_USERS: 'CLIENTES',
+    DEACTIVATE_USERS: 'CLIENTES',
+    DELETE_USERS: 'CLIENTES',
+    MANAGE_USERS: 'CLIENTES'
 } as const;
 
-// Constantes para privilegios específicos
+// Privilegios específicos (mantener los existentes)
 export const PRIVILEGES = {
-    // Privilegios de usuarios
-    FULL_USER_ACCESS: 'acceso_completo_usuarios',
-    READONLY_USER_ACCESS: 'acceso_lectura_usuarios',
+    // Privilegios de Asistencias
+    ASIST_READ: 'ASIST_READ',
+    ASIST_SEARCH: 'ASIST_SEARCH',
+    ASIST_CREATE: 'ASIST_CREATE',
+    ASIST_DETAILS: 'ASIST_DETAILS',
+    ASIST_UPDATE: 'ASIST_UPDATE',
+    ASIST_DELETE: 'ASIST_DELETE',
+    ASIST_STATS: 'ASIST_STATS',
     
-    // Privilegios de contratos
-    APPROVE_CONTRACTS: 'aprobar_contratos',
-    CANCEL_ACTIVE_CONTRACTS: 'cancelar_contratos_activos',
+    // Privilegios de Clientes
+    CLIENT_READ: 'CLIENT_READ',
+    CLIENT_DETAILS: 'CLIENT_DETAILS',
+    CLIENT_SEARCH_DOC: 'CLIENT_SEARCH_DOC',
+    CLIENT_CREATE: 'CLIENT_CREATE',
+    CLIENT_UPDATE: 'CLIENT_UPDATE',
+    CLIENT_DELETE: 'CLIENT_DELETE',
+    CLIENT_BENEFICIARIES: 'CLIENT_BENEFICIARIES',
     
-    // Privilegios de asistencias
-    MODIFY_ATTENDANCE_HISTORY: 'modificar_historial_asistencias',
-    DELETE_ATTENDANCE: 'eliminar_asistencias',
+    // Privilegios de Membresías
+    MEMBERSHIP_READ: 'MEMBERSHIP_READ',
+    MEMBERSHIP_SEARCH: 'MEMBERSHIP_SEARCH',
+    MEMBERSHIP_CREATE: 'MEMBERSHIP_CREATE',
+    MEMBERSHIP_UPDATE: 'MEMBERSHIP_UPDATE',
+    MEMBERSHIP_DEACTIVATE: 'MEMBERSHIP_DEACTIVATE',
+    MEMBERSHIP_DETAILS: 'MEMBERSHIP_DETAILS',
+    MEMBERSHIP_REACTIVATE: 'MEMBERSHIP_REACTIVATE',
     
-    // Privilegios administrativos
-    SUPER_ADMIN: 'super_administrador',
-    BACKUP_RESTORE: 'respaldo_restauracion',
+    // Privilegios de Horarios
+    SCHEDULE_READ: 'SCHEDULE_READ',
+    SCHEDULE_DETAILS: 'SCHEDULE_DETAILS',
+    SCHEDULE_CREATE: 'SCHEDULE_CREATE',
+    SCHEDULE_UPDATE: 'SCHEDULE_UPDATE',
+    SCHEDULE_DELETE: 'SCHEDULE_DELETE',
+    SCHEDULE_AVAILABILITY: 'SCHEDULE_AVAILABILITY',
+    SCHEDULE_CLIENT_VIEW: 'SCHEDULE_CLIENT_VIEW',
+    SCHEDULE_TRAINER_VIEW: 'SCHEDULE_TRAINER_VIEW',
+    SCHEDULE_DAILY_VIEW: 'SCHEDULE_DAILY_VIEW',
+    SCHEDULE_WEEKLY_VIEW: 'SCHEDULE_WEEKLY_VIEW',
+    SCHEDULE_MONTHLY_VIEW: 'SCHEDULE_MONTHLY_VIEW',
+    SCHEDULE_TRAINERS_ACTIVE: 'SCHEDULE_TRAINERS_ACTIVE',
+    SCHEDULE_CLIENTS_ACTIVE: 'SCHEDULE_CLIENTS_ACTIVE',
     
-    // Privilegios de entrenador
-    ASSIGN_TRAINING_PLANS: 'asignar_planes_entrenamiento',
-    VIEW_CLIENT_PROGRESS: 'ver_progreso_clientes',
-    
-    // Privilegios financieros
-    VIEW_FINANCIAL_DATA: 'ver_datos_financieros',
-    MANAGE_PAYMENTS: 'gestionar_pagos'
+    // Privilegios de Entrenadores
+    TRAINER_READ: 'TRAINER_READ',
+    TRAINER_CREATE: 'TRAINER_CREATE',
+    TRAINER_UPDATE: 'TRAINER_UPDATE',
+    TRAINER_DEACTIVATE: 'TRAINER_DEACTIVATE',
+    TRAINER_DELETE: 'TRAINER_DELETE',
+    TRAINER_SEARCH: 'TRAINER_SEARCH',
+    TRAINER_DETAILS: 'TRAINER_DETAILS'
 } as const;
 
-// Grupos de permisos predefinidos para roles comunes
+// Grupos de permisos por rol
 export const PERMISSION_GROUPS = {
     ADMIN_PERMISSIONS: [
-        PERMISSIONS.MANAGE_USERS,
-        PERMISSIONS.MANAGE_CONTRACTS,
-        PERMISSIONS.MANAGE_ATTENDANCE,
-        PERMISSIONS.MANAGE_CLIENTS,
-        PERMISSIONS.MANAGE_SCHEDULES,
-        PERMISSIONS.MANAGE_TRAINERS,
-        PERMISSIONS.MANAGE_MEMBERSHIPS,
-        PERMISSIONS.MANAGE_ROLES,
-        PERMISSIONS.VIEW_REPORTS,
-        PERMISSIONS.EXPORT_DATA,
-        PERMISSIONS.SYSTEM_CONFIG
+        PERMISSIONS.ASISTENCIAS,
+        PERMISSIONS.CLIENTES,
+        PERMISSIONS.MEMBRESIAS,
+        PERMISSIONS.HORARIOS,
+        PERMISSIONS.ENTRENADORES
     ],
     
     TRAINER_PERMISSIONS: [
-        PERMISSIONS.VIEW_USERS,
-        PERMISSIONS.VIEW_CONTRACTS,
-        PERMISSIONS.MANAGE_ATTENDANCE,
-        PERMISSIONS.VIEW_CLIENTS,
-        PERMISSIONS.UPDATE_CLIENTS,
-        PERMISSIONS.MANAGE_SCHEDULES,
-        PERMISSIONS.VIEW_TRAINERS,
-        PERMISSIONS.VIEW_MEMBERSHIPS
+        PERMISSIONS.ASISTENCIAS,
+        PERMISSIONS.CLIENTES,
+        PERMISSIONS.HORARIOS
     ],
     
-    RECEPTIONIST_PERMISSIONS: [
-        PERMISSIONS.VIEW_USERS,
-        PERMISSIONS.VIEW_CONTRACTS,
-        PERMISSIONS.REGISTER_ATTENDANCE,
-        PERMISSIONS.VIEW_CLIENTS,
-        PERMISSIONS.CREATE_CLIENTS,
-        PERMISSIONS.UPDATE_CLIENTS,
-        PERMISSIONS.VIEW_SCHEDULES,
-        PERMISSIONS.VIEW_MEMBERSHIPS
+    CLIENT_PERMISSIONS: [
+        PERMISSIONS.ASISTENCIAS,
+        PERMISSIONS.HORARIOS,
+        PERMISSIONS.MEMBRESIAS
+    ],
+    
+    BENEFICIARY_PERMISSIONS: [
+        PERMISSIONS.ASISTENCIAS,
+        PERMISSIONS.HORARIOS,
+        PERMISSIONS.MEMBRESIAS
     ]
 };
 
-// Función helper para verificar si un usuario tiene un permiso específico
+// Grupos de privilegios por rol (mantener los existentes)
+export const PRIVILEGE_GROUPS = {
+    ADMIN_PRIVILEGES: [
+        // Todos los privilegios de asistencias
+        PRIVILEGES.ASIST_READ,
+        PRIVILEGES.ASIST_SEARCH,
+        PRIVILEGES.ASIST_CREATE,
+        PRIVILEGES.ASIST_DETAILS,
+        PRIVILEGES.ASIST_UPDATE,
+        PRIVILEGES.ASIST_DELETE,
+        PRIVILEGES.ASIST_STATS,
+        // Todos los privilegios de clientes
+        PRIVILEGES.CLIENT_READ,
+        PRIVILEGES.CLIENT_DETAILS,
+        PRIVILEGES.CLIENT_SEARCH_DOC,
+        PRIVILEGES.CLIENT_CREATE,
+        PRIVILEGES.CLIENT_UPDATE,
+        PRIVILEGES.CLIENT_DELETE,
+        PRIVILEGES.CLIENT_BENEFICIARIES,
+        // Todos los privilegios de membresías
+        PRIVILEGES.MEMBERSHIP_READ,
+        PRIVILEGES.MEMBERSHIP_SEARCH,
+        PRIVILEGES.MEMBERSHIP_CREATE,
+        PRIVILEGES.MEMBERSHIP_UPDATE,
+        PRIVILEGES.MEMBERSHIP_DEACTIVATE,
+        PRIVILEGES.MEMBERSHIP_DETAILS,
+        PRIVILEGES.MEMBERSHIP_REACTIVATE,
+        // Todos los privilegios de horarios
+        PRIVILEGES.SCHEDULE_READ,
+        PRIVILEGES.SCHEDULE_DETAILS,
+        PRIVILEGES.SCHEDULE_CREATE,
+        PRIVILEGES.SCHEDULE_UPDATE,
+        PRIVILEGES.SCHEDULE_DELETE,
+        PRIVILEGES.SCHEDULE_AVAILABILITY,
+        PRIVILEGES.SCHEDULE_CLIENT_VIEW,
+        PRIVILEGES.SCHEDULE_TRAINER_VIEW,
+        PRIVILEGES.SCHEDULE_DAILY_VIEW,
+        PRIVILEGES.SCHEDULE_WEEKLY_VIEW,
+        PRIVILEGES.SCHEDULE_MONTHLY_VIEW,
+        PRIVILEGES.SCHEDULE_TRAINERS_ACTIVE,
+        PRIVILEGES.SCHEDULE_CLIENTS_ACTIVE,
+        // Todos los privilegios de entrenadores
+        PRIVILEGES.TRAINER_READ,
+        PRIVILEGES.TRAINER_CREATE,
+        PRIVILEGES.TRAINER_UPDATE,
+        PRIVILEGES.TRAINER_DEACTIVATE,
+        PRIVILEGES.TRAINER_DELETE,
+        PRIVILEGES.TRAINER_SEARCH,
+        PRIVILEGES.TRAINER_DETAILS
+    ],
+    
+    TRAINER_PRIVILEGES: [
+        // Asistencias
+        PRIVILEGES.ASIST_READ,
+        PRIVILEGES.ASIST_SEARCH,
+        PRIVILEGES.ASIST_CREATE,
+        PRIVILEGES.ASIST_DETAILS,
+        PRIVILEGES.ASIST_UPDATE,
+        PRIVILEGES.ASIST_STATS,
+        // Clientes (solo lectura)
+        PRIVILEGES.CLIENT_READ,
+        PRIVILEGES.CLIENT_DETAILS,
+        PRIVILEGES.CLIENT_SEARCH_DOC,
+        PRIVILEGES.CLIENT_BENEFICIARIES,
+        // Horarios (gestión completa)
+        PRIVILEGES.SCHEDULE_READ,
+        PRIVILEGES.SCHEDULE_DETAILS,
+        PRIVILEGES.SCHEDULE_CREATE,
+        PRIVILEGES.SCHEDULE_UPDATE,
+        PRIVILEGES.SCHEDULE_AVAILABILITY,
+        PRIVILEGES.SCHEDULE_CLIENT_VIEW,
+        PRIVILEGES.SCHEDULE_TRAINER_VIEW,
+        PRIVILEGES.SCHEDULE_DAILY_VIEW,
+        PRIVILEGES.SCHEDULE_WEEKLY_VIEW,
+        PRIVILEGES.SCHEDULE_MONTHLY_VIEW,
+        PRIVILEGES.SCHEDULE_CLIENTS_ACTIVE
+    ],
+    
+    CLIENT_PRIVILEGES: [
+        // Asistencias (solo lectura propia)
+        PRIVILEGES.ASIST_READ,
+        PRIVILEGES.ASIST_DETAILS,
+        // Horarios (solo consulta)
+        PRIVILEGES.SCHEDULE_READ,
+        PRIVILEGES.SCHEDULE_DETAILS,
+        PRIVILEGES.SCHEDULE_AVAILABILITY,
+        PRIVILEGES.SCHEDULE_CLIENT_VIEW,
+        PRIVILEGES.SCHEDULE_TRAINER_VIEW,
+        PRIVILEGES.SCHEDULE_DAILY_VIEW,
+        PRIVILEGES.SCHEDULE_WEEKLY_VIEW,
+        PRIVILEGES.SCHEDULE_TRAINERS_ACTIVE,
+        // Membresías (solo consulta)
+        PRIVILEGES.MEMBERSHIP_READ,
+        PRIVILEGES.MEMBERSHIP_SEARCH,
+        PRIVILEGES.MEMBERSHIP_DETAILS
+    ],
+    
+    BENEFICIARY_PRIVILEGES: [
+        // Mismos privilegios que Cliente
+        PRIVILEGES.ASIST_READ,
+        PRIVILEGES.ASIST_DETAILS,
+        PRIVILEGES.SCHEDULE_READ,
+        PRIVILEGES.SCHEDULE_DETAILS,
+        PRIVILEGES.SCHEDULE_AVAILABILITY,
+        PRIVILEGES.SCHEDULE_CLIENT_VIEW,
+        PRIVILEGES.SCHEDULE_TRAINER_VIEW,
+        PRIVILEGES.SCHEDULE_DAILY_VIEW,
+        PRIVILEGES.SCHEDULE_WEEKLY_VIEW,
+        PRIVILEGES.SCHEDULE_TRAINERS_ACTIVE,
+        PRIVILEGES.MEMBERSHIP_READ,
+        PRIVILEGES.MEMBERSHIP_SEARCH,
+        PRIVILEGES.MEMBERSHIP_DETAILS
+    ]
+};
+
+// Funciones helper para verificar permisos
 export const userHasPermission = (userPermissions: string[], requiredPermission: string): boolean => {
     return userPermissions.includes(requiredPermission);
 };
 
-// Función helper para verificar si un usuario tiene cualquiera de los permisos
 export const userHasAnyPermission = (userPermissions: string[], requiredPermissions: string[]): boolean => {
     return requiredPermissions.some(permission => userPermissions.includes(permission));
 };
 
-// Función helper para verificar si un usuario tiene todos los permisos
 export const userHasAllPermissions = (userPermissions: string[], requiredPermissions: string[]): boolean => {
     return requiredPermissions.every(permission => userPermissions.includes(permission));
+};
+
+export const userHasPrivilege = (userPrivileges: string[], requiredPrivilege: string): boolean => {
+    return userPrivileges.includes(requiredPrivilege);
+};
+
+export const userHasAnyPrivilege = (userPrivileges: string[], requiredPrivileges: string[]): boolean => {
+    return requiredPrivileges.some(privilege => userPrivileges.includes(privilege));
+};
+
+// Mapeo de permisos granulares a módulos
+export const getModuleFromPermission = (permission: string): string => {
+    // Los permisos granulares mapean a los valores de los módulos
+    return PERMISSIONS[permission as keyof typeof PERMISSIONS] || permission;
+};
+
+// Verificar si un permiso granular está incluido en los permisos del usuario
+export const hasGranularPermission = (userModulePermissions: string[], granularPermission: string): boolean => {
+    const modulePermission = getModuleFromPermission(granularPermission);
+    return userModulePermissions.includes(modulePermission);
 };
