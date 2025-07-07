@@ -7,9 +7,7 @@ import { PERMISSIONS } from '../utils/permissions';
 const router = Router();
 
 // Ruta de registro de usuario (requiere permisos para crear usuarios) ✅
-router.post('/register', 
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.CREATE_USERS) as unknown as RequestHandler,
+router.post('/register',
     register as unknown as RequestHandler
 );
 

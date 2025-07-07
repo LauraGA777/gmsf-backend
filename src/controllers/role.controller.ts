@@ -954,8 +954,8 @@ export const getRoleWithPermissions = async (req: Request, res: Response, next: 
                     nombre: role.nombre,
                     descripcion: role.descripcion,
                     estado: role.estado,
-                    createdAt: role.createdAt,
-                    updatedAt: role.updatedAt
+                    fecha_creacion: role.fecha_creacion,
+                    fecha_actualizacion: role.fecha_actualizacion
                 },
                 modulos: modulosOrdenados,
                 resumen: {
@@ -1019,8 +1019,8 @@ export const getRoleWithPermissionsSimple = async (req: Request, res: Response, 
                     nombre: role.nombre,
                     descripcion: role.descripcion,
                     estado: role.estado,
-                    createdAt: role.createdAt,
-                    updatedAt: role.updatedAt
+                    fecha_creacion: role.fecha_creacion,
+                    fecha_actualizacion: role.fecha_actualizacion
                 },
                 permisos: role.permisos || [],
                 privilegios: role.privilegios || [],
