@@ -7,6 +7,8 @@ class Permission extends Model {
     public descripcion!: string;
     public codigo!: string;
     public estado!: boolean;
+    public fecha_creacion!: Date;
+    public fecha_actualizacion!: Date;
     
     // Asociaciones
     public privilegios?: any[];
@@ -67,12 +69,22 @@ Permission.init({
                 msg: 'El estado debe ser verdadero o falso'
             }
         }
+    },
+    fecha_creacion: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
+    },
+    fecha_actualizacion: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
     }
 }, {
     sequelize,
     modelName: 'Permission',
     tableName: 'permisos',
-    timestamps: false // ⚠️ IMPORTANTE: Sin timestamps
+    timestamps: true
 });
 
 export default Permission;

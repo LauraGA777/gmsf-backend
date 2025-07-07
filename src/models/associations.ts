@@ -18,31 +18,31 @@ export const defineAssociations = () => {
 
     // Role - Permission (Many-to-Many)
     Role.belongsToMany(Permission, {
-        through: 'rol_permiso',
-        foreignKey: 'id_rol',
-        otherKey: 'id_permiso',
+        through: 'rol_permisos', // Nombre corregido
+        foreignKey: 'rol_id',    // Nombre corregido
+        otherKey: 'permiso_id',  // Nombre corregido
         as: 'permisos'
     });
 
     Permission.belongsToMany(Role, {
-        through: 'rol_permiso',
-        foreignKey: 'id_permiso',
-        otherKey: 'id_rol',
+        through: 'rol_permisos', // Nombre corregido
+        foreignKey: 'permiso_id', // Nombre corregido
+        otherKey: 'rol_id',      // Nombre corregido
         as: 'roles'
     });
 
     // Role - Privilege (Many-to-Many)
     Role.belongsToMany(Privilege, {
-        through: 'rol_privilegio',
-        foreignKey: 'id_rol',
-        otherKey: 'id_privilegio',
+        through: 'rol_privilegios', // Nombre corregido
+        foreignKey: 'rol_id',       // Nombre corregido
+        otherKey: 'privilegio_id',  // Nombre corregido
         as: 'privilegios'
     });
 
     Privilege.belongsToMany(Role, {
-        through: 'rol_privilegio',
-        foreignKey: 'id_privilegio',
-        otherKey: 'id_rol',
+        through: 'rol_privilegios', // Nombre corregido
+        foreignKey: 'privilegio_id', // Nombre corregido
+        otherKey: 'rol_id',         // Nombre corregido
         as: 'roles'
     });
 

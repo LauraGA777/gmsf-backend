@@ -7,11 +7,11 @@ interface RoleAttributes {
     nombre: string;
     descripcion?: string;
     estado: boolean;
-    createdAt?: Date;
-    updatedAt?: Date;
+    fecha_creacion?: Date;
+    fecha_actualizacion?: Date;
 }
 
-interface RoleCreationAttributes extends Optional<RoleAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+interface RoleCreationAttributes extends Optional<RoleAttributes, 'id' | 'fecha_creacion' | 'fecha_actualizacion'> {}
 
 class Role extends Model<RoleAttributes, RoleCreationAttributes> {
     public id!: number;
@@ -19,8 +19,8 @@ class Role extends Model<RoleAttributes, RoleCreationAttributes> {
     public nombre!: string;
     public descripcion?: string;
     public estado!: boolean;
-    public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
+    public readonly fecha_creacion!: Date;
+    public readonly fecha_actualizacion!: Date;
 
     // Asociaciones (sin importar los tipos)
     public usuarios?: any[];
@@ -68,12 +68,12 @@ Role.init({
         type: DataTypes.BOOLEAN,
         defaultValue: true
     },
-    createdAt: {
+    fecha_creacion: {
         type: DataTypes.DATE,
         allowNull: false,
         defaultValue: DataTypes.NOW
     },
-    updatedAt: {
+    fecha_actualizacion: {
         type: DataTypes.DATE,
         allowNull: false,
         defaultValue: DataTypes.NOW
