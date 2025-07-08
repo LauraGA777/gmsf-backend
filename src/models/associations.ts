@@ -5,6 +5,8 @@ import Privilege from './privilege';
 
 // Definir todas las asociaciones aquí
 export const defineAssociations = () => {
+    console.log('🔗 Definiendo asociaciones del sistema de roles...');
+
     // User - Role
     User.belongsTo(Role, {
         foreignKey: 'id_rol',
@@ -18,31 +20,31 @@ export const defineAssociations = () => {
 
     // Role - Permission (Many-to-Many)
     Role.belongsToMany(Permission, {
-        through: 'rol_permisos', // Nombre corregido
-        foreignKey: 'rol_id',    // Nombre corregido
-        otherKey: 'permiso_id',  // Nombre corregido
+        through: 'rol_permiso',  // ✅ SINGULAR - usar la tabla que existe
+        foreignKey: 'id_rol',
+        otherKey: 'id_permiso',
         as: 'permisos'
     });
 
     Permission.belongsToMany(Role, {
-        through: 'rol_permisos', // Nombre corregido
-        foreignKey: 'permiso_id', // Nombre corregido
-        otherKey: 'rol_id',      // Nombre corregido
+        through: 'rol_permiso',  // ✅ SINGULAR - mismo nombre
+        foreignKey: 'id_permiso',
+        otherKey: 'id_rol',
         as: 'roles'
     });
 
     // Role - Privilege (Many-to-Many)
     Role.belongsToMany(Privilege, {
-        through: 'rol_privilegios', // Nombre corregido
-        foreignKey: 'rol_id',       // Nombre corregido
-        otherKey: 'privilegio_id',  // Nombre corregido
+        through: 'rol_privilegio',  // ✅ SINGULAR - verificar que existe
+        foreignKey: 'id_rol',
+        otherKey: 'id_privilegio',
         as: 'privilegios'
     });
 
     Privilege.belongsToMany(Role, {
-        through: 'rol_privilegios', // Nombre corregido
-        foreignKey: 'privilegio_id', // Nombre corregido
-        otherKey: 'rol_id',         // Nombre corregido
+        through: 'rol_privilegio',  // ✅ SINGULAR - mismo nombre
+        foreignKey: 'id_privilegio',
+        otherKey: 'id_rol',
         as: 'roles'
     });
 
@@ -56,4 +58,6 @@ export const defineAssociations = () => {
         foreignKey: 'id_permiso',
         as: 'permiso'
     });
+
+    console.log('✅ Asociaciones definidas correctamente');
 };

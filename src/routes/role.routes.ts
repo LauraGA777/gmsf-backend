@@ -14,10 +14,15 @@ import {
     getRoleWithPermissions,
     getRoleWithPermissionsSimple
 } from '../controllers/role.controller';
-import { verifyToken, hasPermission, hasAnyPermission } from '../middlewares/auth.middleware';
-import { PERMISSIONS } from '../utils/permissions';
+import { verifyToken } from '../middlewares/auth.middleware';
+import { adminOnlyAccess } from '../middlewares/adminOnly.middleware';
 
 const router = Router();
+
+/**
+ * TODAS las rutas de roles requieren ser ADMINISTRADOR
+ * No usan hasPermission porque los roles no son un módulo asignable
+ */
 
 /**
  * @swagger
@@ -57,6 +62,7 @@ const router = Router();
 // Trae todos los roles con paginación, ordenamiento y filtrado
 router.get('/', 
     verifyToken as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     getRoles as unknown as RequestHandler
 );
 
@@ -77,7 +83,7 @@ router.get('/',
 // Busca roles por nombre
 router.get('/search', 
     verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.VIEW_ROLES) as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     searchRoles as unknown as RequestHandler
 );
 
@@ -93,7 +99,7 @@ router.get('/search',
 // Obtiene los permisos y privilegios organizados por módulo
 router.get('/permissions-privileges', 
     verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     listPermissionsAndPrivileges as unknown as RequestHandler
 );
 
@@ -109,7 +115,7 @@ router.get('/permissions-privileges',
 // Obtiene todos los permisos y privilegios en un formato simplificado
 router.get('/permissions-privileges/all', 
     verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     listAllPermissionsAndPrivileges as unknown as RequestHandler
 );
 
@@ -155,7 +161,7 @@ router.get('/permissions-privileges/all',
 // crea un nuevo rol con permisos y privilegios
 router.post('/', 
     verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     createRole as unknown as RequestHandler
 );
 
@@ -202,7 +208,7 @@ router.post('/',
 // actualiza un rol existente con permisos y privilegios
 router.put('/:id', 
     verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     updateRole as unknown as RequestHandler
 );
 
@@ -232,7 +238,7 @@ router.put('/:id',
 // Asigna privilegios a un rol
 router.post('/:id/privileges', 
     verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.ASSIGN_PERMISSIONS) as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     assignPrivileges as unknown as RequestHandler
 );
 
@@ -254,7 +260,7 @@ router.post('/:id/privileges',
 // Elimina privilegios de un rol
 router.delete('/:id/privileges', 
     verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.ASSIGN_PERMISSIONS) as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     removePrivileges as unknown as RequestHandler
 );
 
@@ -276,7 +282,7 @@ router.delete('/:id/privileges',
 // Desactiva un rol
 router.patch('/:id/deactivate', 
     verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     deactivateRole as unknown as RequestHandler
 );
 
@@ -298,7 +304,7 @@ router.patch('/:id/deactivate',
 // Elimina un rol
 router.delete('/:id', 
     verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.MANAGE_ROLES) as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     deleteRole as unknown as RequestHandler
 );
 
@@ -320,7 +326,7 @@ router.delete('/:id',
 // Obtiene los usuarios asociados a un rol específico
 router.get('/:id/users', 
     verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.VIEW_USERS) as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     getUsersByRole as unknown as RequestHandler
 );
 
@@ -342,7 +348,7 @@ router.get('/:id/users',
 // Obtiene un rol con sus permisos y privilegios organizados por módulo
 router.get('/:id/permissions', 
     verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.VIEW_ROLES) as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     getRoleWithPermissions as unknown as RequestHandler
 );
 
@@ -364,8 +370,8 @@ router.get('/:id/permissions',
 // Obtiene un rol con sus permisos y privilegios en un formato simplificado
 router.get('/:id/permissions/simple', 
     verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.VIEW_ROLES) as unknown as RequestHandler,
+    adminOnlyAccess as unknown as RequestHandler,
     getRoleWithPermissionsSimple as unknown as RequestHandler
 );
 
-export default router; 
+export default router;

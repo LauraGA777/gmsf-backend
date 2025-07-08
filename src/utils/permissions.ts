@@ -6,6 +6,7 @@ export const PERMISSIONS = {
     MEMBRESIAS: 'MEMBRESIAS',
     HORARIOS: 'HORARIOS',
     ENTRENADORES: 'ENTRENADORES',
+    USUARIOS: 'USUARIOS',
 
     // Permisos granulares para las rutas (mapean a módulos)
     // Asistencias
@@ -50,13 +51,13 @@ export const PERMISSIONS = {
     ASSIGN_PERMISSIONS: 'ENTRENADORES',
 
     // Usuarios (mapea a sistema general)
-    VIEW_USERS: 'CLIENTES', // Ver usuarios es parte de gestión de clientes
-    CREATE_USERS: 'CLIENTES',
-    UPDATE_USERS: 'CLIENTES',
-    ACTIVATE_USERS: 'CLIENTES',
-    DEACTIVATE_USERS: 'CLIENTES',
-    DELETE_USERS: 'CLIENTES',
-    MANAGE_USERS: 'CLIENTES'
+    VIEW_USERS: 'USUARIOS', // Ver usuarios es parte de gestión de clientes
+    CREATE_USERS: 'USUARIOS',
+    UPDATE_USERS: 'USUARIOS',
+    ACTIVATE_USERS: 'USUARIOS',
+    DEACTIVATE_USERS: 'USUARIOS',
+    DELETE_USERS: 'USUARIOS',
+    MANAGE_USERS: 'USUARIOS'
 } as const;
 
 // Privilegios específicos (mantener los existentes)
@@ -110,7 +111,22 @@ export const PRIVILEGES = {
     TRAINER_DEACTIVATE: 'TRAINER_DEACTIVATE',
     TRAINER_DELETE: 'TRAINER_DELETE',
     TRAINER_SEARCH: 'TRAINER_SEARCH',
-    TRAINER_DETAILS: 'TRAINER_DETAILS'
+    TRAINER_DETAILS: 'TRAINER_DETAILS',
+
+    // === Privilegios de Usuarios ===
+    USER_READ: 'USER_READ',
+    USER_SEARCH: 'USER_SEARCH', 
+    USER_DETAILS: 'USER_DETAILS',
+    USER_CREATE: 'USER_CREATE',
+    USER_UPDATE: 'USER_UPDATE',
+    USER_ACTIVATE: 'USER_ACTIVATE',
+    USER_DEACTIVATE: 'USER_DEACTIVATE',
+    USER_DELETE: 'USER_DELETE',
+    USER_CHECK_DOCUMENT: 'USER_CHECK_DOCUMENT',
+    USER_CHECK_EMAIL: 'USER_CHECK_EMAIL',
+    USER_VIEW_ROLES: 'USER_VIEW_ROLES',
+    USER_ASSIGN_ROLES: 'USER_ASSIGN_ROLES',
+    USER_HISTORY: 'USER_HISTORY'
 } as const;
 
 // Grupos de permisos por rol
@@ -120,7 +136,8 @@ export const PERMISSION_GROUPS = {
         PERMISSIONS.CLIENTES,
         PERMISSIONS.MEMBRESIAS,
         PERMISSIONS.HORARIOS,
-        PERMISSIONS.ENTRENADORES
+        PERMISSIONS.ENTRENADORES,
+        PERMISSIONS.USUARIOS
     ],
     
     TRAINER_PERMISSIONS: [
@@ -131,14 +148,12 @@ export const PERMISSION_GROUPS = {
     
     CLIENT_PERMISSIONS: [
         PERMISSIONS.ASISTENCIAS,
-        PERMISSIONS.HORARIOS,
-        PERMISSIONS.MEMBRESIAS
+        PERMISSIONS.HORARIOS
     ],
     
     BENEFICIARY_PERMISSIONS: [
         PERMISSIONS.ASISTENCIAS,
-        PERMISSIONS.HORARIOS,
-        PERMISSIONS.MEMBRESIAS
+        PERMISSIONS.HORARIOS
     ]
 };
 
@@ -190,7 +205,21 @@ export const PRIVILEGE_GROUPS = {
         PRIVILEGES.TRAINER_DEACTIVATE,
         PRIVILEGES.TRAINER_DELETE,
         PRIVILEGES.TRAINER_SEARCH,
-        PRIVILEGES.TRAINER_DETAILS
+        PRIVILEGES.TRAINER_DETAILS,
+        // Usuarios (acceso completo)
+        PRIVILEGES.USER_READ,
+        PRIVILEGES.USER_SEARCH,
+        PRIVILEGES.USER_DETAILS,
+        PRIVILEGES.USER_CREATE,
+        PRIVILEGES.USER_UPDATE,
+        PRIVILEGES.USER_ACTIVATE,
+        PRIVILEGES.USER_DEACTIVATE,
+        PRIVILEGES.USER_DELETE,
+        PRIVILEGES.USER_CHECK_DOCUMENT,
+        PRIVILEGES.USER_CHECK_EMAIL,
+        PRIVILEGES.USER_VIEW_ROLES,
+        PRIVILEGES.USER_ASSIGN_ROLES,
+        PRIVILEGES.USER_HISTORY
     ],
     
     TRAINER_PRIVILEGES: [
@@ -217,7 +246,13 @@ export const PRIVILEGE_GROUPS = {
         PRIVILEGES.SCHEDULE_DAILY_VIEW,
         PRIVILEGES.SCHEDULE_WEEKLY_VIEW,
         PRIVILEGES.SCHEDULE_MONTHLY_VIEW,
-        PRIVILEGES.SCHEDULE_CLIENTS_ACTIVE
+        PRIVILEGES.SCHEDULE_CLIENTS_ACTIVE,
+        // Usuarios (solo lectura y búsqueda)
+        PRIVILEGES.USER_READ,
+        PRIVILEGES.USER_SEARCH,
+        PRIVILEGES.USER_DETAILS,
+        PRIVILEGES.USER_CHECK_DOCUMENT,
+        PRIVILEGES.USER_CHECK_EMAIL
     ],
     
     CLIENT_PRIVILEGES: [
@@ -233,16 +268,15 @@ export const PRIVILEGE_GROUPS = {
         PRIVILEGES.SCHEDULE_DAILY_VIEW,
         PRIVILEGES.SCHEDULE_WEEKLY_VIEW,
         PRIVILEGES.SCHEDULE_TRAINERS_ACTIVE,
-        // Membresías (solo consulta)
-        PRIVILEGES.MEMBERSHIP_READ,
-        PRIVILEGES.MEMBERSHIP_SEARCH,
-        PRIVILEGES.MEMBERSHIP_DETAILS
+        // Usuario (solo consultas básicas - su propio perfil)
+        PRIVILEGES.USER_DETAILS
     ],
     
     BENEFICIARY_PRIVILEGES: [
         // Mismos privilegios que Cliente
         PRIVILEGES.ASIST_READ,
         PRIVILEGES.ASIST_DETAILS,
+        // Horarios (solo consulta)
         PRIVILEGES.SCHEDULE_READ,
         PRIVILEGES.SCHEDULE_DETAILS,
         PRIVILEGES.SCHEDULE_AVAILABILITY,
@@ -251,41 +285,91 @@ export const PRIVILEGE_GROUPS = {
         PRIVILEGES.SCHEDULE_DAILY_VIEW,
         PRIVILEGES.SCHEDULE_WEEKLY_VIEW,
         PRIVILEGES.SCHEDULE_TRAINERS_ACTIVE,
-        PRIVILEGES.MEMBERSHIP_READ,
-        PRIVILEGES.MEMBERSHIP_SEARCH,
-        PRIVILEGES.MEMBERSHIP_DETAILS
+        // Usuarios (solo consultas básicas - su propio perfil)
+        PRIVILEGES.USER_DETAILS
     ]
 };
 
-// Funciones helper para verificar permisos
+// === FUNCIONES HELPER PARA VERIFICAR PERMISOS ===
+
+/*Verifica si un usuario tiene un permiso específico*/
 export const userHasPermission = (userPermissions: string[], requiredPermission: string): boolean => {
+    if (!userPermissions || userPermissions.length === 0) return false;
+    if (!requiredPermission) return false;
+    
     return userPermissions.includes(requiredPermission);
 };
 
+/*Verifica si un usuario tiene al menos uno de los permisos requeridos*/
 export const userHasAnyPermission = (userPermissions: string[], requiredPermissions: string[]): boolean => {
+    if (!userPermissions || userPermissions.length === 0) return false;
+    if (!requiredPermissions || requiredPermissions.length === 0) return false;
+    
     return requiredPermissions.some(permission => userPermissions.includes(permission));
 };
 
+/*Verifica si un usuario tiene todos los permisos requeridos*/
 export const userHasAllPermissions = (userPermissions: string[], requiredPermissions: string[]): boolean => {
+    if (!userPermissions || userPermissions.length === 0) return false;
+    if (!requiredPermissions || requiredPermissions.length === 0) return true;
+    
     return requiredPermissions.every(permission => userPermissions.includes(permission));
 };
 
+/*Verifica si un usuario tiene un privilegio específico*/
 export const userHasPrivilege = (userPrivileges: string[], requiredPrivilege: string): boolean => {
+    if (!userPrivileges || userPrivileges.length === 0) return false;
+    if (!requiredPrivilege) return false;
+    
     return userPrivileges.includes(requiredPrivilege);
 };
 
+/*Verifica si un usuario tiene al menos uno de los privilegios requeridos*/
 export const userHasAnyPrivilege = (userPrivileges: string[], requiredPrivileges: string[]): boolean => {
+    if (!userPrivileges || userPrivileges.length === 0) return false;
+    if (!requiredPrivileges || requiredPrivileges.length === 0) return false;
+    
     return requiredPrivileges.some(privilege => userPrivileges.includes(privilege));
 };
 
-// Mapeo de permisos granulares a módulos
+/*Obtiene el módulo padre de un permiso granular*/
 export const getModuleFromPermission = (permission: string): string => {
     // Los permisos granulares mapean a los valores de los módulos
-    return PERMISSIONS[permission as keyof typeof PERMISSIONS] || permission;
+    const modulePermission = PERMISSIONS[permission as keyof typeof PERMISSIONS];
+    return modulePermission || permission;
 };
 
-// Verificar si un permiso granular está incluido en los permisos del usuario
+/*Verifica si un permiso granular está incluido en los permisos modulares del usuario*/
 export const hasGranularPermission = (userModulePermissions: string[], granularPermission: string): boolean => {
+    if (!userModulePermissions || userModulePermissions.length === 0) return false;
+    if (!granularPermission) return false;
+    
     const modulePermission = getModuleFromPermission(granularPermission);
     return userModulePermissions.includes(modulePermission);
 };
+
+/*Obtiene todos los permisos válidos del sistema*/
+export const getAllSystemPermissions = (): string[] => {
+    return Object.values(PERMISSIONS);
+};
+
+/*Obtiene todos los privilegios válidos del sistema*/
+export const getAllSystemPrivileges = (): string[] => {
+    return Object.values(PRIVILEGES);
+};
+
+/*Verifica si un permiso existe en el sistema*/
+export const isValidPermission = (permission: string): boolean => {
+    return Object.values(PERMISSIONS).includes(permission as any);
+};
+
+/*Verifica si un privilegio existe en el sistema*/
+export const isValidPrivilege = (privilege: string): boolean => {
+    return Object.values(PRIVILEGES).includes(privilege as any);
+};
+
+// === TIPOS DE TYPESCRIPT ===
+export type PermissionType = typeof PERMISSIONS[keyof typeof PERMISSIONS];
+export type PrivilegeType = typeof PRIVILEGES[keyof typeof PRIVILEGES];
+export type PermissionGroupType = keyof typeof PERMISSION_GROUPS;
+export type PrivilegeGroupType = keyof typeof PRIVILEGE_GROUPS;

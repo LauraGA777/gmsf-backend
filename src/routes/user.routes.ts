@@ -1,93 +1,44 @@
 import { RequestHandler, Router } from 'express';
-import { getUsers, register, getUsuarioById, updateUser, activateUser, deactivateUser, deleteUser, searchUser, getRoles } from '../controllers/user.controller';
-import { verifyToken, isAdmin, hasPermission, hasAnyPermission } from '../middlewares/auth.middleware';
-import { PERMISSIONS } from '../utils/permissions';
+import { getUsers, register, getUsuarioById, updateUsers, activateUser, deactivateUser, deleteUser, searchUsers, getRoles, checkDocumentExists, checkEmailExists } from '../controllers/user.controller';
+import { verifyToken } from '../middlewares/auth.middleware';
+import { adminOnlyAccess } from '../middlewares/adminOnly.middleware';
 
 const router = Router();
 
+router.use(verifyToken as unknown as RequestHandler);
+router.use(adminOnlyAccess as unknown as RequestHandler);
+
 // Get users route ✅
-router.get('/', 
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.VIEW_USERS) as unknown as RequestHandler,
-    getUsers as unknown as RequestHandler
-);
+router.get('/', getUsers as unknown as RequestHandler);
 
 // Get roles route ✅
-router.get('/roles',
-    verifyToken as unknown as RequestHandler,
-    hasAnyPermission([PERMISSIONS.MANAGE_USERS, PERMISSIONS.MANAGE_ROLES]) as unknown as RequestHandler,
-    getRoles as unknown as RequestHandler
-);
+router.get('/roles', getRoles as unknown as RequestHandler);
 
 // Search users route ✅
-router.get('/search', 
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.VIEW_USERS) as unknown as RequestHandler,
-    searchUser as unknown as RequestHandler
-);
+router.get('/search', searchUsers as unknown as RequestHandler);
 
 // Get user by ID route ✅
-router.get('/:id', 
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.VIEW_USERS) as unknown as RequestHandler,
-    getUsuarioById as unknown as RequestHandler
-);
+router.get('/:id', getUsuarioById as unknown as RequestHandler);
 
 // Update user route ✅
-router.put('/:id', 
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.UPDATE_USERS) as unknown as RequestHandler,
-    updateUser as unknown as RequestHandler
-);
+router.put('/:id', updateUsers as unknown as RequestHandler);
 
 // Activar usuario ✅
-router.post('/:id/activate', 
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.ACTIVATE_USERS) as unknown as RequestHandler,
-    activateUser as unknown as RequestHandler
-);
+router.post('/:id/activate', activateUser as unknown as RequestHandler);
 
 // Desactivar usuario ✅
-router.post('/:id/deactivate', 
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.DEACTIVATE_USERS) as unknown as RequestHandler,
-    deactivateUser as unknown as RequestHandler
-);
+router.post('/:id/deactivate', deactivateUser as unknown as RequestHandler);
 
 // Eliminar usuario permanentemente ✅
-router.delete('/:id/permanent', 
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.DELETE_USERS) as unknown as RequestHandler,
-    deleteUser as unknown as RequestHandler
-);
+router.delete('/:id/permanent', deleteUser as unknown as RequestHandler);
 
 // Register route ✅
-router.post('/register', 
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.CREATE_USERS) as unknown as RequestHandler,
-    register as unknown as RequestHandler
-);
+router.post('/register', register as unknown as RequestHandler);
 
 // Middleware to check if document exists
-router.get('/check-document/:numero_documento',
-    verifyToken as unknown as RequestHandler,
-    hasAnyPermission([PERMISSIONS.CREATE_USERS, PERMISSIONS.UPDATE_USERS]) as unknown as RequestHandler,
-    (req, res, next) => {
-        import('../controllers/user.controller').then(({ checkDocumentExists }) => {
-            return checkDocumentExists(req, res, next);
-        });
-    }
-);
+router.get('/check-document/:numero_documento', checkDocumentExists as unknown as RequestHandler);
 
 // Middleware to check if email exists
-router.get('/check-email/:email',
-    verifyToken as unknown as RequestHandler,
-    hasAnyPermission([PERMISSIONS.CREATE_USERS, PERMISSIONS.UPDATE_USERS]) as unknown as RequestHandler,
-    (req, res, next) => {
-        import('../controllers/user.controller').then(({ checkEmailExists }) => {
-            return checkEmailExists(req, res, next);
-        });
-    }
-);
+router.get('/check-email/:email', checkEmailExists as unknown as RequestHandler);
 
 export default router;

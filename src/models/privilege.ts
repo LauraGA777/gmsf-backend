@@ -7,8 +7,8 @@ class Privilege extends Model {
     public descripcion!: string;
     public codigo!: string;
     public id_permiso!: number;
-    public fecha_creacion!: Date;
-    public fecha_actualizacion!: Date;
+    public readonly fecha_creacion!: Date;
+    public readonly fecha_actualizacion!: Date;
     
     // Asociaciones
     public permiso?: any;
@@ -83,7 +83,9 @@ Privilege.init({
     sequelize,
     modelName: 'Privilege',
     tableName: 'privilegios',
-    timestamps: true
+    timestamps: true,
+    createdAt: 'fecha_creacion',
+    updatedAt: 'fecha_actualizacion' 
 });
 
 export default Privilege;

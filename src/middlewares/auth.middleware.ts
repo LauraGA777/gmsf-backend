@@ -62,58 +62,6 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
     }
 };
 
-export const isAdmin = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
-    try {
-        if (!req.user) {
-            return res.status(401).json({
-                status: 'error',
-                message: 'Usuario no autenticado'
-            });
-        }
-
-        if (req.user.id_rol !== 1) {
-            return res.status(403).json({
-                status: 'error',
-                message: 'Acceso denegado. Se requieren permisos de administrador'
-            });
-        }
-
-        next();
-    } catch (error) {
-        return res.status(500).json({
-            status: 'error',
-            message: 'Error al verificar permisos de administrador'
-        });
-    }
-};
-
-// Middleware para verificar si el usuario es admin o entrenador
-export const isTrainerOrAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void | Response> => {
-    try {
-        if (!req.user) {
-            return res.status(401).json({
-                status: 'error',
-                message: 'Usuario no autenticado'
-            });
-        }
-
-        // Verificar si el rol es admin (1) o entrenador (2)
-        if (req.user.id_rol !== 1 && req.user.id_rol !== 2) {
-            return res.status(403).json({
-                status: 'error',
-                message: 'Acceso denegado: se requiere rol de administrador o entrenador'
-            });
-        }
-
-        next();
-    } catch (error) {
-        return res.status(500).json({
-            status: 'error',
-            message: 'Error al verificar el rol del usuario'
-        });
-    }
-};
-
 // Middleware para verificar permisos específicos
 export const hasPermission = (permissionName: string) => {
     return async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {

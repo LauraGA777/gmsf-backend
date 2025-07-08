@@ -854,31 +854,24 @@ export const getRoleWithPermissions = async (req: Request, res: Response, next: 
                     model: Permission,
                     as: 'permisos',
                     attributes: ['id', 'nombre', 'descripcion', 'codigo'],
-                    through: { attributes: [] }, // Excluir datos de la tabla intermedia
-                    include: [
-                        {
-                            model: Privilege,
-                            as: 'privilegios',
-                            attributes: ['id', 'nombre', 'descripcion', 'codigo']
-                        }
-                    ]
+                    through: { attributes: [] }
                 },
                 {
                     model: Privilege,
                     as: 'privilegios',
                     attributes: ['id', 'nombre', 'descripcion', 'codigo', 'id_permiso'],
-                    through: { attributes: [] }, // Excluir datos de la tabla intermedia
+                    through: { attributes: [] },
                     include: [
                         {
                             model: Permission,
                             as: 'permiso',
-                            attributes: ['id', 'nombre', 'descripcion', 'codigo'],
+                            attributes: ['id', 'nombre', 'codigo'],
                             required: false
                         }
                     ]
                 }
             ],
-            attributes: ['id', 'codigo', 'nombre', 'descripcion', 'estado', 'createdAt', 'updatedAt']
+            attributes: ['id', 'codigo', 'nombre', 'descripcion', 'estado', 'fecha_creacion', 'fecha_actualizacion']
         });
 
         if (!role) {
@@ -889,7 +882,7 @@ export const getRoleWithPermissions = async (req: Request, res: Response, next: 
             return;
         }
 
-        // Organizar permisos y privilegios por módulos
+        // Organizar por módulos basándose en los permisos
         const modulos = new Map();
 
         // Procesar permisos del rol
@@ -900,32 +893,30 @@ export const getRoleWithPermissions = async (req: Request, res: Response, next: 
                 if (!modulos.has(moduloNombre)) {
                     modulos.set(moduloNombre, {
                         nombre: moduloNombre,
-                        permisos: [],
+                        permiso: permiso,
                         privilegios: []
                     });
                 }
-
-                modulos.get(moduloNombre).permisos.push({
-                    id: permiso.id,
-                    nombre: permiso.nombre,
-                    descripcion: permiso.descripcion,
-                    codigo: permiso.codigo,
-                    privilegios: permiso.privilegios || []
-                });
             });
         }
 
-        // Procesar privilegios del rol
+        // Agregar privilegios a sus módulos correspondientes
         if (role.privilegios && role.privilegios.length > 0) {
             role.privilegios.forEach((privilegio: any) => {
-                const moduloNombre = privilegio.permiso 
-                    ? extractModuleName(privilegio.permiso.nombre)
-                    : extractModuleName(privilegio.nombre);
+                let moduloNombre;
+                
+                if (privilegio.permiso) {
+                    // Privilegio asociado a un permiso
+                    moduloNombre = extractModuleName(privilegio.permiso.nombre);
+                } else {
+                    // Privilegio independiente
+                    moduloNombre = extractModuleName(privilegio.nombre);
+                }
                 
                 if (!modulos.has(moduloNombre)) {
                     modulos.set(moduloNombre, {
                         nombre: moduloNombre,
-                        permisos: [],
+                        permiso: null,
                         privilegios: []
                     });
                 }
@@ -935,7 +926,7 @@ export const getRoleWithPermissions = async (req: Request, res: Response, next: 
                     nombre: privilegio.nombre,
                     descripcion: privilegio.descripcion,
                     codigo: privilegio.codigo,
-                    permiso: privilegio.permiso || null
+                    permiso_asociado: privilegio.permiso || null
                 });
             });
         }

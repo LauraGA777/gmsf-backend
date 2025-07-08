@@ -10,6 +10,9 @@ import ApiResponse from '../utils/apiResponse';
 import UserHistory from '../models/userHistory';
 import Contract from '../models/contract';
 import sequelize from '../config/db';
+import Permission from "../models/permission";
+import Privilege from "../models/privilege";
+
 
 interface UserData {
     nombre: string;
@@ -37,7 +40,7 @@ const generateUserCode = async (): Promise<string> => {
     const lastUser = await User.findOne({
         order: [['codigo', 'DESC']],
     });
-    
+
     const lastCode = lastUser ? parseInt(lastUser.codigo.substring(1)) : 0;
     const newCode = `U${String(lastCode + 1).padStart(3, '0')}`;
     return newCode;
@@ -45,12 +48,13 @@ const generateUserCode = async (): Promise<string> => {
 
 // Obtener usuarios
 export const getUsers = async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: NextFunction): Promise<void> => {
+
     try {
-        const { 
-            page = '1', 
-            limit = '10', 
-            orderBy = 'id', 
-            direction = 'ASC' 
+        const {
+            page = '1',
+            limit = '10',
+            orderBy = 'id',
+            direction = 'ASC'
         } = req.query;
 
         const pageNum = Math.max(1, parseInt(page));
@@ -65,7 +69,7 @@ export const getUsers = async (req: Request<{}, {}, {}, QueryParams>, res: Respo
                 limit: limitNum,
                 offset: offset,
                 order: [[validOrderField, direction]],
-                attributes: { 
+                attributes: {
                     exclude: ['contrasena_hash']
                 }
             }),
@@ -87,6 +91,7 @@ export const getUsers = async (req: Request<{}, {}, {}, QueryParams>, res: Respo
 // Obtener Roles
 export const getRoles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+        
         const roles = await Role.findAll({
             where: {
                 estado: true
@@ -112,9 +117,33 @@ export const getUsuarioById = async (req: Request, res: Response, next: NextFunc
         const { id } = idSchema.parse({ id: req.params.id });
         
         const usuario = await User.findByPk(id, {
-            attributes: { 
-                exclude: ['contrasena_hash'] 
-            }
+            attributes: {
+                exclude: ['contrasena_hash']
+            },
+            include: [
+                {
+                    model: Role,
+                    as: 'rol',
+                    attributes: ['id', 'codigo', 'nombre', 'descripcion', 'estado'],
+                    include: [
+                        {
+                            model: Permission,
+                            as: 'permisos',
+                            attributes: ['id', 'codigo', 'nombre'],
+                            through: { attributes: [] },
+                            required: false
+                        },
+                        {
+                            model: Privilege,
+                            as: 'privilegios',
+                            attributes: ['id', 'codigo', 'nombre'],
+                            through: { attributes: [] },
+                            required: false
+                        }
+                    ],
+                    required: false
+                }
+            ]
         });
 
         if (!usuario) {
@@ -141,7 +170,15 @@ export const getUsuarioById = async (req: Request, res: Response, next: NextFunc
                     fecha_nacimiento: usuario.fecha_nacimiento,
                     asistencias_totales: usuario.asistencias_totales,
                     estado: usuario.estado,
-                    id_rol: usuario.id_rol
+                    rol: usuario.rol ? {
+                        id: usuario.rol.id,
+                        codigo: usuario.rol.codigo,
+                        nombre: usuario.rol.nombre,
+                        descripcion: usuario.rol.descripcion,
+                        estado: usuario.rol.estado,
+                        permisos: usuario.rol.permisos || [],
+                        privilegios: usuario.rol.privilegios || []
+                    } : null
                 }
             }
         });
@@ -160,13 +197,14 @@ export const getUsuarioById = async (req: Request, res: Response, next: NextFunc
 // Registrar usuario
 export const register = async (req: Request, res: Response): Promise<Response> => {
     try {
+
         const userData: UserData = req.body;
 
         // Verificar si el correo existe
-        const existingUser = await User.findOne({ 
-            where: { correo: userData.correo } 
+        const existingUser = await User.findOne({
+            where: { correo: userData.correo }
         });
-        
+
         if (existingUser) {
             return ApiResponse.error(
                 res,
@@ -224,8 +262,8 @@ export const register = async (req: Request, res: Response): Promise<Response> =
 
         // Obtener usuario creado con información del rol
         const createdUser = await User.findByPk(user.id, {
-            attributes: { 
-                exclude: ['contrasena_hash'] 
+            attributes: {
+                exclude: ['contrasena_hash']
             },
             include: [{
                 model: Role,
@@ -235,7 +273,7 @@ export const register = async (req: Request, res: Response): Promise<Response> =
         });
 
         return ApiResponse.success(
-            res, 
+            res,
             {
                 user: createdUser,
                 accessToken
@@ -267,6 +305,7 @@ export const register = async (req: Request, res: Response): Promise<Response> =
 // Actualizar todos los campos de un usuario
 export const updateUsers = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+        
         const { id } = idSchema.parse({ id: req.params.id });
         const datosActualizacion = updateUserSchema.parse(req.body);
 
@@ -287,7 +326,7 @@ export const updateUsers = async (req: Request, res: Response, next: NextFunctio
 
         // Obtener usuario actualizado sin datos sensibles
         const userUpdated = await User.findByPk(id, {
-            attributes: { 
+            attributes: {
                 exclude: ['contrasena_hash']
             }
         });
@@ -304,7 +343,7 @@ export const updateUsers = async (req: Request, res: Response, next: NextFunctio
             message: 'Usuario actualizado exitosamente',
             data: {
                 usuario: {
-                        id: userUpdated.id,
+                    id: userUpdated.id,
                     codigo: userUpdated.codigo,
                     nombre: userUpdated.nombre,
                     apellido: userUpdated.apellido,
@@ -597,7 +636,7 @@ const searchUsers = async (req: Request, res: Response, next: NextFunction): Pro
     try {
         // Validar y extraer parámetros de búsqueda
         const { q, pagina, limite, orden, direccion } = searchUserSchema.parse(req.query);
-        
+
         // Calcular offset para paginación
         const offset = (pagina - 1) * limite;
 
@@ -621,7 +660,7 @@ const searchUsers = async (req: Request, res: Response, next: NextFunction): Pro
             limit: limite,
             offset: offset,
             order: [[orden, direccion]],
-            attributes: { 
+            attributes: {
                 exclude: ['contrasena_hash']
             }
         });
@@ -671,7 +710,7 @@ export const checkDocumentExists = async (req: Request, res: Response, next: Nex
         // Obtener número de documento desde los parámetros de la URL
         const { numero_documento } = req.params;
         const { excludeUserId } = req.query; // Para excluir usuario al editar
-        
+
         // Validar el número de documento
         if (!numero_documento) {
             return res.status(400).json({
@@ -682,7 +721,7 @@ export const checkDocumentExists = async (req: Request, res: Response, next: Nex
 
         // Construir condiciones de búsqueda
         const whereConditions: any = { numero_documento };
-        
+
         // Si se proporciona excludeUserId, excluir ese usuario de la búsqueda
         if (excludeUserId) {
             whereConditions.id = { [Op.ne]: excludeUserId };
@@ -718,7 +757,7 @@ export const checkEmailExists = async (req: Request, res: Response, next: NextFu
         // Obtener email desde los parámetros de la URL
         const { email } = req.params;
         const { excludeUserId } = req.query; // Para excluir usuario al editar
-        
+
         // Validar el email
         if (!email) {
             return res.status(400).json({
@@ -738,7 +777,7 @@ export const checkEmailExists = async (req: Request, res: Response, next: NextFu
 
         // Construir condiciones de búsqueda
         const whereConditions: any = { correo: email.toLowerCase() };
-        
+
         // Si se proporciona excludeUserId, excluir ese usuario de la búsqueda
         if (excludeUserId) {
             whereConditions.id = { [Op.ne]: excludeUserId };
@@ -768,12 +807,11 @@ export const checkEmailExists = async (req: Request, res: Response, next: NextFu
     }
 };
 
-export { 
-    getUsers as getUser, 
-    register as createUser, 
-    updateUsers as updateUser, 
+
+
+export {
     activateUser,
     deactivateUser,
     deleteUser,
-    searchUsers as searchUser
-};
+    searchUsers,
+}

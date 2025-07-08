@@ -16,7 +16,6 @@ import { defineAssociations } from './associations';
 // Definir asociaciones de Role primero
 defineAssociations();
 
-// Resto de asociaciones (sin duplicar las de Role)
 // Relaciones de Contratos
 Contract.belongsTo(Person, { foreignKey: "id_persona", as: "persona" });
 Person.hasMany(Contract, { foreignKey: "id_persona", as: "contratos" });

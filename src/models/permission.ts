@@ -7,8 +7,8 @@ class Permission extends Model {
     public descripcion!: string;
     public codigo!: string;
     public estado!: boolean;
-    public fecha_creacion!: Date;
-    public fecha_actualizacion!: Date;
+    public readonly fecha_creacion!: Date;
+    public readonly fecha_actualizacion!: Date;
     
     // Asociaciones
     public privilegios?: any[];
@@ -84,7 +84,9 @@ Permission.init({
     sequelize,
     modelName: 'Permission',
     tableName: 'permisos',
-    timestamps: true
+    timestamps: true,
+    createdAt: 'fecha_creacion',
+    updatedAt: 'fecha_actualizacion' 
 });
 
 export default Permission;
