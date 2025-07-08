@@ -17,7 +17,7 @@ interface UserAttributes {
     asistencias_totales: number;
     fecha_nacimiento: Date;
     estado: boolean;
-    rol_id?: number;
+    id_rol?: number;
 }
 
 interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'fecha_actualizacion' | 'asistencias_totales' | 'estado'> {}
@@ -38,7 +38,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
     public asistencias_totales!: number;
     public fecha_nacimiento!: Date;
     public estado!: boolean;
-    public rol_id!: number;
+    public id_rol!: number;
 
     // Asociaciones (sin importar los tipos)
     public rol?: any;
@@ -167,7 +167,7 @@ User.init({
         type: DataTypes.BOOLEAN,
         defaultValue: true
     },
-    rol_id: {
+    id_rol: {
         type: DataTypes.INTEGER,
         allowNull: true,
         references: {

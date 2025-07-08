@@ -22,7 +22,7 @@ interface UserData {
     numero_documento: string;
     fecha_nacimiento: Date;
     genero?: 'M' | 'F' | 'O';
-    rol_id?: number;
+    id_rol?: number;
 }
 
 interface QueryParams {
@@ -141,7 +141,7 @@ export const getUsuarioById = async (req: Request, res: Response, next: NextFunc
                     fecha_nacimiento: usuario.fecha_nacimiento,
                     asistencias_totales: usuario.asistencias_totales,
                     estado: usuario.estado,
-                    rol_id: usuario.rol_id
+                    id_rol: usuario.id_rol
                 }
             }
         });
@@ -176,8 +176,8 @@ export const register = async (req: Request, res: Response): Promise<Response> =
         }
 
         // Verificar si el rol existe
-        if (userData.rol_id) {
-            const role = await Role.findByPk(userData.rol_id);
+        if (userData.id_rol) {
+            const role = await Role.findByPk(userData.id_rol);
             if (!role) {
                 return ApiResponse.error(
                     res,
@@ -213,7 +213,7 @@ export const register = async (req: Request, res: Response): Promise<Response> =
             numero_documento: userData.numero_documento,
             fecha_nacimiento: userData.fecha_nacimiento,
             genero: userData.genero,
-            rol_id: userData.rol_id,
+            id_rol: userData.id_rol,
             estado: true,
             fecha_actualizacion: new Date(),
             asistencias_totales: 0
@@ -317,8 +317,8 @@ export const updateUsers = async (req: Request, res: Response, next: NextFunctio
                     fecha_nacimiento: userUpdated.fecha_nacimiento,
                     fecha_actualizacion: userUpdated.fecha_actualizacion,
                     asistencias_totales: userUpdated.asistencias_totales,
-                        estado: userUpdated.estado,
-                    rol_id: userUpdated.rol_id
+                    estado: userUpdated.estado,
+                    id_rol: userUpdated.id_rol
                 }
             }
         });
@@ -648,7 +648,7 @@ const searchUsers = async (req: Request, res: Response, next: NextFunction): Pro
                     fecha_actualizacion: user.fecha_actualizacion,
                     asistencias_totales: user.asistencias_totales,
                     estado: user.estado,
-                    rol_id: user.rol_id
+                    id_rol: user.id_rol
                 }))
             }
         });
