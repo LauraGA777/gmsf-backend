@@ -7,7 +7,7 @@ import Permission from '../models/permission';
 import Privilege from '../models/privilege';
 import sequelize from '../config/db';
 import { idSchema, createRoleSchema, updateRoleSchema, searchRoleSchema } from '../validators/role.validator';
-import ApiResponse from '../utils/apiResponse';
+
 
 // Generar código de rol
 const generateRoleCode = async (): Promise<string> => {

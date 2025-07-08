@@ -2,13 +2,15 @@ import Role from '../models/role';
 import Permission from '../models/permission';
 import Privilege from '../models/privilege';
 import bcrypt from 'bcrypt';
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import User from '../models/user';
 import { env } from '../config/env';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.utils';
 import TokenBlacklist from '../utils/token-blacklist';
 import { enviarCorreoRecuperacion } from '../utils/email.utils';
 import jwt from 'jsonwebtoken';
+import { searchRoleSchema } from '../validators/role.validator';
+
 
 // Interfaces
 interface LoginData {
@@ -465,5 +467,59 @@ export const updateProfile = async (req: Request, res: Response): Promise<Respon
             status: 'error',
             message: 'Error al actualizar el perfil'
         });
+    }
+};
+
+export const getRoles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { pagina = 1, limite = 10, orden = 'nombre', direccion = 'ASC' } = searchRoleSchema.parse(req.query);
+
+        const offset = (pagina - 1) * limite;
+
+        const [roles, total] = await Promise.all([
+            Role.findAll({
+                include: [
+                    {
+                        model: Permission,
+                        as: 'permisos',
+                        through: { attributes: [] }
+                    },
+                    {
+                        model: Privilege,
+                        as: 'privilegios',
+                        through: { attributes: [] }
+                    }
+                ],
+                limit: limite,
+                offset: offset,
+                order: [[orden, direccion]]
+            }),
+            Role.count()
+        ]);
+
+        if (roles.length === 0) {
+            res.status(200).json({
+                status: 'success',
+                message: 'No hay roles registrados',
+                data: {
+                    total: 0,
+                    roles: []
+                }
+            });
+            return;
+        }
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                total,
+                pagina,
+                limite,
+                total_paginas: Math.ceil(total / limite),
+                roles
+            }
+        });
+    } catch (error) {
+        next(error);
     }
 };

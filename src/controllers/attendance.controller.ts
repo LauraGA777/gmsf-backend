@@ -11,7 +11,6 @@ import DateTimeUtils from '../utils/datetime.utils';
 import {
     listAttendanceSchema,
     searchAttendanceSchema,
-    createAttendanceSchema,
     updateAttendanceSchema,
     idSchema,
 } from '../validators/attendance.validator';
@@ -100,6 +99,7 @@ export class AttendanceController {
     // Buscar asistencias
     public async search(req: Request, res: Response) {
         try {
+
             const validatedParams = searchAttendanceSchema.parse(req.query);
             const {
                 codigo_usuario,
@@ -190,7 +190,7 @@ export class AttendanceController {
         const startTime = Date.now();
         console.log('[Attendance] Iniciando registro de asistencia:', req.body);
         console.log('[Attendance] Información de zona horaria:', DateTimeUtils.getTimezoneInfo());
-        
+
         try {
             // 1. Validar datos de entrada
             const { numero_documento } = req.body;
@@ -333,7 +333,7 @@ export class AttendanceController {
                 });
             } catch (includeError) {
                 console.error('[Attendance] Error al obtener detalles con includes:', includeError);
-                
+
                 // Intentar obtener solo la asistencia sin includes como fallback
                 try {
                     createdAttendance = await Attendance.findByPk(newAttendance.id);
@@ -349,7 +349,7 @@ export class AttendanceController {
                 // Aunque no se puedan obtener los detalles, la asistencia se creó exitosamente
                 return ApiResponse.success(
                     res,
-                    { 
+                    {
                         id: newAttendance.id,
                         message: "Asistencia registrada exitosamente, pero no se pudieron obtener todos los detalles"
                     },
@@ -370,12 +370,12 @@ export class AttendanceController {
 
         } catch (error) {
             console.error('[Attendance] Error general no manejado:', error);
-            
+
             // Si llegamos aquí y no es un error conocido, es un error inesperado
             if (error instanceof Error) {
                 console.error('[Attendance] Stack trace:', error.stack);
             }
-            
+
             return ApiResponse.error(
                 res,
                 "Error interno al registrar asistencia",
@@ -545,7 +545,7 @@ export class AttendanceController {
     public async getStats(req: Request, res: Response) {
         try {
             const { date } = statsQuerySchema.parse(req.query);
-            
+
             const targetDate = new Date(date);
             targetDate.setHours(0, 0, 0, 0);
             const nextDay = new Date(targetDate);

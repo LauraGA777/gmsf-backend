@@ -15,14 +15,22 @@ import {
     getRoleWithPermissionsSimple
 } from '../controllers/role.controller';
 import { verifyToken } from '../middlewares/auth.middleware';
-import { adminOnlyAccess } from '../middlewares/adminOnly.middleware';
+import { 
+    canViewRoles,
+    canCreateRoles,
+    canUpdateRoles,
+    canDeleteRoles,
+    canAssignRoles,
+    canViewPermissions,
+    canAssignPermissions,
+    requireSystemPrivileges
+} from '../middlewares/system.middleware';
+import { PRIVILEGES } from '../utils/permissions';
 
 const router = Router();
 
-/**
- * TODAS las rutas de roles requieren ser ADMINISTRADOR
- * No usan hasPermission porque los roles no son un módulo asignable
- */
+// Aplicar verificación de token a todas las rutas
+router.use(verifyToken as unknown as RequestHandler);
 
 /**
  * @swagger
@@ -32,37 +40,10 @@ const router = Router();
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: pagina
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - in: query
- *         name: limite
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 50
- *           default: 10
- *       - in: query
- *         name: orden
- *         schema:
- *           type: string
- *           enum: [id, codigo, nombre]
- *           default: nombre
- *       - in: query
- *         name: direccion
- *         schema:
- *           type: string
- *           enum: [ASC, DESC]
- *           default: ASC
  */
-// Trae todos los roles con paginación, ordenamiento y filtrado
+// ✅ Trae todos los roles con paginación, ordenamiento y filtrado (SYSTEM_VIEW_ROLES)
 router.get('/', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    canViewRoles as unknown as RequestHandler,
     getRoles as unknown as RequestHandler
 );
 
@@ -74,16 +55,10 @@ router.get('/',
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: nombre
- *         schema:
- *           type: string
  */
-// Busca roles por nombre
+// ✅ Busca roles por nombre (SYSTEM_VIEW_ROLES)
 router.get('/search', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    canViewRoles as unknown as RequestHandler,
     searchRoles as unknown as RequestHandler
 );
 
@@ -96,10 +71,9 @@ router.get('/search',
  *     security:
  *       - bearerAuth: []
  */
-// Obtiene los permisos y privilegios organizados por módulo
+// ✅ Obtiene los permisos y privilegios organizados por módulo (SYSTEM_VIEW_PERMISSIONS)
 router.get('/permissions-privileges', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    canViewPermissions as unknown as RequestHandler,
     listPermissionsAndPrivileges as unknown as RequestHandler
 );
 
@@ -112,10 +86,9 @@ router.get('/permissions-privileges',
  *     security:
  *       - bearerAuth: []
  */
-// Obtiene todos los permisos y privilegios en un formato simplificado
+// ✅ Obtiene todos los permisos y privilegios en un formato simplificado (SYSTEM_VIEW_PERMISSIONS)
 router.get('/permissions-privileges/all', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    canViewPermissions as unknown as RequestHandler,
     listAllPermissionsAndPrivileges as unknown as RequestHandler
 );
 
@@ -127,41 +100,10 @@ router.get('/permissions-privileges/all',
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - nombre
- *               - permisos
- *               - privilegios
- *             properties:
- *               nombre:
- *                 type: string
- *                 minLength: 3
- *                 maxLength: 50
- *               descripcion:
- *                 type: string
- *               estado:
- *                 type: boolean
- *                 default: true
- *               permisos:
- *                 type: array
- *                 items:
- *                   type: integer
- *                 minItems: 1
- *               privilegios:
- *                 type: array
- *                 items:
- *                   type: integer
- *                 minItems: 1
  */
-// crea un nuevo rol con permisos y privilegios
+// ✅ Crea un nuevo rol con permisos y privilegios (SYSTEM_CREATE_ROLES)
 router.post('/', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    canCreateRoles as unknown as RequestHandler,
     createRole as unknown as RequestHandler
 );
 
@@ -173,42 +115,10 @@ router.post('/',
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               nombre:
- *                 type: string
- *                 minLength: 3
- *                 maxLength: 50
- *               descripcion:
- *                 type: string
- *               estado:
- *                 type: boolean
- *               permisos:
- *                 type: array
- *                 items:
- *                   type: integer
- *                 minItems: 1
- *               privilegios:
- *                 type: array
- *                 items:
- *                   type: integer
- *                 minItems: 1
  */
-// actualiza un rol existente con permisos y privilegios
+// ✅ Actualiza un rol existente con permisos y privilegios (SYSTEM_UPDATE_ROLES)
 router.put('/:id', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    canUpdateRoles as unknown as RequestHandler,
     updateRole as unknown as RequestHandler
 );
 
@@ -220,25 +130,10 @@ router.put('/:id',
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: array
- *             items:
- *               type: integer
  */
-// Asigna privilegios a un rol
+// ✅ Asigna privilegios a un rol (SYSTEM_ASSIGN_PERMISSIONS)
 router.post('/:id/privileges', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    canAssignPermissions as unknown as RequestHandler,
     assignPrivileges as unknown as RequestHandler
 );
 
@@ -250,17 +145,10 @@ router.post('/:id/privileges',
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
  */
-// Elimina privilegios de un rol
+// ✅ Elimina privilegios de un rol (SYSTEM_ASSIGN_PERMISSIONS)
 router.delete('/:id/privileges', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    canAssignPermissions as unknown as RequestHandler,
     removePrivileges as unknown as RequestHandler
 );
 
@@ -272,17 +160,10 @@ router.delete('/:id/privileges',
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
  */
-// Desactiva un rol
+// ✅ Desactiva un rol (SYSTEM_UPDATE_ROLES)
 router.patch('/:id/deactivate', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    canUpdateRoles as unknown as RequestHandler,
     deactivateRole as unknown as RequestHandler
 );
 
@@ -294,17 +175,10 @@ router.patch('/:id/deactivate',
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
  */
-// Elimina un rol
+// ✅ Elimina un rol (SYSTEM_DELETE_ROLES)
 router.delete('/:id', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    canDeleteRoles as unknown as RequestHandler,
     deleteRole as unknown as RequestHandler
 );
 
@@ -316,17 +190,10 @@ router.delete('/:id',
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
  */
-// Obtiene los usuarios asociados a un rol específico
+// ✅ Obtiene los usuarios asociados a un rol específico (SYSTEM_VIEW_ROLES)
 router.get('/:id/users', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    canViewRoles as unknown as RequestHandler,
     getUsersByRole as unknown as RequestHandler
 );
 
@@ -338,17 +205,13 @@ router.get('/:id/users',
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
  */
-// Obtiene un rol con sus permisos y privilegios organizados por módulo
+// ✅ Obtiene un rol con sus permisos y privilegios organizados por módulo (SYSTEM_VIEW_ROLES + SYSTEM_VIEW_PERMISSIONS)
 router.get('/:id/permissions', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    requireSystemPrivileges([
+        PRIVILEGES.SYSTEM_VIEW_ROLES,
+        PRIVILEGES.SYSTEM_VIEW_PERMISSIONS
+    ]) as unknown as RequestHandler,
     getRoleWithPermissions as unknown as RequestHandler
 );
 
@@ -360,17 +223,13 @@ router.get('/:id/permissions',
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
  */
-// Obtiene un rol con sus permisos y privilegios en un formato simplificado
+// ✅ Obtiene un rol con sus permisos y privilegios en un formato simplificado (SYSTEM_VIEW_ROLES + SYSTEM_VIEW_PERMISSIONS)
 router.get('/:id/permissions/simple', 
-    verifyToken as unknown as RequestHandler,
-    adminOnlyAccess as unknown as RequestHandler,
+    requireSystemPrivileges([
+        PRIVILEGES.SYSTEM_VIEW_ROLES,
+        PRIVILEGES.SYSTEM_VIEW_PERMISSIONS
+    ]) as unknown as RequestHandler,
     getRoleWithPermissionsSimple as unknown as RequestHandler
 );
 

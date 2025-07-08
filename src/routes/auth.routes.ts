@@ -1,16 +1,16 @@
 import { RequestHandler, Router } from 'express';
-import { login, logout, forgotPassword, resetPassword, changePassword, getProfile, updateProfile } from '../controllers/auth.controller';
-import { verifyToken, hasPermission } from '../middlewares/auth.middleware';
+import { login, logout, forgotPassword, resetPassword, changePassword, getProfile, updateProfile, getRoles} from '../controllers/auth.controller';
+import { verifyToken } from '../middlewares/auth.middleware';
 import { register } from '../controllers/user.controller';
-import { PERMISSIONS } from '../utils/permissions';
-
 const router = Router();
 
 // Ruta de registro de usuario (requiere permisos para crear usuarios) ✅
 router.post('/register',
     register as unknown as RequestHandler
 );
-
+router.get('/roles',
+    getRoles as unknown as RequestHandler
+);
 // Ruta de login ✅
 router.post('/login', login as unknown as RequestHandler);
 
