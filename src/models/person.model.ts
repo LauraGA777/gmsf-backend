@@ -8,6 +8,8 @@ interface PersonAttributes {
   codigo: string;
   id_usuario?: number;
   estado: boolean;
+  fecha_registro?: Date;
+  fecha_actualizacion?: Date;
 
   // Relationships
   usuario?: User;

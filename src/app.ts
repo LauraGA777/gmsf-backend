@@ -14,6 +14,7 @@ import clientRoutes from './routes/client.routes';
 import scheduleRoutes from './routes/schedule.routes';
 import roleRoutes from './routes/role.routes';
 import trainerRoutes from './routes/trainer.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 import { errorHandler } from './middlewares/error.middleware';
 
 const app: Application = express();
@@ -39,6 +40,7 @@ app.use('/clients', clientRoutes);
 app.use('/schedules', scheduleRoutes);
 app.use('/roles', roleRoutes);
 app.use('/trainers', trainerRoutes);
+app.use('/dashboard', dashboardRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {

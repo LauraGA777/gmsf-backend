@@ -29,6 +29,13 @@ export class ContractController {
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
       const query = contractQuerySchema.parse(req.query);
+      
+      // Aplicar filtro de usuario si existe
+      const userFilter = (req as any).userFilter;
+      if (userFilter) {
+        Object.assign(query, userFilter);
+      }
+      
       const result = await contractService.findAll(query);
 
       return ApiResponse.success(

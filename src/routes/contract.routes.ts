@@ -8,7 +8,8 @@ import {
     canUpdateContracts, 
     canDeleteContracts,
     canViewContractHistory,
-    canViewContractStats
+    canViewContractStats,
+    canViewOwnContracts
 } from "../middlewares/contract.middleware";
 import {
     createContractSchema,
@@ -30,7 +31,7 @@ router.get("/stats",
 // GET /api/contracts - Get all contracts
 router.get("/", 
     verifyToken as unknown as RequestHandler,
-    canViewContracts as unknown as RequestHandler,
+    canViewOwnContracts as unknown as RequestHandler,
     validate(contractQuerySchema, "query"),
     contractController.getAll.bind(contractController) as unknown as RequestHandler
 );
@@ -38,7 +39,7 @@ router.get("/",
 // GET /api/contracts/:id - Get contract by ID
 router.get("/:id", 
     verifyToken as unknown as RequestHandler,
-    canViewContracts as unknown as RequestHandler,
+    canViewOwnContracts as unknown as RequestHandler,
     validate(contractIdSchema, "params"),
     contractController.getById.bind(contractController) as unknown as RequestHandler
 );

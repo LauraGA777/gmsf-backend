@@ -495,8 +495,8 @@ export const canViewOwnContracts = async (req: Request, res: Response, next: Nex
         }
 
         // Si es cliente o beneficiario, agregar filtro por usuario
-        if (userInfo.role=== 'R003' || userInfo.role === 'R004') {
-            (req as any).userFilter = { id_cliente: userId };
+        if (userInfo.role === 'R003' || userInfo.role === 'R004') {
+            (req as any).userFilter = { id_persona: userId };
         }
 
         next();

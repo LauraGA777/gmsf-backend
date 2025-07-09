@@ -75,10 +75,12 @@ export class ContractService {
         {
           model: Person,
           as: "persona",
+          required: false,
           include: [
             {
               model: User,
               as: "usuario",
+              required: false,
               attributes: [
                 "id",
                 "nombre",
@@ -94,15 +96,18 @@ export class ContractService {
         {
           model: Membership,
           as: "membresia",
+          required: false,
         },
         {
           model: User,
           as: "registrador",
+          required: false,
           attributes: ["id", "nombre", "apellido"],
         },
         {
           model: User,
           as: "actualizador",
+          required: false,
           attributes: ["id", "nombre", "apellido"],
         },
       ],
@@ -112,6 +117,32 @@ export class ContractService {
     });
 
     console.log(`--- [Service - findAll] Found ${rows.length} contracts ---`);
+    
+    // Debug: Log first contract with all relations
+    if (rows.length > 0) {
+      const firstContract = rows[0];
+      console.log(`--- [Service - findAll] First contract debug ---`, {
+        id: firstContract.id,
+        codigo: firstContract.codigo,
+        id_persona: firstContract.id_persona,
+        id_membresia: firstContract.id_membresia,
+        membresia_precio: firstContract.membresia_precio,
+        estado: firstContract.estado,
+        persona: firstContract.persona ? {
+          id_persona: firstContract.persona.id_persona,
+          usuario: firstContract.persona.usuario ? {
+            nombre: firstContract.persona.usuario.nombre,
+            apellido: firstContract.persona.usuario.apellido,
+            numero_documento: firstContract.persona.usuario.numero_documento,
+          } : null
+        } : null,
+        membresia: firstContract.membresia ? {
+          id: firstContract.membresia.id,
+          nombre: firstContract.membresia.nombre,
+          precio: firstContract.membresia.precio,
+        } : null
+      });
+    }
 
     return {
       data: rows,
@@ -131,10 +162,12 @@ export class ContractService {
         {
           model: Person,
           as: "persona",
+          required: false,
           include: [
             {
               model: User,
               as: "usuario",
+              required: false,
               attributes: [
                 "id",
                 "nombre",
@@ -150,24 +183,29 @@ export class ContractService {
         {
           model: Membership,
           as: "membresia",
+          required: false,
         },
         {
           model: User,
           as: "registrador",
+          required: false,
           attributes: ["id", "nombre", "apellido"],
         },
         {
           model: User,
           as: "actualizador",
+          required: false,
           attributes: ["id", "nombre", "apellido"],
         },
         {
           model: ContractHistory,
           as: "historial",
+          required: false,
           include: [
             {
               model: User,
               as: "usuarioDelCambio",
+              required: false,
               attributes: ["id", "nombre", "apellido"],
             },
           ],
