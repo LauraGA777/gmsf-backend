@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import Membership from '../models/membership';
 import Contract from '../models/contract';
 import { z } from 'zod';
+import sequelize from '../config/db';
 import {
     listMembershipSchema,
     searchMembershipSchema,
@@ -14,7 +15,6 @@ import {
     CreateMembershipData,
     UpdateMembershipData
 } from '../validators/membership.validator';
-import sequelize from '../config/db';
 import ApiResponse from '../utils/apiResponse';
 
 // Generar código único de membresía
@@ -32,10 +32,12 @@ const generateMembershipCode = async (): Promise<string> => {
 
 // Esquema de validación para estadísticas de membresías
 const membershipStatsQuerySchema = z.object({
-    period: z.enum(['daily', 'monthly', 'yearly']).optional().default('monthly'),
+    period: z.enum(['daily', 'monthly', 'yearly', 'custom']).optional().default('monthly'),
     date: z.string().optional(),
     month: z.string().optional(),
-    year: z.string().optional()
+    year: z.string().optional(),
+    dateFrom: z.string().optional(),
+    dateTo: z.string().optional()
 });
 
 // Obtener todas las membresías con paginación
@@ -582,7 +584,7 @@ export const getMembershipStats = async (req: Request, res: Response, next: Next
     try {
         console.log('🔍 Membership Stats - Request params:', req.query);
         
-        const { period, date, month, year } = membershipStatsQuerySchema.parse(req.query);
+        const { period, date, month, year, dateFrom, dateTo } = membershipStatsQuerySchema.parse(req.query);
         
         let startDate: Date;
         let endDate: Date;
@@ -597,10 +599,18 @@ export const getMembershipStats = async (req: Request, res: Response, next: Next
             const targetYear = year ? parseInt(year) : new Date().getFullYear();
             startDate = new Date(targetYear, targetMonth, 1);
             endDate = new Date(targetYear, targetMonth + 1, 0);
-        } else { // yearly
+        } else if (period === 'yearly') {
             const targetYear = year ? parseInt(year) : new Date().getFullYear();
             startDate = new Date(targetYear, 0, 1);
             endDate = new Date(targetYear, 11, 31);
+        } else { // custom
+            if (!dateFrom || !dateTo) {
+                return ApiResponse.error(res, "Para el período 'custom', se requieren 'dateFrom' y 'dateTo'.", 400);
+            }
+            startDate = new Date(dateFrom);
+            endDate = new Date(dateTo);
+            // Asegurarse de que endDate incluya todo el día
+            endDate.setHours(23, 59, 59, 999);
         }
 
         console.log('📅 Membership Stats - Date range:', { startDate, endDate, period });
