@@ -1,6 +1,6 @@
 import { RequestHandler, Router } from 'express';
-import { verifyToken, hasPermission, hasAnyPermission } from '../middlewares/auth.middleware';
-import { PERMISSIONS } from '../utils/permissions';
+import { verifyToken } from '../middlewares/auth.middleware';
+import { canViewTrainers, canCreateTrainers, canUpdateTrainers, canDeactivateTrainers, canDeleteTrainers, canSearchTrainers } from '../middlewares/trainer.middleware';
 import {
     getTrainers,
     createTrainer,
@@ -12,6 +12,8 @@ import {
 } from '../controllers/trainer.controller';
 
 const router = Router();
+
+router.use(verifyToken as unknown as RequestHandler);
 
 /**
  * @swagger
@@ -39,9 +41,7 @@ const router = Router();
  *       200:
  *         description: Lista de entrenadores obtenida exitosamente
  */
-router.get('/', 
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.VIEW_TRAINERS) as unknown as RequestHandler,
+router.get('/', canViewTrainers as unknown as RequestHandler,
     getTrainers as unknown as RequestHandler
 );
 
@@ -75,9 +75,7 @@ router.get('/',
  *       200:
  *         description: Resultados de búsqueda obtenidos exitosamente
  */
-router.get('/search',
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.VIEW_TRAINERS) as unknown as RequestHandler,
+router.get('/search', canSearchTrainers as unknown as RequestHandler,
     searchTrainers as unknown as RequestHandler
 );
 
@@ -101,9 +99,7 @@ router.get('/search',
  *       404:
  *         description: Entrenador no encontrado
  */
-router.get('/:id',
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.VIEW_TRAINERS) as unknown as RequestHandler,
+router.get('/:id', canViewTrainers as unknown as RequestHandler,
     getTrainerDetails as unknown as RequestHandler
 );
 
@@ -135,9 +131,7 @@ router.get('/:id',
  *       201:
  *         description: Entrenador creado exitosamente
  */
-router.post('/',
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.CREATE_TRAINERS) as unknown as RequestHandler,
+router.post('/', canCreateTrainers as unknown as RequestHandler,
     createTrainer as unknown as RequestHandler
 );
 
@@ -172,9 +166,7 @@ router.post('/',
  *       404:
  *         description: Entrenador no encontrado
  */
-router.put('/:id',
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.UPDATE_TRAINERS) as unknown as RequestHandler,
+router.put('/:id', canUpdateTrainers as unknown as RequestHandler,
     updateTrainer as unknown as RequestHandler
 );
 
@@ -198,9 +190,7 @@ router.put('/:id',
  *       404:
  *         description: Entrenador no encontrado
  */
-router.patch('/:id/deactivate',
-    verifyToken as unknown as RequestHandler,
-    hasPermission(PERMISSIONS.MANAGE_TRAINERS) as unknown as RequestHandler,
+router.patch('/:id/deactivate', canDeactivateTrainers as unknown as RequestHandler,
     deactivateTrainer as unknown as RequestHandler
 );
 
@@ -224,9 +214,7 @@ router.patch('/:id/deactivate',
  *       404:
  *         description: Entrenador no encontrado
  */
-router.delete('/:id',
-    verifyToken as unknown as RequestHandler,
-    hasAnyPermission([PERMISSIONS.MANAGE_TRAINERS, PERMISSIONS.DELETE_USERS]) as unknown as RequestHandler,
+router.delete('/:id', canDeleteTrainers as unknown as RequestHandler,
     deleteTrainer as unknown as RequestHandler
 );
 
