@@ -1061,19 +1061,19 @@ export const getUsersByRole = async (req: Request, res: Response, next: NextFunc
         }
 
         // Construir condición where para usuarios
-        const userWhere: any = { rol_id: id };
+        const userWhere: any = { id_rol: id };
         if (activos !== undefined) {
             userWhere.estado = activos;
         }
 
-        // Obtener usuarios del rol con paginación
+        // 🔧 VERSIÓN SEGURA: Obtener todos los atributos del modelo User
         const [usuarios, total] = await Promise.all([
             User.findAll({
                 where: userWhere,
-                attributes: ['id', 'codigo', 'nombres', 'apellidos', 'email', 'telefono', 'estado', 'fecha_creacion'],
+                // ✅ Sin especificar attributes - deja que Sequelize use las columnas del modelo
                 limit: limite,
                 offset: offset,
-                order: [['nombres', 'ASC'], ['apellidos', 'ASC']]
+                order: [['id', 'ASC']]  // ✅ Orden seguro usando ID
             }),
             User.count({ where: userWhere })
         ]);
