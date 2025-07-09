@@ -49,7 +49,20 @@ export class ContractController {
     try {
       console.log("--- DEBUG: Received request body in controller ---", req.body);
       const data = createContractSchema.parse(req.body);
-      const contract = await contractService.create(data);
+      
+      // Extract user ID from JWT token
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        return ApiResponse.error(res, "Usuario no autenticado", 401);
+      }
+      
+      // Add user ID to data
+      const contractData = {
+        ...data,
+        usuario_registro: userId
+      };
+      
+      const contract = await contractService.create(contractData);
 
       return ApiResponse.success(
         res,
@@ -76,7 +89,20 @@ export class ContractController {
       const data = updateContractSchema.parse(req.body);
       console.log("--- [Controller] Update - Step 2: Parsed body data ---", data);
 
-      const contract = await contractService.update(id, data);
+      // Extract user ID from JWT token
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        return ApiResponse.error(res, "Usuario no autenticado", 401);
+      }
+      
+      // Add user ID to data
+      const updateData = {
+        ...data,
+        usuario_actualizacion: userId
+      };
+      console.log("--- [Controller] Update - Step 2.5: Added user ID ---", { userId });
+
+      const contract = await contractService.update(id, updateData);
       console.log("--- [Controller] Update - Step 3: Service call successful ---");
 
       return ApiResponse.success(

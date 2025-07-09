@@ -1,6 +1,13 @@
 import { RequestHandler, Router } from 'express';
 import { verifyToken } from '../middlewares/auth.middleware';
 import { canViewTrainers, canCreateTrainers, canUpdateTrainers, canDeactivateTrainers, canDeleteTrainers, canSearchTrainers } from '../middlewares/trainer.middleware';
+import { validate } from '../middlewares/validate.middleware';
+import {
+    idSchema,
+    createTrainerSchema,
+    updateTrainerSchema,
+    searchTrainerSchema
+} from '../validators/trainer.validator';
 import {
     getTrainers,
     createTrainer,
@@ -12,8 +19,6 @@ import {
 } from '../controllers/trainer.controller';
 
 const router = Router();
-
-router.use(verifyToken as unknown as RequestHandler);
 
 /**
  * @swagger
@@ -41,7 +46,10 @@ router.use(verifyToken as unknown as RequestHandler);
  *       200:
  *         description: Lista de entrenadores obtenida exitosamente
  */
-router.get('/', canViewTrainers as unknown as RequestHandler,
+router.get('/', 
+    verifyToken as unknown as RequestHandler,
+    canViewTrainers as unknown as RequestHandler,
+    validate(searchTrainerSchema, "query"),
     getTrainers as unknown as RequestHandler
 );
 
@@ -75,7 +83,10 @@ router.get('/', canViewTrainers as unknown as RequestHandler,
  *       200:
  *         description: Resultados de búsqueda obtenidos exitosamente
  */
-router.get('/search', canSearchTrainers as unknown as RequestHandler,
+router.get('/search', 
+    verifyToken as unknown as RequestHandler,
+    canSearchTrainers as unknown as RequestHandler,
+    validate(searchTrainerSchema, "query"),
     searchTrainers as unknown as RequestHandler
 );
 
@@ -99,7 +110,10 @@ router.get('/search', canSearchTrainers as unknown as RequestHandler,
  *       404:
  *         description: Entrenador no encontrado
  */
-router.get('/:id', canViewTrainers as unknown as RequestHandler,
+router.get('/:id', 
+    verifyToken as unknown as RequestHandler,
+    canViewTrainers as unknown as RequestHandler,
+    validate(idSchema, "params"),
     getTrainerDetails as unknown as RequestHandler
 );
 
@@ -131,7 +145,10 @@ router.get('/:id', canViewTrainers as unknown as RequestHandler,
  *       201:
  *         description: Entrenador creado exitosamente
  */
-router.post('/', canCreateTrainers as unknown as RequestHandler,
+router.post('/', 
+    verifyToken as unknown as RequestHandler,
+    canCreateTrainers as unknown as RequestHandler,
+    validate(createTrainerSchema, "body"),
     createTrainer as unknown as RequestHandler
 );
 
@@ -166,7 +183,11 @@ router.post('/', canCreateTrainers as unknown as RequestHandler,
  *       404:
  *         description: Entrenador no encontrado
  */
-router.put('/:id', canUpdateTrainers as unknown as RequestHandler,
+router.put('/:id', 
+    verifyToken as unknown as RequestHandler,
+    canUpdateTrainers as unknown as RequestHandler,
+    validate(idSchema, "params"),
+    validate(updateTrainerSchema, "body"),
     updateTrainer as unknown as RequestHandler
 );
 
@@ -190,7 +211,10 @@ router.put('/:id', canUpdateTrainers as unknown as RequestHandler,
  *       404:
  *         description: Entrenador no encontrado
  */
-router.patch('/:id/deactivate', canDeactivateTrainers as unknown as RequestHandler,
+router.patch('/:id/deactivate', 
+    verifyToken as unknown as RequestHandler,
+    canDeactivateTrainers as unknown as RequestHandler,
+    validate(idSchema, "params"),
     deactivateTrainer as unknown as RequestHandler
 );
 
@@ -214,7 +238,10 @@ router.patch('/:id/deactivate', canDeactivateTrainers as unknown as RequestHandl
  *       404:
  *         description: Entrenador no encontrado
  */
-router.delete('/:id', canDeleteTrainers as unknown as RequestHandler,
+router.delete('/:id', 
+    verifyToken as unknown as RequestHandler,
+    canDeleteTrainers as unknown as RequestHandler,
+    validate(idSchema, "params"),
     deleteTrainer as unknown as RequestHandler
 );
 

@@ -38,30 +38,20 @@ const contractBaseSchema = z.object({
 export const createContractSchema = contractBaseSchema;
 
 // Schema for updating an existing contract
-export const updateContractSchema = z
-  .object({
-    id_membresia: z.number().optional(),
-    fecha_inicio: z
-      .string()
-      .refine((date: string) => !isNaN(Date.parse(date)), {
-        message: "Fecha de inicio inválida",
-      })
-      .optional(),
-    estado: z
-      .enum(["Activo", "Congelado", "Vencido", "Cancelado", "Por vencer"])
-      .optional(),
-    usuario_actualizacion: z
-      .preprocess(
-        (val) =>
-          typeof val === "string" && val.trim() !== ""
-            ? parseInt(val, 10)
-            : val,
-        z.number()
-      )
-      .nullable()
-      .optional(),
-    motivo: z.string().optional(),
-  });
+export const updateContractSchema = z.object({
+  id_membresia: z.number().optional(),
+  fecha_inicio: z
+    .string()
+    .refine((date: string) => !isNaN(Date.parse(date)), {
+      message: "Fecha de inicio inválida",
+    })
+    .optional(),
+  estado: z
+    .enum(["Activo", "Congelado", "Vencido", "Cancelado", "Por vencer"])
+    .optional(),
+  usuario_actualizacion: z.number().optional(),
+  motivo: z.string().optional(),
+});
 
 // Schema for contract query parameters
 export const contractQuerySchema = z.object({
