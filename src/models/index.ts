@@ -20,9 +20,6 @@ defineAssociations();
 Contract.belongsTo(Person, { foreignKey: "id_persona", as: "persona" });
 Person.hasMany(Contract, { foreignKey: "id_persona", as: "contratos" });
 
-Contract.belongsTo(Membership, { foreignKey: "id_membresia", as: "membresia" });
-Membership.hasMany(Contract, { foreignKey: "id_membresia", as: "contratos" });
-
 Contract.belongsTo(User, { foreignKey: "usuario_registro", as: "registrador" });
 User.hasMany(Contract, { foreignKey: "usuario_registro", as: "contratos_registrados" });
 
@@ -35,7 +32,7 @@ User.hasOne(Person, { foreignKey: 'id_usuario', as: 'persona' });
 
 // Relaciones de Person y EmergencyContact
 Person.hasMany(EmergencyContact, { foreignKey: 'id_persona', as: 'contactos_emergencia' });
-EmergencyContact.belongsTo(Person, { foreignKey: 'id_persona', as: 'persona' });
+EmergencyContact.belongsTo(Person, { foreignKey: 'id_persona', as: 'persona_contacto' });
 
 // Relaciones de Beneficiarios
 Person.hasMany(Beneficiary, { foreignKey: 'id_cliente', as: 'beneficiarios' });
@@ -57,6 +54,19 @@ Training.belongsTo(Trainer, { foreignKey: "id_entrenador", as: "entrenador" });
 Training.belongsTo(Person, { foreignKey: "id_cliente", as: "cliente" });
 Trainer.hasMany(Training, { foreignKey: "id_entrenador", as: "entrenamientos_asignados" });
 Person.hasMany(Training, { foreignKey: "id_cliente", as: "entrenamientos" });
+
+// Relaciones de Attendance
+Attendance.belongsTo(Person, { foreignKey: "id_persona", as: "persona_asistencia" });
+Person.hasMany(Attendance, { foreignKey: "id_persona", as: "asistencias" });
+
+Attendance.belongsTo(Contract, { foreignKey: "id_contrato", as: "contrato" });
+Contract.hasMany(Attendance, { foreignKey: "id_contrato", as: "asistencias" });
+
+Attendance.belongsTo(User, { foreignKey: "usuario_registro", as: "registrador" });
+User.hasMany(Attendance, { foreignKey: "usuario_registro", as: "asistencias_registradas" });
+
+Attendance.belongsTo(User, { foreignKey: "usuario_actualizacion", as: "actualizador" });
+User.hasMany(Attendance, { foreignKey: "usuario_actualizacion", as: "asistencias_actualizadas" });
 
 
 export {

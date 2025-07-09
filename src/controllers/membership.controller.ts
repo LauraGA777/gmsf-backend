@@ -15,6 +15,7 @@ import {
     UpdateMembershipData
 } from '../validators/membership.validator';
 import sequelize from '../config/db';
+import ApiResponse from '../utils/apiResponse';
 
 // Generar código único de membresía
 const generateMembershipCode = async (): Promise<string> => {
@@ -28,6 +29,14 @@ const generateMembershipCode = async (): Promise<string> => {
 
     return `M${String(lastNumber + 1).padStart(3, '0')}`;
 };
+
+// Esquema de validación para estadísticas de membresías
+const membershipStatsQuerySchema = z.object({
+    period: z.enum(['daily', 'monthly', 'yearly']).optional().default('monthly'),
+    date: z.string().optional(),
+    month: z.string().optional(),
+    year: z.string().optional()
+});
 
 // Obtener todas las membresías con paginación
 export const getMemberships = async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: NextFunction): Promise<void> => {
@@ -565,6 +574,178 @@ export const reactivateMembership = async (
             });
         }
         next(error);
+    }
+};
+
+// Get membership statistics
+export const getMembershipStats = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+        console.log('🔍 Membership Stats - Request params:', req.query);
+        
+        const { period, date, month, year } = membershipStatsQuerySchema.parse(req.query);
+        
+        let startDate: Date;
+        let endDate: Date;
+        
+        // Configurar fechas según el período
+        if (period === 'daily') {
+            const targetDate = date ? new Date(date) : new Date();
+            startDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+            endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        } else if (period === 'monthly') {
+            const targetMonth = month ? parseInt(month) - 1 : new Date().getMonth();
+            const targetYear = year ? parseInt(year) : new Date().getFullYear();
+            startDate = new Date(targetYear, targetMonth, 1);
+            endDate = new Date(targetYear, targetMonth + 1, 0);
+        } else { // yearly
+            const targetYear = year ? parseInt(year) : new Date().getFullYear();
+            startDate = new Date(targetYear, 0, 1);
+            endDate = new Date(targetYear, 11, 31);
+        }
+
+        console.log('📅 Membership Stats - Date range:', { startDate, endDate, period });
+
+        // Obtener estadísticas básicas de forma segura
+        const [
+            totalMemberships,
+            activeMemberships,
+            inactiveMemberships,
+            newMemberships
+        ] = await Promise.all([
+            // Total membresías
+            Membership.count().catch(error => {
+                console.error('Error counting total memberships:', error);
+                return 0;
+            }),
+            
+            // Membresías activas
+            Membership.count({
+                where: { estado: true }
+            }).catch(error => {
+                console.error('Error counting active memberships:', error);
+                return 0;
+            }),
+            
+            // Membresías inactivas
+            Membership.count({
+                where: { estado: false }
+            }).catch(error => {
+                console.error('Error counting inactive memberships:', error);
+                return 0;
+            }),
+            
+            // Nuevas membresías en el período
+            Membership.count({
+                where: {
+                    fecha_creacion: {
+                        [Op.between]: [startDate, endDate]
+                    }
+                }
+            }).catch(error => {
+                console.error('Error counting new memberships:', error);
+                return 0;
+            })
+        ]);
+
+        console.log('📊 Membership Stats - Basic counts:', {
+            totalMemberships,
+            activeMemberships,
+            inactiveMemberships,
+            newMemberships
+        });
+
+        // Definir tipo para las membresías populares
+        interface PopularMembership {
+            id: number;
+            nombre: string;
+            precio: number;
+            activeContracts: number;
+        }
+
+        // Obtener membresías populares de forma segura
+        let popularMemberships: PopularMembership[] = [];
+        try {
+            const membershipsWithContracts = await Membership.findAll({
+                attributes: ['id', 'nombre', 'precio'],
+                include: [{
+                    model: Contract,
+                    as: 'contratos',
+                    where: {
+                        estado: 'Activo',
+                        fecha_inicio: { [Op.lte]: new Date() },
+                        fecha_fin: { [Op.gte]: new Date() }
+                    },
+                    attributes: [],
+                    required: false
+                }],
+                group: ['Membership.id'],
+                order: [[sequelize.literal('COUNT(contratos.id)'), 'DESC']],
+                limit: 10,
+                raw: false
+            });
+
+            // Procesar el resultado para obtener el conteo
+            popularMemberships = membershipsWithContracts.map((membership: any) => ({
+                id: membership.id,
+                nombre: membership.nombre,
+                precio: membership.precio,
+                activeContracts: membership.contratos ? membership.contratos.length : 0
+            }));
+
+            console.log('🔥 Membership Stats - Popular memberships found:', popularMemberships.length);
+        } catch (error) {
+            console.error('Error fetching popular memberships:', error);
+            // Fallback: obtener solo las membresías sin conteo
+            try {
+                const simpleMemberships = await Membership.findAll({
+                    attributes: ['id', 'nombre', 'precio'],
+                    where: { estado: true },
+                    limit: 5,
+                    order: [['nombre', 'ASC']]
+                });
+                popularMemberships = simpleMemberships.map((membership: any) => ({
+                    id: membership.id,
+                    nombre: membership.nombre,
+                    precio: membership.precio,
+                    activeContracts: 0
+                }));
+            } catch (fallbackError) {
+                console.error('Fallback error for popular memberships:', fallbackError);
+                popularMemberships = [];
+            }
+        }
+
+        const stats = {
+            totalMemberships,
+            activeMemberships,
+            inactiveMemberships,
+            newMemberships,
+            popularMemberships,
+            period: {
+                type: period,
+                startDate,
+                endDate
+            }
+        };
+
+        console.log('✅ Membership Stats - Final response:', {
+            ...stats,
+            popularMemberships: `${stats.popularMemberships.length} memberships`
+        });
+
+        return ApiResponse.success(
+            res,
+            stats,
+            "Estadísticas de membresías obtenidas exitosamente"
+        );
+    } catch (error) {
+        console.error('❌ Membership Stats - Fatal error:', error);
+        return ApiResponse.error(
+            res,
+            "Error al obtener estadísticas de membresías",
+            500,
+            process.env.NODE_ENV === 'development' ? error : undefined
+        );
     }
 };
 

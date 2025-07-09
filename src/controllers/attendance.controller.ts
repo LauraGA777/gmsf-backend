@@ -17,9 +17,10 @@ import {
 
 // Esquema de validación para las estadísticas
 const statsQuerySchema = z.object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
-        message: "El formato de fecha debe ser YYYY-MM-DD"
-    }).transform(date => new Date(date))
+    period: z.enum(['daily', 'monthly', 'yearly']).optional().default('monthly'),
+    date: z.string().optional(),
+    month: z.string().optional(),
+    year: z.string().optional()
 });
 
 export class AttendanceController {
@@ -52,7 +53,7 @@ export class AttendanceController {
                 include: [
                     {
                         model: Person,
-                        as: "persona",
+                        as: "persona_asistencia",
                         attributes: ["codigo", "id_usuario"],
                         include: [{
                             model: User,
@@ -130,7 +131,7 @@ export class AttendanceController {
                 include: [
                     {
                         model: Person,
-                        as: "persona",
+                        as: "persona_asistencia",
                         include: [{
                             model: User,
                             as: "usuario",
@@ -311,7 +312,7 @@ export class AttendanceController {
                     include: [
                         {
                             model: Person,
-                            as: "persona",
+                            as: "persona_asistencia",
                             attributes: ['id_persona', 'codigo', 'id_usuario', 'estado'],
                             include: [{
                                 model: User,
@@ -397,7 +398,7 @@ export class AttendanceController {
                 include: [
                     {
                         model: Person,
-                        as: "persona",
+                        as: "persona_asistencia",
                         include: [{
                             model: User,
                             as: "usuario",
@@ -544,26 +545,40 @@ export class AttendanceController {
     // Obtener estadísticas de asistencia
     public async getStats(req: Request, res: Response) {
         try {
-            const { date } = statsQuerySchema.parse(req.query);
-
-            const targetDate = new Date(date);
-            targetDate.setHours(0, 0, 0, 0);
-            const nextDay = new Date(targetDate);
-            nextDay.setDate(nextDay.getDate() + 1);
+            const { period, date, month, year } = statsQuerySchema.parse(req.query);
+            
+            let startDate: Date;
+            let endDate: Date;
+            
+            // Configurar fechas según el período
+            if (period === 'daily') {
+                const targetDate = date ? new Date(date) : new Date();
+                startDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+                endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+            } else if (period === 'monthly') {
+                const targetMonth = month ? parseInt(month) - 1 : new Date().getMonth();
+                const targetYear = year ? parseInt(year) : new Date().getFullYear();
+                startDate = new Date(targetYear, targetMonth, 1);
+                endDate = new Date(targetYear, targetMonth + 1, 0);
+            } else { // yearly
+                const targetYear = year ? parseInt(year) : new Date().getFullYear();
+                startDate = new Date(targetYear, 0, 1);
+                endDate = new Date(targetYear, 11, 31);
+            }
 
             // Obtener estadísticas
-            const [total, activos, eliminados] = await Promise.all([
+            const [total, activos, eliminados, attendanceHistory] = await Promise.all([
                 Attendance.count({
                     where: {
                         fecha_uso: {
-                            [Op.between]: [targetDate, nextDay]
+                            [Op.between]: [startDate, endDate]
                         }
                     }
                 }),
                 Attendance.count({
                     where: {
                         fecha_uso: {
-                            [Op.between]: [targetDate, nextDay]
+                            [Op.between]: [startDate, endDate]
                         },
                         estado: "Activo"
                     }
@@ -571,10 +586,26 @@ export class AttendanceController {
                 Attendance.count({
                     where: {
                         fecha_uso: {
-                            [Op.between]: [targetDate, nextDay]
+                            [Op.between]: [startDate, endDate]
                         },
                         estado: "Eliminado"
                     }
+                }),
+                // Historial de asistencias para gráfico
+                Attendance.findAll({
+                    attributes: [
+                        [Attendance.sequelize!.fn('DATE', Attendance.sequelize!.col('fecha_uso')), 'date'],
+                        [Attendance.sequelize!.fn('COUNT', Attendance.sequelize!.col('id')), 'count']
+                    ],
+                    where: {
+                        fecha_uso: {
+                            [Op.between]: [startDate, endDate]
+                        },
+                        estado: "Activo"
+                    },
+                    group: [Attendance.sequelize!.fn('DATE', Attendance.sequelize!.col('fecha_uso'))],
+                    order: [[Attendance.sequelize!.fn('DATE', Attendance.sequelize!.col('fecha_uso')), 'ASC']],
+                    raw: true
                 })
             ]);
 
@@ -583,7 +614,13 @@ export class AttendanceController {
                 {
                     total,
                     activos,
-                    eliminados
+                    eliminados,
+                    attendanceHistory,
+                    period: {
+                        type: period,
+                        startDate,
+                        endDate
+                    }
                 },
                 "Estadísticas de asistencia obtenidas exitosamente"
             );

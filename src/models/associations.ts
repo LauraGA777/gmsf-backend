@@ -2,6 +2,8 @@ import User from './user';
 import Role from './role';
 import Permission from './permission';
 import Privilege from './privilege';
+import Membership from './membership';
+import Contract from './contract';
 
 // Definir todas las asociaciones aquí
 export const defineAssociations = () => {
@@ -57,6 +59,17 @@ export const defineAssociations = () => {
     Privilege.belongsTo(Permission, {
         foreignKey: 'id_permiso',
         as: 'permiso'
+    });
+
+    // Membership - Contract (One-to-Many)
+    Membership.hasMany(Contract, {
+        foreignKey: 'id_membresia',
+        as: 'contratos'
+    });
+
+    Contract.belongsTo(Membership, {
+        foreignKey: 'id_membresia',
+        as: 'membresia'
     });
 
     console.log('✅ Asociaciones definidas correctamente');

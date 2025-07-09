@@ -6,7 +6,8 @@ import {
     updateMembership,
     deactivateMembership,
     getMembershipDetails,
-    reactivateMembership
+    reactivateMembership,
+    getMembershipStats
 } from '../controllers/membership.controller';
 import {
     canViewMemberships,
@@ -25,6 +26,12 @@ import { PRIVILEGES } from '../utils/permissions';
 const router = Router();
 
 router.use(verifyToken as unknown as RequestHandler);
+
+// ✅ Ruta para obtener estadísticas de membresías (MEMBERSHIP_READ)
+router.get('/stats',
+    canViewMemberships as unknown as RequestHandler,
+    getMembershipStats as unknown as RequestHandler
+);
 
 // ✅ Ruta para obtener todas las membresías (MEMBERSHIP_READ)
 router.get('/',

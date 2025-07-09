@@ -7,7 +7,8 @@ import {
     canCreateContracts, 
     canUpdateContracts, 
     canDeleteContracts,
-    canViewContractHistory 
+    canViewContractHistory,
+    canViewContractStats
 } from "../middlewares/contract.middleware";
 import {
     createContractSchema,
@@ -18,6 +19,13 @@ import {
 
 const router = Router();
 const contractController = new ContractController();
+
+// GET /api/contracts/stats - Get contract statistics
+router.get("/stats", 
+    verifyToken as unknown as RequestHandler,
+    canViewContractStats as unknown as RequestHandler,
+    contractController.getStats.bind(contractController) as unknown as RequestHandler
+);
 
 // GET /api/contracts - Get all contracts
 router.get("/", 

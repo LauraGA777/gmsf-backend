@@ -138,36 +138,4 @@ Attendance.init(
     },
 )
 
-// Associations
-Attendance.belongsTo(Person, { 
-    foreignKey: "id_persona", 
-    as: "persona",
-})
-
-Attendance.belongsTo(Contract, { 
-    foreignKey: "id_contrato", 
-    as: "contrato",
-})
-
-Attendance.belongsTo(User, { 
-    foreignKey: "usuario_registro", 
-    as: "registrador" 
-})
-
-Attendance.belongsTo(User, { 
-    foreignKey: "usuario_actualizacion", 
-    as: "actualizador" 
-})
-
-// Reverse associations
-Person.hasMany(Attendance, { 
-    foreignKey: "id_persona", 
-    as: "asistencias" 
-})
-
-Contract.hasMany(Attendance, { 
-    foreignKey: "id_contrato", 
-    as: "asistencias" 
-})
-
 export default Attendance 
