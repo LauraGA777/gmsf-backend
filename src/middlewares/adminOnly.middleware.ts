@@ -2,25 +2,27 @@ import { Request, Response, NextFunction } from 'express';
 import RolePermissionManager from '../utils/rolePermissionManager';
 
 /*Middleware que verifica que SOLO administradores accedan a rutas de roles*/
-export const adminOnlyAccess = async (req: Request, res: Response, next: NextFunction) => {
+export const adminOnlyAccess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const userId = (req as any).user?.id;
         
         if (!userId) {
-            return res.status(401).json({
+            res.status(401).json({
                 status: 'error',
                 message: 'Usuario no autenticado'
             });
+            return;
         }
 
         // Verificar que el usuario sea administrador
         const isAdmin = await RolePermissionManager.isUserAdmin(userId);
         
         if (!isAdmin) {
-            return res.status(403).json({
+            res.status(403).json({
                 status: 'error',
                 message: 'Acceso denegado. Solo administradores pueden realizar esta acción.'
             });
+            return;
         }
 
         next();
@@ -36,16 +38,17 @@ export const adminOnlyAccess = async (req: Request, res: Response, next: NextFun
 /**
  * Middleware que verifica acceso a usuarios (Admin o el propio usuario)
  */
-export const adminOrSelfAccess = async (req: Request, res: Response, next: NextFunction) => {
+export const adminOrSelfAccess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const userId = (req as any).user?.id;
         const targetUserId = parseInt(req.params.id);
         
         if (!userId) {
-            return res.status(401).json({
+            res.status(401).json({
                 status: 'error',
                 message: 'Usuario no autenticado'
             });
+            return;
         }
 
         // Los administradores pueden acceder a cualquier usuario
@@ -54,7 +57,7 @@ export const adminOrSelfAccess = async (req: Request, res: Response, next: NextF
         if (isAdmin || userId === targetUserId) {
             next();
         } else {
-            return res.status(403).json({
+            res.status(403).json({
                 status: 'error',
                 message: 'Acceso denegado. Solo puedes acceder a tu propia información.'
             });
@@ -71,25 +74,27 @@ export const adminOrSelfAccess = async (req: Request, res: Response, next: NextF
 /**
  * Middleware para verificar que solo ADMIN puede ver/asignar roles a usuarios
  */
-export const adminUserManagement = async (req: Request, res: Response, next: NextFunction) => {
+export const adminUserManagement = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const userId = (req as any).user?.id;
         
         if (!userId) {
-            return res.status(401).json({
+            res.status(401).json({
                 status: 'error',
                 message: 'Usuario no autenticado'
             });
+            return;
         }
 
         // Solo administradores pueden gestionar usuarios del sistema
         const isAdmin = await RolePermissionManager.isUserAdmin(userId);
         
         if (!isAdmin) {
-            return res.status(403).json({
+            res.status(403).json({
                 status: 'error',
                 message: 'Acceso denegado. Solo administradores pueden gestionar usuarios del sistema.'
             });
+            return;
         }
 
         next();

@@ -15,6 +15,7 @@ import scheduleRoutes from './routes/schedule.routes';
 import roleRoutes from './routes/role.routes';
 import trainerRoutes from './routes/trainer.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import gymSettingsRoutes from './routes/gymSettings.routes';
 import { errorHandler } from './middlewares/error.middleware';
 
 const app: Application = express();
@@ -29,6 +30,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, '../public')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Rutas
 app.use('/auth', authRoutes);
@@ -41,6 +43,7 @@ app.use('/schedules', scheduleRoutes);
 app.use('/roles', roleRoutes);
 app.use('/trainers', trainerRoutes);
 app.use('/dashboard', dashboardRoutes);
+app.use('/gym-settings', gymSettingsRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {

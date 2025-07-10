@@ -45,6 +45,9 @@ export class ContractService {
       fecha_inicio,
       fecha_fin,
     } = options;
+    
+    console.log("🔍 DEBUG ContractService.findAll: Opciones recibidas:", options);
+    
     const offset = (page - 1) * limit;
 
     const whereClause: any = {};
@@ -55,6 +58,7 @@ export class ContractService {
 
     if (id_persona) {
       whereClause.id_persona = id_persona;
+      console.log("✅ DEBUG ContractService.findAll: Filtro id_persona aplicado:", id_persona);
     }
 
     if (fecha_inicio) {
@@ -68,6 +72,8 @@ export class ContractService {
     if (search) {
       whereClause.codigo = { [Op.iLike]: `%${search}%` };
     }
+
+    console.log("🔍 DEBUG ContractService.findAll: Cláusula WHERE final:", whereClause);
 
     const { count, rows } = await Contract.findAndCountAll({
       where: whereClause,

@@ -1,6 +1,7 @@
 import Role from '../models/role';
 import Permission from '../models/permission';
 import Privilege from '../models/privilege';
+import Person from '../models/person.model';
 import bcrypt from 'bcrypt';
 import { Request, Response, NextFunction } from 'express';
 import User from '../models/user';
@@ -48,10 +49,24 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
         const accessToken = generateAccessToken(user.id);
         const refreshToken = generateRefreshToken(user.id);
 
+        // Buscar información de persona si el usuario es cliente o beneficiario (roles 3 o 4)
+        let personaId = null;
+        if (user.id_rol === 3 || user.id_rol === 4) {
+            const persona = await Person.findOne({
+                where: { id_usuario: user.id }
+            });
+            if (persona) {
+                personaId = persona.id_persona;
+            }
+        }
+
         // Logs para desarrollo
         if (env.NODE_ENV === 'development') {
             console.log('Access Token generado:', accessToken);
             console.log('Refresh Token generado:', refreshToken);
+            if (personaId) {
+                console.log('ID Persona encontrado:', personaId);
+            }
         }
 
         // Respuesta exitosa
@@ -65,7 +80,8 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
                     id: user.id,
                     nombre: user.nombre,
                     correo: user.correo,
-                    id_rol: user.id_rol, // Asegúrate de que el modelo User tenga este campo
+                    id_rol: user.id_rol,
+                    id_persona: personaId, // Incluir el ID de persona para clientes
                 }
             }
         });

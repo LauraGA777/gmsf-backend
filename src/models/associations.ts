@@ -4,6 +4,9 @@ import Permission from './permission';
 import Privilege from './privilege';
 import Membership from './membership';
 import Contract from './contract';
+import Trainer from './trainer';
+import Person from './person.model';
+import Training from './training';
 
 // Definir todas las asociaciones aquí
 export const defineAssociations = () => {
@@ -70,6 +73,61 @@ export const defineAssociations = () => {
     Contract.belongsTo(Membership, {
         foreignKey: 'id_membresia',
         as: 'membresia'
+    });
+
+    // User - Trainer (One-to-One)
+    User.hasOne(Trainer, {
+        foreignKey: 'id_usuario',
+        as: 'entrenador'
+    });
+
+    Trainer.belongsTo(User, {
+        foreignKey: 'id_usuario',
+        as: 'usuario'
+    });
+
+    // Person - User (One-to-One)
+    Person.belongsTo(User, {
+        foreignKey: 'id_usuario',
+        as: 'usuario'
+    });
+
+    User.hasOne(Person, {
+        foreignKey: 'id_usuario',
+        as: 'persona'
+    });
+
+    // Training - Trainer (Many-to-One)
+    Training.belongsTo(Trainer, {
+        foreignKey: 'id_entrenador',
+        as: 'entrenador'
+    });
+
+    Trainer.hasMany(Training, {
+        foreignKey: 'id_entrenador',
+        as: 'entrenamientos'
+    });
+
+    // Training - Person (Many-to-One)
+    Training.belongsTo(Person, {
+        foreignKey: 'id_cliente',
+        as: 'cliente'
+    });
+
+    Person.hasMany(Training, {
+        foreignKey: 'id_cliente',
+        as: 'entrenamientos'
+    });
+
+    // Contract - Person (Many-to-One)
+    Contract.belongsTo(Person, {
+        foreignKey: 'id_persona',
+        as: 'persona'
+    });
+
+    Person.hasMany(Contract, {
+        foreignKey: 'id_persona',
+        as: 'contratos'
     });
 
     console.log('✅ Asociaciones definidas correctamente');

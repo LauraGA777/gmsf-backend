@@ -86,12 +86,12 @@ export class ScheduleService {
         {
           model: Trainer,
           as: "entrenador",
-          attributes: ["id", "codigo", "especialidad"],
+          attributes: ["id", "codigo", "especialidad", "estado"],
           include: [
             {
               model: User,
               as: "usuario",
-              attributes: ["id", "nombre", "apellido", "correo"],
+              attributes: ["id", "nombre", "apellido", "correo", "telefono"],
             },
           ],
         },
@@ -136,7 +136,7 @@ export class ScheduleService {
         {
           model: Trainer,
           as: "entrenador",
-          attributes: ["id", "codigo", "especialidad"],
+          attributes: ["id", "codigo", "especialidad", "estado"],
           include: [
             {
               model: User,
@@ -174,25 +174,47 @@ export class ScheduleService {
     const transaction = await sequelize.transaction();
 
     try {
-      console.log("SERVICIO: Validando fecha de inicio.");
-      if (new Date(data.fecha_inicio) < new Date()) {
+      console.log("SERVICIO: Validando fechas.");
+      const fechaInicio = new Date(data.fecha_inicio);
+      const fechaFin = new Date(data.fecha_fin);
+      const ahora = new Date();
+      
+      if (fechaInicio < ahora) {
         throw new ApiError("No se puede agendar un entrenamiento en una fecha pasada.", 400);
       }
-
-      console.log("SERVICIO: Validando entrenador (usuario) ID:", data.id_entrenador);
-      const trainerUser = await User.findByPk(data.id_entrenador, { transaction });
-      if (!trainerUser || !trainerUser.estado) {
-        throw new ApiError("El usuario del entrenador no existe o se encuentra inactivo.", 404);
+      
+      if (fechaFin <= fechaInicio) {
+        throw new ApiError("La fecha de fin debe ser posterior a la fecha de inicio.", 400);
       }
       
-      const trainerDetails = await Trainer.findOne({ 
-        where: { id_usuario: data.id_entrenador },
+      // Validar que la duración no sea excesiva (máximo 4 horas)
+      const duracionHoras = (fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60);
+      if (duracionHoras > 4) {
+        throw new ApiError("La duración del entrenamiento no puede exceder 4 horas.", 400);
+      }
+
+      console.log("SERVICIO: Validando entrenador ID:", data.id_entrenador);
+      // Buscar el entrenador directamente por su ID (tabla Trainer, no tabla User)
+      const trainerDetails = await Trainer.findByPk(data.id_entrenador, { 
+        include: [
+          {
+            model: User,
+            as: "usuario",
+            attributes: ["id", "nombre", "apellido", "correo", "estado"]
+          }
+        ],
         transaction 
       });
 
       if (!trainerDetails || !trainerDetails.estado) {
         throw new ApiError("El entrenador no está activo o no se encontró su perfil.", 404);
       }
+
+      if (!trainerDetails.usuario || !trainerDetails.usuario.estado) {
+        throw new ApiError("El usuario del entrenador no existe o se encuentra inactivo.", 404);
+      }
+      
+      const trainerUser = trainerDetails.usuario;
       
 
       console.log("SERVICIO: Validando cliente ID:", data.id_cliente);
@@ -224,7 +246,7 @@ export class ScheduleService {
         where: {
           [Op.or]: [
             {
-              id_entrenador: trainerDetails.id,
+              id_entrenador: data.id_entrenador,
               fecha_inicio: { [Op.lt]: new Date(data.fecha_fin) },
               fecha_fin: { [Op.gt]: new Date(data.fecha_inicio) },
               estado: { [Op.ne]: "Cancelado" },
@@ -251,8 +273,8 @@ export class ScheduleService {
         descripcion: data.descripcion,
         fecha_inicio: new Date(data.fecha_inicio),
         fecha_fin: new Date(data.fecha_fin),
-        id_entrenador: trainerDetails.id,
-        id_cliente: data.id_cliente,
+        id_entrenador: data.id_entrenador, // ID del entrenador (tabla Trainer)
+        id_cliente: data.id_cliente, // ID del cliente (tabla Person)
         estado: data.estado || "Programado",
         notas: data.notas,
       };
@@ -305,8 +327,25 @@ export class ScheduleService {
         throw new ApiError("Sesión de entrenamiento no encontrada", 404);
       }
 
-      if (data.fecha_inicio && new Date(data.fecha_inicio) < new Date()) {
-        throw new ApiError("No se puede reagendar un entrenamiento a una fecha pasada.", 400);
+      // Validar fechas si se están actualizando
+      if (data.fecha_inicio || data.fecha_fin) {
+        const fechaInicio = data.fecha_inicio ? new Date(data.fecha_inicio) : training.fecha_inicio;
+        const fechaFin = data.fecha_fin ? new Date(data.fecha_fin) : training.fecha_fin;
+        const ahora = new Date();
+        
+        if (fechaInicio < ahora) {
+          throw new ApiError("No se puede reagendar un entrenamiento a una fecha pasada.", 400);
+        }
+        
+        if (fechaFin <= fechaInicio) {
+          throw new ApiError("La fecha de fin debe ser posterior a la fecha de inicio.", 400);
+        }
+        
+        // Validar que la duración no sea excesiva (máximo 4 horas)
+        const duracionHoras = (fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60);
+        if (duracionHoras > 4) {
+          throw new ApiError("La duración del entrenamiento no puede exceder 4 horas.", 400);
+        }
       }
 
       // Check for scheduling conflicts if dates are being updated
@@ -348,6 +387,7 @@ export class ScheduleService {
       if (data.fecha_inicio) updateData.fecha_inicio = new Date(data.fecha_inicio);
       if (data.fecha_fin) updateData.fecha_fin = new Date(data.fecha_fin);
       if (data.id_cliente) updateData.id_cliente = data.id_cliente;
+      if (data.id_entrenador) updateData.id_entrenador = data.id_entrenador; // ID del entrenador (tabla Trainer)
       if (data.estado) updateData.estado = data.estado;
       if (data.notas) updateData.notas = data.notas;
 
@@ -646,21 +686,34 @@ export class ScheduleService {
           {
             model: User,
             as: "usuario",
-            required: true,
             where: { estado: true },
-            attributes: ["id", "nombre", "apellido", "correo"],
+            attributes: ["id", "nombre", "apellido", "correo", "telefono"],
           },
         ],
+        attributes: ["id", "codigo", "especialidad", "estado"],
+        order: [["codigo", "ASC"]],
       });
-      const mappedTrainers = trainers.map((trainer) => {
-        if (!trainer.usuario) return null;
-        return {
-          id: trainer.usuario.id,
-          trainerId: trainer.id,
-          name: `${trainer.usuario.nombre} ${trainer.usuario.apellido}`
-        };
-      }).filter(Boolean);
-      console.log(`SERVICIO: Se encontraron ${mappedTrainers.length} entrenadores activos.`);
+      
+      console.log(`SERVICIO: Query ejecutado. Entrenadores encontrados: ${trainers.length}`);
+      
+      // Devolver los datos en la estructura que espera el frontend
+      const mappedTrainers = trainers
+        .filter(trainer => trainer.usuario && trainer.usuario.estado) // Solo incluir entrenadores con usuario activo
+        .map((trainer) => ({
+          id: trainer.id, // ID del entrenador (tabla Trainer)
+          codigo: trainer.codigo,
+          especialidad: trainer.especialidad,
+          estado: trainer.estado,
+          usuario: {
+            id: trainer.usuario!.id,
+            nombre: trainer.usuario!.nombre,
+            apellido: trainer.usuario!.apellido,
+            correo: trainer.usuario!.correo,
+            telefono: trainer.usuario!.telefono || null
+          }
+        }));
+      
+      console.log(`SERVICIO: Se encontraron ${mappedTrainers.length} entrenadores activos después del filtro.`);
       return mappedTrainers;
     } catch (error: any) {
       console.error("----------------- ERROR DETALLADO (ENTRENADORES) -----------------");
@@ -671,7 +724,7 @@ export class ScheduleService {
       }
       console.error("STACK:", error.stack);
       console.error("-----------------------------------------------------------------");
-      throw error;
+      throw new ApiError(`Error al obtener entrenadores activos: ${error.message}`, 500);
     }
   }
 
@@ -680,43 +733,58 @@ export class ScheduleService {
     console.log("SERVICIO: Iniciando la búsqueda de clientes con contratos activos o por vencer.");
     try {
       const activeContracts = await Contract.findAll({
-        where: { estado: { [Op.in]: ["Activo", "Por Vencer"] } },
+        where: { 
+          estado: { [Op.in]: ["Activo", "Por Vencer"] } 
+        },
         include: [
           {
             model: Person,
             as: "persona",
             required: true,
+            where: { estado: true },
+            attributes: ["id_persona", "codigo", "estado"],
             include: [
               {
                 model: User,
                 as: "usuario",
                 required: true,
                 where: { estado: true },
-                attributes: ["id", "nombre", "apellido", "correo"],
+                attributes: ["id", "nombre", "apellido", "correo", "telefono"],
               },
             ],
           },
         ],
+        attributes: ["id", "estado"],
+        order: [["persona", "codigo", "ASC"]],
       });
       
-      const clients = activeContracts
-        .map(contract => {
-            if (contract.persona && contract.persona.usuario) {
-                return {
-                    id: contract.persona.id_persona,
-                    nombre: contract.persona.usuario.nombre,
-                    apellido: contract.persona.usuario.apellido,
-                    codigo: contract.persona.codigo,
-                };
-            }
-            return null;
-        })
-        .filter((person): person is { id: number; nombre: string; apellido: string; codigo: string; } => person != null)
-        .filter((person, index, self) => 
-          index === self.findIndex((p) => p.id === person.id)
-        );
+      console.log(`SERVICIO: Contratos activos encontrados: ${activeContracts.length}`);
+      
+      // Mapear y filtrar clientes únicos
+      const clientsMap = new Map();
+      
+      activeContracts.forEach(contract => {
+        if (contract.persona && contract.persona.usuario) {
+          const personId = contract.persona.id_persona;
+          if (!clientsMap.has(personId)) {
+            clientsMap.set(personId, {
+              id: personId, // ID del cliente (tabla Person)
+              codigo: contract.persona.codigo,
+              estado: contract.persona.estado,
+              usuario: {
+                id: contract.persona.usuario.id,
+                nombre: contract.persona.usuario.nombre,
+                apellido: contract.persona.usuario.apellido,
+                correo: contract.persona.usuario.correo,
+                telefono: contract.persona.usuario.telefono || null
+              }
+            });
+          }
+        }
+      });
 
-      console.log(`SERVICIO: La consulta a la base de datos encontró ${clients.length} clientes únicos con contratos activos o por vencer.`);
+      const clients = Array.from(clientsMap.values());
+      console.log(`SERVICIO: Se encontraron ${clients.length} clientes únicos con contratos activos o por vencer.`);
       return clients;
     } catch (error: any) {
       console.error("----------------- ERROR DETALLADO (CLIENTES) -----------------");
@@ -727,7 +795,7 @@ export class ScheduleService {
       }
       console.error("STACK:", error.stack);
       console.error("--------------------------------------------------------------");
-      throw error;
+      throw new ApiError(`Error al obtener clientes activos: ${error.message}`, 500);
     }
   }
 }

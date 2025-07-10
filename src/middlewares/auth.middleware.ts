@@ -17,23 +17,25 @@ declare global {
     }
 }
 
-export const verifyToken = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+export const verifyToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const token = req.headers.authorization?.split(' ')[1];
 
         if (!token) {
-            return res.status(401).json({
+            res.status(401).json({
                 status: 'error',
                 message: 'No se proporcionó token de acceso'
             });
+            return;
         }
 
         // Verificar si el token está en la lista negra
         if (TokenBlacklist.has(token)) {
-            return res.status(401).json({
+            res.status(401).json({
                 status: 'error',
                 message: 'Token inválido o expirado'
             });
+            return;
         }
 
         // Verificar el token
@@ -49,13 +51,14 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
         next();
     } catch (error: any) {
         if (error.status) {
-            return res.status(error.status).json({
+            res.status(error.status).json({
                 status: 'error',
                 message: error.message
             });
+            return;
         }
 
-        return res.status(401).json({
+        res.status(401).json({
             status: 'error',
             message: 'Token inválido o expirado'
         });
@@ -64,13 +67,14 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
 
 // Middleware para verificar permisos específicos
 export const hasPermission = (permissionName: string) => {
-    return async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             if (!req.user) {
-                return res.status(401).json({
+                res.status(401).json({
                     status: 'error',
                     message: 'Usuario no autenticado'
                 });
+                return;
             }
 
             // Obtener el rol del usuario con sus permisos
@@ -87,16 +91,17 @@ export const hasPermission = (permissionName: string) => {
             });
 
             if (!userRole || !userRole.permisos || userRole.permisos.length === 0) {
-                return res.status(403).json({
+                res.status(403).json({
                     status: 'error',
                     message: `Acceso denegado. Se requiere el permiso: ${permissionName}`
                 });
+                return;
             }
 
             next();
         } catch (error) {
             console.error('Error en hasPermission:', error);
-            return res.status(500).json({
+            res.status(500).json({
                 status: 'error',
                 message: 'Error al verificar permisos'
             });
@@ -106,13 +111,14 @@ export const hasPermission = (permissionName: string) => {
 
 // Middleware para verificar privilegios específicos
 export const hasPrivilege = (privilegeName: string) => {
-    return async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             if (!req.user) {
-                return res.status(401).json({
+                res.status(401).json({
                     status: 'error',
                     message: 'Usuario no autenticado'
                 });
+                return;
             }
 
             // Obtener el rol del usuario con sus privilegios
@@ -128,15 +134,16 @@ export const hasPrivilege = (privilegeName: string) => {
             });
 
             if (!userRole || !userRole.privilegios || userRole.privilegios.length === 0) {
-                return res.status(403).json({
+                res.status(403).json({
                     status: 'error',
                     message: `Acceso denegado. Se requiere el privilegio: ${privilegeName}`
                 });
+                return;
             }
 
             next();
         } catch (error) {
-            return res.status(500).json({
+            res.status(500).json({
                 status: 'error',
                 message: 'Error al verificar privilegios'
             });
@@ -146,13 +153,14 @@ export const hasPrivilege = (privilegeName: string) => {
 
 // Middleware para verificar múltiples permisos (cualquiera de ellos)
 export const hasAnyPermission = (permissions: string[]) => {
-    return async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             if (!req.user) {
-                return res.status(401).json({
+                res.status(401).json({
                     status: 'error',
                     message: 'Usuario no autenticado'
                 });
+                return;
             }
 
             // Obtener el rol del usuario con sus permisos
@@ -169,15 +177,16 @@ export const hasAnyPermission = (permissions: string[]) => {
             });
 
             if (!userRole || !userRole.permisos || userRole.permisos.length === 0) {
-                return res.status(403).json({
+                res.status(403).json({
                     status: 'error',
                     message: `Acceso denegado. Se requiere alguno de estos permisos: ${permissions.join(', ')}`
                 });
+                return;
             }
 
             next();
         } catch (error) {
-            return res.status(500).json({
+            res.status(500).json({
                 status: 'error',
                 message: 'Error al verificar permisos'
             });
@@ -187,13 +196,14 @@ export const hasAnyPermission = (permissions: string[]) => {
 
 // Middleware para verificar múltiples permisos (todos requeridos)
 export const hasAllPermissions = (permissions: string[]) => {
-    return async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             if (!req.user) {
-                return res.status(401).json({
+                res.status(401).json({
                     status: 'error',
                     message: 'Usuario no autenticado'
                 });
+                return;
             }
 
             // Obtener el rol del usuario con sus permisos
@@ -209,10 +219,11 @@ export const hasAllPermissions = (permissions: string[]) => {
             });
 
             if (!userRole || !userRole.permisos) {
-                return res.status(403).json({
+                res.status(403).json({
                     status: 'error',
                     message: 'Acceso denegado. No se encontraron permisos para este rol'
                 });
+                return;
             }
 
             // Verificar que el usuario tenga todos los permisos requeridos
@@ -220,15 +231,16 @@ export const hasAllPermissions = (permissions: string[]) => {
             const missingPermissions = permissions.filter(p => !userPermissions.includes(p));
 
             if (missingPermissions.length > 0) {
-                return res.status(403).json({
+                res.status(403).json({
                     status: 'error',
                     message: `Acceso denegado. Faltan los siguientes permisos: ${missingPermissions.join(', ')}`
                 });
+                return;
             }
 
             next();
         } catch (error) {
-            return res.status(500).json({
+            res.status(500).json({
                 status: 'error',
                 message: 'Error al verificar permisos'
             });
@@ -238,13 +250,14 @@ export const hasAllPermissions = (permissions: string[]) => {
 
 // Middleware combinado para verificar permisos Y privilegios
 export const hasPermissionAndPrivilege = (permissionName: string, privilegeName: string) => {
-    return async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             if (!req.user) {
-                return res.status(401).json({
+                res.status(401).json({
                     status: 'error',
                     message: 'Usuario no autenticado'
                 });
+                return;
             }
 
             // Obtener el rol del usuario con permisos y privilegios
@@ -274,15 +287,16 @@ export const hasPermissionAndPrivilege = (permissionName: string, privilegeName:
             const hasPrivilege = userRole?.privilegios && userRole.privilegios.length > 0;
 
             if (!hasPermission || !hasPrivilege) {
-                return res.status(403).json({
+                res.status(403).json({
                     status: 'error',
                     message: `Acceso denegado. Se requiere el permiso '${permissionName}' y el privilegio '${privilegeName}'`
                 });
+                return;
             }
 
             next();
         } catch (error) {
-            return res.status(500).json({
+            res.status(500).json({
                 status: 'error',
                 message: 'Error al verificar permisos y privilegios'
             });

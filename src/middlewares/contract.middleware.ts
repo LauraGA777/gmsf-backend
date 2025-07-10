@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { userHasPrivilege, PRIVILEGES } from '../utils/permissions';
 import RolePermissionManager from '../utils/rolePermissionManager';
+import Person from '../models/person.model';
 
 /**
  * Middleware para verificar privilegio de ver contratos
@@ -477,7 +478,10 @@ export const canViewOwnContracts = async (req: Request, res: Response, next: Nex
     try {
         const userId = (req.user as any)?.id;
         
+        console.log("🔍 DEBUG canViewOwnContracts: Usuario ID:", userId);
+        
         if (!userId) {
+            console.error("❌ DEBUG canViewOwnContracts: Usuario no autenticado");
             return res.status(401).json({
                 status: 'error',
                 message: 'Usuario no autenticado'
@@ -485,23 +489,55 @@ export const canViewOwnContracts = async (req: Request, res: Response, next: Nex
         }
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        console.log("🔍 DEBUG canViewOwnContracts: Información del usuario:", userInfo);
         
         // Verificar si tiene privilegio de lectura
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.CONTRACT_READ)) {
+            console.error("❌ DEBUG canViewOwnContracts: No tiene privilegios para leer contratos");
             return res.status(403).json({
                 status: 'error',
                 message: 'No tienes permisos para ver contratos'
             });
         }
 
-        // Si es cliente o beneficiario, agregar filtro por usuario
+        console.log("✅ DEBUG canViewOwnContracts: Usuario tiene privilegios para leer contratos");
+
+        // Si es cliente o beneficiario, agregar filtro por id_persona
         if (userInfo.role === 'R003' || userInfo.role === 'R004') {
-            (req as any).userFilter = { id_persona: userId };
+            console.log("🔍 DEBUG canViewOwnContracts: Usuario es cliente/beneficiario, aplicando filtro");
+            try {
+                // Buscar la persona que corresponde al usuario logueado
+                const persona = await Person.findOne({
+                    where: { id_usuario: userId }
+                });
+                
+                console.log("🔍 DEBUG canViewOwnContracts: Persona encontrada:", persona);
+                
+                if (persona) {
+                    (req as any).userFilter = { id_persona: persona.id_persona };
+                    console.log(`✅ DEBUG canViewOwnContracts: Filtro aplicado: id_persona = ${persona.id_persona}`);
+                } else {
+                    console.warn(`⚠️ DEBUG canViewOwnContracts: No se encontró persona para usuario ID: ${userId}`);
+                    return res.status(404).json({
+                        status: 'error',
+                        message: 'No se encontró información de cliente'
+                    });
+                }
+            } catch (personError) {
+                console.error('❌ DEBUG canViewOwnContracts: Error buscando persona:', personError);
+                return res.status(500).json({
+                    status: 'error',
+                    message: 'Error al verificar información del cliente'
+                });
+            }
+        } else {
+            console.log("🔍 DEBUG canViewOwnContracts: Usuario NO es cliente/beneficiario, no aplicando filtro");
         }
 
+        console.log("✅ DEBUG canViewOwnContracts: Middleware completado exitosamente");
         next();
     } catch (error) {
-        console.error('Error en middleware canViewOwnContracts:', error);
+        console.error('❌ DEBUG canViewOwnContracts: Error en middleware:', error);
         return res.status(500).json({
             status: 'error',
             message: 'Error interno del servidor'

@@ -24,10 +24,12 @@
     "express-validator": "7.2.1",
     "jsonwebtoken": "9.0.2",
     "morgan": "1.10.0",
+    "multer": "^2.0.1",
     "nodemailer": "7.0.3",
     "pg": "8.16.0",
     "sequelize": "6.37.7",
     "sequelize-typescript": "2.1.6",
+    "uuid": "^11.1.0",
     "zod": "3.25.28"
   },
   "engines": {
@@ -39,9 +41,11 @@
     "@types/express": "5.0.2",
     "@types/jsonwebtoken": "9.0.9",
     "@types/morgan": "1.9.9",
+    "@types/multer": "^2.0.0",
     "@types/node": "20.17.50",
     "@types/nodemailer": "6.4.17",
     "@types/pg": "8.15.2",
+    "@types/uuid": "^10.0.0",
     "ts-node": "10.9.2",
     "typescript": "5.8.3"
   }

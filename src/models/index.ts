@@ -16,20 +16,14 @@ import { defineAssociations } from './associations';
 // Definir asociaciones de Role primero
 defineAssociations();
 
-// Relaciones de Contratos
-Contract.belongsTo(Person, { foreignKey: "id_persona", as: "persona" });
-Person.hasMany(Contract, { foreignKey: "id_persona", as: "contratos" });
-
+// Relaciones de Contratos - movidas a associations.ts
 Contract.belongsTo(User, { foreignKey: "usuario_registro", as: "registrador" });
 User.hasMany(Contract, { foreignKey: "usuario_registro", as: "contratos_registrados" });
 
 Contract.belongsTo(User, { foreignKey: "usuario_actualizacion", as: "actualizador" });
 User.hasMany(Contract, { foreignKey: "usuario_actualizacion", as: "contratos_actualizados" });
 
-// Relaciones de Person y User
-Person.belongsTo(User, { foreignKey: 'id_usuario', as: 'usuario' });
-User.hasOne(Person, { foreignKey: 'id_usuario', as: 'persona' });
-
+// Relaciones específicas no duplicadas en associations.ts
 // Relaciones de Person y EmergencyContact
 Person.hasMany(EmergencyContact, { foreignKey: 'id_persona', as: 'contactos_emergencia' });
 EmergencyContact.belongsTo(Person, { foreignKey: 'id_persona', as: 'persona_contacto' });
@@ -44,16 +38,6 @@ Contract.hasMany(ContractHistory, { foreignKey: "id_contrato", as: "historial" }
 ContractHistory.belongsTo(Contract, { foreignKey: "id_contrato", as: "contrato" });
 ContractHistory.belongsTo(User, { foreignKey: "usuario_cambio", as: "usuarioDelCambio" });
 User.hasMany(ContractHistory, { foreignKey: "usuario_cambio", as: "cambios_contratos" });
-
-// Relaciones de Trainer y User
-Trainer.belongsTo(User, { foreignKey: 'id_usuario', as: 'usuario' });
-User.hasOne(Trainer, { foreignKey: 'id_usuario', as: 'detalles_entrenador' });
-
-// Relaciones de Training
-Training.belongsTo(Trainer, { foreignKey: "id_entrenador", as: "entrenador" });
-Training.belongsTo(Person, { foreignKey: "id_cliente", as: "cliente" });
-Trainer.hasMany(Training, { foreignKey: "id_entrenador", as: "entrenamientos_asignados" });
-Person.hasMany(Training, { foreignKey: "id_cliente", as: "entrenamientos" });
 
 // Relaciones de Attendance
 Attendance.belongsTo(Person, { foreignKey: "id_persona", as: "persona_asistencia" });

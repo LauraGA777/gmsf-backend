@@ -28,15 +28,25 @@ export class ContractController {
   // Get all contracts
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
+      console.log("🔍 DEBUG ContractController.getAll: Query original:", req.query);
+      
       const query = contractQuerySchema.parse(req.query);
+      console.log("🔍 DEBUG ContractController.getAll: Query parseado:", query);
       
       // Aplicar filtro de usuario si existe
       const userFilter = (req as any).userFilter;
+      console.log("🔍 DEBUG ContractController.getAll: UserFilter:", userFilter);
+      
       if (userFilter) {
         Object.assign(query, userFilter);
+        console.log("✅ DEBUG ContractController.getAll: Query con filtro aplicado:", query);
       }
       
       const result = await contractService.findAll(query);
+      console.log("✅ DEBUG ContractController.getAll: Resultado del servicio:", {
+        dataLength: result.data.length,
+        pagination: result.pagination
+      });
 
       return ApiResponse.success(
         res,
@@ -45,6 +55,7 @@ export class ContractController {
         result.pagination
       );
     } catch (error) {
+      console.error("❌ DEBUG ContractController.getAll: Error:", error);
       next(error);
     }
   }
