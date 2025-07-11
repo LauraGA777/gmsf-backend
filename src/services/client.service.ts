@@ -123,20 +123,24 @@ export class ClientService {
   // Get user by document
   async findByDocument(tipo_documento: string, numero_documento: string) {
     const user = await User.findOne({
-      where: { tipo_documento, numero_documento },
-      attributes: { exclude: ["contrasena_hash"] },
+      where: { 
+        tipo_documento, 
+        numero_documento: { [Op.iLike]: numero_documento } // Búsqueda insensible a mayúsculas/minúsculas
+      },
+      attributes: { exclude: ["contrasena_hash", "contrasena"] },
     });
 
     if (!user) {
       throw new ApiError("Usuario no encontrado", 404);
     }
     
+    // Comprobar si este usuario ya tiene un registro de Persona (es decir, es un cliente)
     const person = await Person.findOne({ where: { id_usuario: user.id } });
 
-    const userData = user.toJSON() as any;
-    userData.isAlreadyClient = person !== null;
-
-    return userData;
+    return {
+      ...user.toJSON(), // Devuelve todos los datos del usuario
+      isAlreadyClient: person !== null, // Un booleano claro para el frontend
+    };
   }
 
   private async generatePersonCode(transaction: any): Promise<string> {
