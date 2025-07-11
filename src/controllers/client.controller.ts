@@ -46,17 +46,13 @@ export class ClientController {
   }
 
   // Get user by document
-  public async getByDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public async checkUserByDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      console.log("--- [Controller] Check User: Received query params ---", req.query);
-      const { tipo_documento, numero_documento } = clientDocumentSchema.parse(req.query);
-      console.log("--- [Controller] Check User: Parsed params ---", { tipo_documento, numero_documento });
+      const { tipo_documento, numero_documento } = clientDocumentSchema.parse(req.params);
       const user = await this.clientService.findByDocument(tipo_documento, numero_documento);
-      console.log("--- [Controller] Check User: Service response ---", user);
 
       ApiResponse.success(res, user, "Usuario encontrado correctamente");
     } catch (error) {
-      console.error("--- [Controller] ERROR in getByDocument ---", error);
       next(error);
     }
   }
