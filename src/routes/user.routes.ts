@@ -36,7 +36,7 @@ router.delete('/:id/permanent', canDeleteUsers as unknown as RequestHandler, use
 router.post('/register', canCreateUsers as unknown as RequestHandler, userController.register.bind(userController) as unknown as RequestHandler);
 
 // Middleware to check if document exists
-router.get('/check-document/:numero_documento', canCheckDocument as unknown as RequestHandler, userController.checkDocumentExists.bind(userController) as unknown as RequestHandler);
+router.get('/check-document', canCheckDocument as unknown as RequestHandler, userController.checkDocumentExists.bind(userController) as unknown as RequestHandler);
 
 // Middleware to check if email exists
 router.get('/check-email/:email', canCheckEmail as unknown as RequestHandler, userController.checkEmailExists.bind(userController) as unknown as RequestHandler);

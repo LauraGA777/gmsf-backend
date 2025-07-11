@@ -10,8 +10,9 @@ import Privilege from '../models/privilege';
 import sequelize from '../config/db';
 import { generateAccessToken } from '../utils/jwt.utils';
 import { ApiError } from '../errors/apiError';
-import { UpdateUserType, SearchUserType } from '../validators/user.validator';
-import { Person } from '../models';
+import { UpdateUserType, SearchUserType, UserCreateType } from '../validators/user.validator';
+import Person from '../models/person.model';
+import Trainer from '../models/trainer';
 
 interface UserData {
     nombre: string;
@@ -70,6 +71,15 @@ export class UserService {
         return Role.findAll({ where: { estado: true } });
     }
 
+    public async findUserByDocumentOrEmail(numero_documento: string, correo: string, transaction?: Transaction): Promise<User | null> {
+        return User.findOne({
+            where: {
+                [Op.or]: [{ numero_documento }, { correo }]
+            },
+            transaction
+        });
+    }
+
     public async findById(id: number) {
         const user = await User.findByPk(id, {
             attributes: { exclude: ['contrasena_hash'] },
@@ -93,14 +103,19 @@ export class UserService {
         return user;
     }
 
-    public async create(userData: UserData) {
-        const existingUser = await User.findOne({ where: { correo: userData.correo } });
+    public async create(userData: UserCreateType, transaction?: Transaction) {
+        const existingUser = await User.findOne({ 
+            where: { 
+                [Op.or]: [{ correo: userData.correo }, { numero_documento: userData.numero_documento }] 
+            },
+            transaction
+        });
         if (existingUser) {
-            throw new ApiError('El correo electrónico ya está registrado', 400);
+            throw new ApiError('El correo electrónico o número de documento ya está registrado', 400);
         }
 
         if (userData.id_rol) {
-            const role = await Role.findByPk(userData.id_rol);
+            const role = await Role.findByPk(userData.id_rol, { transaction });
             if (!role) {
                 throw new ApiError('El rol especificado no existe', 400);
             }
@@ -119,22 +134,22 @@ export class UserService {
             estado: true,
             fecha_actualizacion: new Date(),
             asistencias_totales: 0
-        });
+        }, { transaction });
 
         const accessToken = generateAccessToken(user.id);
 
-        const createdUser = await this.findById(user.id);
+        const createdUser = await User.findByPk(user.id, { transaction, include: [{ model: Role, as: 'rol'}] });
 
         return { user: createdUser, accessToken };
     }
 
-    public async update(id: number, data: UpdateUserType) {
-        const user = await User.findByPk(id);
+    public async update(id: number, data: UpdateUserType, transaction?: Transaction) {
+        const user = await User.findByPk(id, { transaction });
         if (!user) {
             throw new ApiError('Usuario no encontrado', 404);
         }
 
-        await user.update({ ...data, fecha_actualizacion: new Date() });
+        await user.update({ ...data, fecha_actualizacion: new Date() }, { transaction });
         return this.findById(id);
     }
 
@@ -190,18 +205,26 @@ export class UserService {
             user.fecha_actualizacion = new Date();
             await user.save({ transaction: t });
 
-            // Lógica de desactivación en cascada: si el usuario es un cliente, desactivar la persona.
-            // Asumimos que el rol de cliente tiene id 2
-            if (user.id_rol === 2) {
-                const person = await Person.findOne({ where: { id_usuario: user.id }, transaction: t });
-                if (person) {
-                    person.estado = false;
-                    await person.save({ transaction: t });
+            // Lógica de desactivación en cascada
+            const role = await Role.findByPk(user.id_rol, { transaction: t });
+            if (role) {
+                if (role.nombre === 'Cliente') {
+                    const person = await Person.findOne({ where: { id_usuario: user.id }, transaction: t });
+                    if (person) {
+                        person.estado = false;
+                        await person.save({ transaction: t });
+                    }
+                } else if (role.nombre === 'Entrenador') {
+                    const trainer = await Trainer.findOne({ where: { id_usuario: user.id }, transaction: t });
+                    if (trainer) {
+                        trainer.estado = false;
+                        await trainer.save({ transaction: t });
+                    }
                 }
             }
             
             await t.commit();
-            return { success: true, message: 'Usuario y cliente asociado desactivados exitosamente' };
+            return { success: true, message: 'Usuario y roles asociados desactivados exitosamente' };
 
         } catch (error) {
             await t.rollback();
@@ -209,7 +232,7 @@ export class UserService {
         }
     }
 
-    public async delete(id: number, adminId: number, reason: string) {
+    public async delete(id: number, adminId: number | null, reason: string) {
         const user = await User.findByPk(id);
         if (!user) {
             throw new ApiError('Usuario no encontrado', 404);
@@ -231,21 +254,24 @@ export class UserService {
 
         const t = await sequelize.transaction();
         try {
-            await UserHistory.create({
+            const historyData: any = {
                 id_usuario: user.id,
                 estado_anterior: user.estado,
                 estado_nuevo: false,
-                usuario_cambio: adminId,
                 motivo: reason || 'Eliminación de usuario'
-            }, { transaction: t });
+            };
+            if (adminId !== null) {
+                historyData.usuario_cambio = adminId;
+            }
 
-            await sequelize.query('SET CONSTRAINTS ALL DEFERRED', { transaction: t });
-            await sequelize.query('DELETE FROM historial_usuarios WHERE id_usuario = :userId', { replacements: { userId: user.id }, transaction: t });
+            await UserHistory.create(historyData, { transaction: t });
+
+            // Eliminar el usuario (y el entrenador en cascada)
             await user.destroy({ transaction: t });
-            await sequelize.query('SET CONSTRAINTS ALL IMMEDIATE', { transaction: t });
+            
             await t.commit();
+            return { success: true, message: 'Usuario eliminado permanentemente' };
 
-            return { success: true, message: 'Usuario eliminado exitosamente' };
         } catch (error) {
             await t.rollback();
             throw error;
@@ -288,13 +314,27 @@ export class UserService {
         };
     }
 
-    public async checkDocumentExists(documentNumber: string, excludeUserId?: string) {
-        const whereConditions: any = { numero_documento: documentNumber };
-        if (excludeUserId) {
-            whereConditions.id = { [Op.ne]: excludeUserId };
+    public async checkDocumentExists(tipo_documento: string, numero_documento: string) {
+        const user = await User.findOne({ 
+            where: { 
+                numero_documento, 
+                tipo_documento 
+            }
+        });
+
+        if (!user) {
+            // If user does not exist, return a clear response.
+            return { userExists: false, isTrainer: false, userData: null };
         }
-        const user = await User.findOne({ where: whereConditions });
-        return { exists: !!user };
+
+        // If user exists, check if they are a trainer.
+        const trainer = await Trainer.findOne({ where: { id_usuario: user.id } });
+        
+        return { 
+            userExists: true,
+            isTrainer: !!trainer,
+            userData: user.get()
+        };
     }
 
     public async checkEmailExists(email: string, excludeUserId?: string) {

@@ -6,23 +6,24 @@ interface TrainerAttributes {
     id: number;
     codigo: string;
     id_usuario: number;
-    fecha_registro: Date;
     especialidad: string;
     estado: boolean;
+    fecha_registro: Date;
     createdAt?: Date;
     updatedAt?: Date;
-    usuario?: User;
+    usuario?: User; 
 }
 
-interface TrainerCreationAttributes extends Optional<TrainerAttributes, 'id' | 'createdAt' | 'updatedAt' | 'usuario'> {}
+interface TrainerCreationAttributes extends Optional<TrainerAttributes, 'id' | 'createdAt' | 'updatedAt' | 'usuario' | 'fecha_registro'> {}
 
-class Trainer extends Model<TrainerAttributes, TrainerCreationAttributes> {
+class Trainer extends Model<TrainerAttributes, TrainerCreationAttributes> implements TrainerAttributes {
     public id!: number;
     public codigo!: string;
     public id_usuario!: number;
-    public fecha_registro!: Date;
     public especialidad!: string;
     public estado!: boolean;
+    public fecha_registro!: Date;
+
     public readonly createdAt!: Date;
     public readonly updatedAt!: Date;
 
@@ -39,25 +40,16 @@ Trainer.init({
         type: DataTypes.STRING(10),
         allowNull: false,
         unique: true,
-        validate: {
-            is: {
-                args: /^E\d{3}$/,
-                msg: 'El código debe tener el formato E seguido de 3 números'
-            }
-        }
     },
     id_usuario: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        unique: true, // Un usuario solo puede ser un entrenador una vez
         references: {
-            model: 'usuarios',
+            model: User,
             key: 'id'
-        }
-    },
-    fecha_registro: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW
+        },
+        onDelete: 'CASCADE' // Si se elimina el usuario, se elimina el entrenador
     },
     especialidad: {
         type: DataTypes.STRING(100),
@@ -72,12 +64,17 @@ Trainer.init({
     estado: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
+    },
+    fecha_registro: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+        allowNull: false
     }
 }, {
     sequelize,
-    modelName: 'Trainer',
     tableName: 'entrenadores',
-    timestamps: true
+    modelName: 'Trainer',
+    timestamps: true 
 });
 
 export default Trainer; 

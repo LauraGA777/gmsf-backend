@@ -78,7 +78,8 @@ export const defineAssociations = () => {
     // User - Trainer (One-to-One)
     User.hasOne(Trainer, {
         foreignKey: 'id_usuario',
-        as: 'entrenador'
+        as: 'entrenador',
+        onDelete: 'CASCADE'
     });
 
     Trainer.belongsTo(User, {
@@ -94,7 +95,7 @@ export const defineAssociations = () => {
 
     User.hasOne(Person, {
         foreignKey: 'id_usuario',
-        as: 'persona'
+        as: 'datosPersona'
     });
 
     // Training - Trainer (Many-to-One)

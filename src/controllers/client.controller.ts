@@ -8,6 +8,7 @@ import {
   clientDocumentSchema,
 } from "../validators/client.validator";
 import  ApiResponse  from "../utils/apiResponse";
+import { ApiError } from "../errors/apiError";
 
 export class ClientController {
   private clientService: ClientService;
@@ -53,7 +54,11 @@ export class ClientController {
 
       ApiResponse.success(res, user, "Usuario encontrado correctamente");
     } catch (error) {
-      next(error);
+      if (error instanceof ApiError && error.statusCode === 404) {
+        ApiResponse.error(res, error.message, 404);
+      } else {
+        next(error);
+      }
     }
   }
 

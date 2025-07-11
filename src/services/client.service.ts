@@ -1,6 +1,6 @@
 import { Op, Transaction } from "sequelize";
 import sequelize from "../config/db";
-import { Person, User, EmergencyContact, Beneficiary } from "../models";
+import { Person, User, EmergencyContact, Beneficiary, Role } from "../models";
 import { ApiError } from "../errors/apiError";
 import { UserService } from "./user.service"; // Importar UserService
 import { UserCreateType, UpdateUserType } from "../validators/user.validator";
@@ -187,7 +187,12 @@ export class ClientService {
     
     // Asignar rol de cliente por defecto si no se especifica
     if (!userData.id_rol) {
-      userData.id_rol = 2; // Suponiendo que 2 es el ID del rol de cliente
+      const clientRole = await Role.findOne({ where: { nombre: 'Cliente' }, transaction });
+      if (!clientRole) {
+        // Si el rol 'Cliente' no existe, lanzamos un error claro.
+        throw new ApiError("El rol 'Cliente' no se encuentra en la base de datos. Por favor, asegúrese de que exista.", 500);
+      }
+      userData.id_rol = clientRole.id;
     }
 
     const { user: newUser } = await this.userService.create(userData as UserCreateType);
@@ -220,16 +225,26 @@ export class ClientService {
   async create(data: any) {
     const transaction = await sequelize.transaction();
     try {
-      // 1. Crear/actualizar usuario titular
-      const titularUser = await this._createOrUpdateUser(data.usuario, transaction);
+      // 1. Buscar si el usuario ya existe
+      let titularUser = await User.findOne({
+        where: { numero_documento: data.usuario.numero_documento },
+        transaction,
+      });
 
-      // Verificar si el usuario ya está registrado como Persona
-      const existingPerson = await Person.findOne({ where: { id_usuario: titularUser.id }, transaction });
-      if (existingPerson) {
-        throw new ApiError("Este usuario ya está registrado como cliente o beneficiario.", 409);
+      if (titularUser) {
+        // Si el usuario existe, verificar si ya es una "Persona" (cliente o beneficiario)
+        const existingPerson = await Person.findOne({ where: { id_usuario: titularUser.id }, transaction });
+        if (existingPerson) {
+          throw new ApiError("Este usuario ya está registrado como cliente o beneficiario.", 409);
+        }
+        // Si es un usuario existente (ej. Admin, Entrenador) pero no un cliente, 
+        // simplemente usamos su registro de usuario sin modificarlo.
+      } else {
+        // Si el usuario no existe, lo creamos con el rol de "Cliente"
+        titularUser = await this._createOrUpdateUser(data.usuario, transaction);
       }
-      
-      // 2. Crear la Persona titular
+
+      // 2. Crear la entidad "Persona" que representa al cliente
       const titularPerson = await this._createPerson(
         { id_usuario: titularUser.id, estado: data.estado ?? true },
         transaction
@@ -238,7 +253,7 @@ export class ClientService {
       // 3. Crear contactos de emergencia
       await this._createEmergencyContacts(titularPerson.id_persona, data.contactos_emergencia, transaction);
   
-      // 4. Procesar beneficiarios
+      // 4. Procesar beneficiarios (si los hay)
       if (data.beneficiarios && data.beneficiarios.length > 0) {
         for (const bene of data.beneficiarios) {
           const beneficiaryUser = await this._createOrUpdateUser(bene.usuario, transaction);
@@ -246,7 +261,7 @@ export class ClientService {
             { id_usuario: beneficiaryUser.id, estado: bene.estado ?? true },
             transaction
           );
-
+          
           const lastBeneficiary = await Beneficiary.findOne({ order: [['id', 'DESC']], lock: transaction.LOCK.UPDATE, transaction });
           const newCode = lastBeneficiary ? `B${String(parseInt(lastBeneficiary.codigo.substring(1), 10) + 1).padStart(3, '0')}` : 'B001';
 
@@ -255,19 +270,19 @@ export class ClientService {
             id_persona: beneficiaryPerson.id_persona,
             id_cliente: titularPerson.id_persona,
             relacion: bene.relacion,
-            estado: true
+            estado: true,
           }, { transaction });
-
-          await this._createEmergencyContacts(beneficiaryPerson.id_persona, bene.contactos_emergencia, transaction);
         }
       }
-  
+
       await transaction.commit();
+
+      // Devolver el cliente recién creado con todos sus datos
       return this.findById(titularPerson.id_persona);
+
     } catch (error) {
       await transaction.rollback();
-      if (error instanceof ApiError) throw error;
-      throw new ApiError(`Error al crear el cliente: ${(error as Error).message}`, 500);
+      throw error;
     }
   }
 
