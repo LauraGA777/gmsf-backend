@@ -405,6 +405,7 @@ export class ContractService {
 
       // If only reason is provided (for state changes)
       if (data.motivo) {
+        updates.motivo = data.motivo;
         console.log("--- [Service] Update - Reason provided ---", { motivo: data.motivo });
       }
 

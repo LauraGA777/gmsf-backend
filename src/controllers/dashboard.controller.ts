@@ -534,13 +534,13 @@ export class DashboardController {
                     'nombre',
                     'precio',
                     [
-                        fn('COUNT', col('Contract.id')),
+                        fn('COUNT', col('contratos.id')),
                         'activeContracts'
                     ]
                 ],
                 include: [{
                     model: Contract,
-                    as: 'Contract',
+                    as: 'contratos',
                     attributes: [],
                     where: {
                         estado: 'Activo',
@@ -553,7 +553,7 @@ export class DashboardController {
                     estado: true
                 },
                 group: ['Membership.id'],
-                order: [[fn('COUNT', col('Contract.id')), 'DESC']],
+                order: [[fn('COUNT', col('contratos.id')), 'DESC']],
                 raw: true
             });
 
@@ -568,6 +568,7 @@ export class DashboardController {
             }));
 
             console.log('✅ Membership distribution generated:', distributionData.length, 'memberships');
+            console.log('🔍 Distribution data details:', distributionData);
             return distributionData;
         } catch (error) {
             console.error('Error getting membership distribution:', error);

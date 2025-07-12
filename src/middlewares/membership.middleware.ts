@@ -41,7 +41,7 @@ export const canViewMemberships = async (req: Request, res: Response, next: Next
 export const canCreateMemberships = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req.user as any)?.id;
-
+        
         if (!userId) {
             return res.status(401).json({
                 status: 'error',
@@ -49,8 +49,14 @@ export const canCreateMemberships = async (req: Request, res: Response, next: Ne
             });
         }
 
-        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
 
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.MEMBERSHIP_CREATE)) {
             return res.status(403).json({
                 status: 'error',
@@ -140,7 +146,7 @@ export const canViewMembershipDetails = async (req: Request, res: Response, next
 export const canUpdateMemberships = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req.user as any)?.id;
-
+        
         if (!userId) {
             return res.status(401).json({
                 status: 'error',
@@ -148,8 +154,14 @@ export const canUpdateMemberships = async (req: Request, res: Response, next: Ne
             });
         }
 
-        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
 
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.MEMBERSHIP_UPDATE)) {
             return res.status(403).json({
                 status: 'error',
@@ -173,7 +185,7 @@ export const canUpdateMemberships = async (req: Request, res: Response, next: Ne
 export const canDeactivateMemberships = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req.user as any)?.id;
-
+        
         if (!userId) {
             return res.status(401).json({
                 status: 'error',
@@ -181,8 +193,14 @@ export const canDeactivateMemberships = async (req: Request, res: Response, next
             });
         }
 
-        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
 
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.MEMBERSHIP_DEACTIVATE)) {
             return res.status(403).json({
                 status: 'error',

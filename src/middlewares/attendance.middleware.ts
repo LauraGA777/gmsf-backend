@@ -49,12 +49,18 @@ export const canCreateAttendances = async (req: Request, res: Response, next: Ne
             });
         }
 
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.ASIST_CREATE)) {
             return res.status(403).json({
                 status: 'error',
-                message: 'No tienes permisos para registrar asistencias'
+                message: 'No tienes permisos para crear asistencias'
             });
         }
 
@@ -148,6 +154,12 @@ export const canUpdateAttendances = async (req: Request, res: Response, next: Ne
             });
         }
 
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.ASIST_UPDATE)) {
@@ -179,6 +191,12 @@ export const canDeleteAttendances = async (req: Request, res: Response, next: Ne
                 status: 'error',
                 message: 'Usuario no autenticado'
             });
+        }
+
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
         }
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);

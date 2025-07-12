@@ -115,6 +115,12 @@ export const canCreateUsers = async (req: Request, res: Response, next: NextFunc
             });
         }
 
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
 
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.USER_CREATE)) {
@@ -146,6 +152,12 @@ export const canUpdateUsers = async (req: Request, res: Response, next: NextFunc
                 status: 'error',
                 message: 'Usuario no autenticado'
             });
+        }
+
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
         }
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
@@ -181,6 +193,12 @@ export const canActivateUsers = async (req: Request, res: Response, next: NextFu
             });
         }
 
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
 
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.USER_ACTIVATE)) {
@@ -214,6 +232,12 @@ export const canDeactivateUsers = async (req: Request, res: Response, next: Next
             });
         }
 
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
 
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.USER_DEACTIVATE)) {
@@ -245,6 +269,12 @@ export const canDeleteUsers = async (req: Request, res: Response, next: NextFunc
                 status: 'error',
                 message: 'Usuario no autenticado'
             });
+        }
+
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
         }
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);

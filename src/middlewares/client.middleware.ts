@@ -43,6 +43,12 @@ export const canCreateClients = async (req: Request, res: Response, next: NextFu
             });
         }
 
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.CLIENT_CREATE)) {
@@ -73,6 +79,12 @@ export const canUpdateClients = async (req: Request, res: Response, next: NextFu
             });
         }
 
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.CLIENT_UPDATE)) {
@@ -101,6 +113,12 @@ export const canDeleteClients = async (req: Request, res: Response, next: NextFu
                 status: 'error',
                 message: 'Usuario no autenticado'
             });
+        }
+
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
         }
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);

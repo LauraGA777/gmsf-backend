@@ -13,6 +13,12 @@ export const canViewTrainers = async (req: Request, res: Response, next: NextFun
             });
         }
 
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.TRAINER_READ)) {
@@ -41,6 +47,12 @@ export const canCreateTrainers = async (req: Request, res: Response, next: NextF
                 status: 'error',
                 message: 'Usuario no autenticado'
             });
+        }
+
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
         }
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
@@ -73,6 +85,12 @@ export const canUpdateTrainers = async (req: Request, res: Response, next: NextF
             });
         }
 
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.TRAINER_UPDATE)) {
@@ -92,6 +110,42 @@ export const canUpdateTrainers = async (req: Request, res: Response, next: NextF
     }
 };
 
+export const canActivateTrainers = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = (req.user as any)?.id;
+        
+        if (!userId) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Usuario no autenticado'
+            });
+        }
+
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        
+        if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.TRAINER_ACTIVATE)) {
+            return res.status(403).json({
+                status: 'error',
+                message: 'No tienes permisos para activar entrenadores'
+            });
+        }
+
+        next();
+    } catch (error) {
+        console.error('Error en middleware canActivateTrainers:', error);
+        return res.status(500).json({
+            status: 'error',
+            message: 'Error interno del servidor'
+        });
+    }
+};
+
 export const canDeactivateTrainers = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req.user as any)?.id;
@@ -101,6 +155,12 @@ export const canDeactivateTrainers = async (req: Request, res: Response, next: N
                 status: 'error',
                 message: 'Usuario no autenticado'
             });
+        }
+
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
         }
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
@@ -133,6 +193,12 @@ export const canDeleteTrainers = async (req: Request, res: Response, next: NextF
             });
         }
 
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.TRAINER_DELETE)) {
@@ -161,6 +227,12 @@ export const canSearchTrainers = async (req: Request, res: Response, next: NextF
                 status: 'error',
                 message: 'Usuario no autenticado'
             });
+        }
+
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
         }
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
