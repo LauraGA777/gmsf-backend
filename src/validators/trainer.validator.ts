@@ -6,10 +6,38 @@ export const idSchema = z.object({
     id: z.string().regex(/^\d+$/, "El ID debe ser un número").transform(Number),
 });
 
+// Esquema especial para usuarios en trainers (puede ser nuevo o existente)
+const trainerUserSchema = z.object({
+    id: z.number().optional(), // Si tiene ID, es usuario existente
+    nombre: z.string().min(3).max(100),
+    apellido: z.string().min(3).max(100),
+    correo: z.string().email(),
+    contrasena: z.string().optional(), // Opcional porque puede ser usuario existente
+    telefono: z.string().regex(/^\d{7,15}$/).optional(),
+    direccion: z.string().optional(),
+    genero: z.enum(['M', 'F', 'O']).optional(),
+    tipo_documento: z.enum(['CC', 'CE', 'TI', 'PP', 'DIE']),
+    numero_documento: z.string().min(5).max(20),
+    fecha_nacimiento: z.string().transform(val => new Date(val)),
+    id_rol: z.number().optional()
+}).refine(
+    (data) => {
+        // Si no tiene ID (es usuario nuevo), la contraseña es requerida
+        if (!data.id && (!data.contrasena || data.contrasena.length < 6)) {
+            return false;
+        }
+        return true;
+    },
+    {
+        message: "La contraseña es requerida y debe tener al menos 6 caracteres para usuarios nuevos",
+        path: ["contrasena"]
+    }
+);
+
 // Esquema para la creación de un entrenador
 // Combina la creación de usuario con los campos específicos de entrenador
 export const createTrainerSchema = z.object({
-    usuario: userCreateSchema, // Objeto anidado para los datos del usuario
+    usuario: trainerUserSchema, // Objeto anidado para los datos del usuario
     especialidad: z.string().min(3, "La especialidad es requerida y debe tener al menos 3 caracteres.").max(100),
     estado: z.boolean().optional().default(true),
 });

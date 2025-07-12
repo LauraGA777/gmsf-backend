@@ -43,6 +43,12 @@ export const canCreateSchedules = async (req: Request, res: Response, next: Next
             });
         }
 
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.SCHEDULE_CREATE)) {
@@ -73,6 +79,12 @@ export const canUpdateSchedules = async (req: Request, res: Response, next: Next
             });
         }
 
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.SCHEDULE_UPDATE)) {
@@ -101,6 +113,12 @@ export const canDeleteSchedules = async (req: Request, res: Response, next: Next
                 status: 'error',
                 message: 'Usuario no autenticado'
             });
+        }
+
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
         }
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);

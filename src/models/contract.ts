@@ -16,6 +16,7 @@ interface ContractAttributes {
     usuario_registro?: number
     usuario_actualizacion?: number
     fecha_congelacion?: Date | null
+    motivo?: string
 
     // Relationships
     persona?: Person
@@ -39,6 +40,7 @@ class Contract extends Model<ContractAttributes, ContractCreationAttributes> imp
     public usuario_registro?: number
     public usuario_actualizacion?: number
     public fecha_congelacion?: Date | null
+    public motivo?: string
 
     // Relationships
     public readonly persona?: Person
@@ -137,6 +139,10 @@ Contract.init(
         },
         fecha_congelacion: {
             type: DataTypes.DATE,
+            allowNull: true,
+        },
+        motivo: {
+            type: DataTypes.TEXT,
             allowNull: true,
         },
     },

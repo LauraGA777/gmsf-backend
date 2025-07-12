@@ -50,10 +50,14 @@ export class TrainerService {
                     throw new ApiError('Este usuario ya está registrado como entrenador.', 409);
                 }
                 // Si no es entrenador, se le asigna el rol y se actualizan sus datos
-                await this.userService.update(user.id, { ...userData, id_rol: trainerRole.id });
+                const { contrasena, ...userDataWithoutPassword } = userData;
+                await this.userService.update(user.id, { ...userDataWithoutPassword, id_rol: trainerRole.id });
             } else {
                 // Si el usuario no existe, lo creamos
-                const { user: newUser } = await this.userService.create({ ...userData, id_rol: trainerRole.id }, transaction);
+                if (!userData.contrasena) {
+                    throw new ApiError('La contraseña es requerida para crear un nuevo usuario.', 400);
+                }
+                const { user: newUser } = await this.userService.create({ ...userData, contrasena: userData.contrasena, id_rol: trainerRole.id }, transaction);
                 user = newUser;
             }
 
@@ -105,8 +109,8 @@ export class TrainerService {
     }
     
     public async findAll(options: SearchTrainerInput) {
-        const { page = 1, limit = 10, q, orden = 'nombre', direccion = 'ASC', estado } = options;
-        const offset = (page - 1) * limit;
+        const { pagina = 1, limite = 10, q, orden = 'nombre', direccion = 'ASC', estado } = options;
+        const offset = (pagina - 1) * limite;
 
         const whereClause: any = {};
         if (estado !== undefined) {
@@ -130,9 +134,11 @@ export class TrainerService {
                 attributes: { exclude: ['contrasena_hash'] },
                 where: userWhereClause,
             }],
-            limit,
+            limit: limite,
             offset,
-            order: [[{model: User, as: 'usuario'}, orden, direccion]],
+            order: orden === 'codigo' 
+                ? [['codigo', direccion], [{ model: User, as: 'usuario' }, 'nombre', 'ASC']]
+                : [[{ model: User, as: 'usuario' }, orden, direccion], ['codigo', 'ASC']],
             distinct: true,
         });
 
@@ -140,9 +146,9 @@ export class TrainerService {
             data: rows,
             pagination: {
                 total: count,
-                page,
-                limit,
-                totalPages: Math.ceil(count / limit),
+                page: pagina,
+                limit: limite,
+                totalPages: Math.ceil(count / limite),
             },
         };
     }

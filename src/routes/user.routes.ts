@@ -17,6 +17,9 @@ router.get('/roles', canViewUserRoles as unknown as RequestHandler, userControll
 // Search users route ✅
 router.get('/search', canSearchUsers as unknown as RequestHandler, userController.searchUsers.bind(userController) as unknown as RequestHandler);
 
+// Middleware to check if document exists
+router.get('/check-document', canCheckDocument as unknown as RequestHandler, userController.checkDocumentExists.bind(userController) as unknown as RequestHandler);
+
 // Get user by ID route ✅
 router.get('/:id', canViewUserDetails as unknown as RequestHandler, userController.getUserById.bind(userController) as unknown as RequestHandler);
 
@@ -34,9 +37,6 @@ router.delete('/:id/permanent', canDeleteUsers as unknown as RequestHandler, use
 
 // Register route ✅
 router.post('/register', canCreateUsers as unknown as RequestHandler, userController.register.bind(userController) as unknown as RequestHandler);
-
-// Middleware to check if document exists
-router.get('/check-document', canCheckDocument as unknown as RequestHandler, userController.checkDocumentExists.bind(userController) as unknown as RequestHandler);
 
 // Middleware to check if email exists
 router.get('/check-email/:email', canCheckEmail as unknown as RequestHandler, userController.checkEmailExists.bind(userController) as unknown as RequestHandler);

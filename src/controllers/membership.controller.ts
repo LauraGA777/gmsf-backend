@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { Op } from 'sequelize';
+import { Op, fn, col } from 'sequelize';
 import Membership from '../models/membership';
 import Contract from '../models/contract';
 import { z } from 'zod';
@@ -676,7 +676,15 @@ export const getMembershipStats = async (req: Request, res: Response, next: Next
         let popularMemberships: PopularMembership[] = [];
         try {
             const membershipsWithContracts = await Membership.findAll({
-                attributes: ['id', 'nombre', 'precio'],
+                attributes: [
+                    'id',
+                    'nombre',
+                    'precio',
+                    [
+                        fn('COUNT', col('contratos.id')),
+                        'activeContracts'
+                    ]
+                ],
                 include: [{
                     model: Contract,
                     as: 'contratos',
@@ -689,9 +697,9 @@ export const getMembershipStats = async (req: Request, res: Response, next: Next
                     required: false
                 }],
                 group: ['Membership.id'],
-                order: [[sequelize.literal('COUNT(contratos.id)'), 'DESC']],
+                order: [[fn('COUNT', col('contratos.id')), 'DESC']],
                 limit: 10,
-                raw: false
+                raw: true
             });
 
             // Procesar el resultado para obtener el conteo
@@ -699,7 +707,7 @@ export const getMembershipStats = async (req: Request, res: Response, next: Next
                 id: membership.id,
                 nombre: membership.nombre,
                 precio: membership.precio,
-                activeContracts: membership.contratos ? membership.contratos.length : 0
+                activeContracts: parseInt(membership.activeContracts) || 0
             }));
 
             console.log('🔥 Membership Stats - Popular memberships found:', popularMemberships.length);

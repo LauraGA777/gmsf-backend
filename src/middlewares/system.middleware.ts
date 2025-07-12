@@ -41,7 +41,7 @@ export const canViewRoles = async (req: Request, res: Response, next: NextFuncti
 export const canCreateRoles = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req.user as any)?.id;
-
+        
         if (!userId) {
             return res.status(401).json({
                 status: 'error',
@@ -49,8 +49,14 @@ export const canCreateRoles = async (req: Request, res: Response, next: NextFunc
             });
         }
 
-        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
 
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.SYSTEM_CREATE_ROLES)) {
             return res.status(403).json({
                 status: 'error',
@@ -74,7 +80,7 @@ export const canCreateRoles = async (req: Request, res: Response, next: NextFunc
 export const canUpdateRoles = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req.user as any)?.id;
-
+        
         if (!userId) {
             return res.status(401).json({
                 status: 'error',
@@ -82,8 +88,14 @@ export const canUpdateRoles = async (req: Request, res: Response, next: NextFunc
             });
         }
 
-        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
 
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.SYSTEM_UPDATE_ROLES)) {
             return res.status(403).json({
                 status: 'error',
@@ -107,7 +119,7 @@ export const canUpdateRoles = async (req: Request, res: Response, next: NextFunc
 export const canDeleteRoles = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req.user as any)?.id;
-
+        
         if (!userId) {
             return res.status(401).json({
                 status: 'error',
@@ -115,8 +127,14 @@ export const canDeleteRoles = async (req: Request, res: Response, next: NextFunc
             });
         }
 
-        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
 
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.SYSTEM_DELETE_ROLES)) {
             return res.status(403).json({
                 status: 'error',
@@ -206,7 +224,7 @@ export const canViewPermissions = async (req: Request, res: Response, next: Next
 export const canCreatePermissions = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req.user as any)?.id;
-
+        
         if (!userId) {
             return res.status(401).json({
                 status: 'error',
@@ -214,8 +232,14 @@ export const canCreatePermissions = async (req: Request, res: Response, next: Ne
             });
         }
 
-        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
 
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.SYSTEM_CREATE_PERMISSIONS)) {
             return res.status(403).json({
                 status: 'error',
@@ -239,7 +263,7 @@ export const canCreatePermissions = async (req: Request, res: Response, next: Ne
 export const canUpdatePermissions = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req.user as any)?.id;
-
+        
         if (!userId) {
             return res.status(401).json({
                 status: 'error',
@@ -247,8 +271,14 @@ export const canUpdatePermissions = async (req: Request, res: Response, next: Ne
             });
         }
 
-        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
 
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.SYSTEM_UPDATE_PERMISSIONS)) {
             return res.status(403).json({
                 status: 'error',
@@ -272,7 +302,7 @@ export const canUpdatePermissions = async (req: Request, res: Response, next: Ne
 export const canDeletePermissions = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = (req.user as any)?.id;
-
+        
         if (!userId) {
             return res.status(401).json({
                 status: 'error',
@@ -280,8 +310,14 @@ export const canDeletePermissions = async (req: Request, res: Response, next: Ne
             });
         }
 
-        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
 
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.SYSTEM_DELETE_PERMISSIONS)) {
             return res.status(403).json({
                 status: 'error',

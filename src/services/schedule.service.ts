@@ -187,10 +187,10 @@ export class ScheduleService {
         throw new ApiError("La fecha de fin debe ser posterior a la fecha de inicio.", 400);
       }
       
-      // Validar que la duración no sea excesiva (máximo 4 horas)
+      // Validar que la duración no sea excesiva (máximo 2 horas)
       const duracionHoras = (fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60);
-      if (duracionHoras > 4) {
-        throw new ApiError("La duración del entrenamiento no puede exceder 4 horas.", 400);
+      if (duracionHoras > 2) {
+        throw new ApiError("La duración del entrenamiento no puede exceder 2 horas.", 400);
       }
 
       console.log("SERVICIO: Validando entrenador ID:", data.id_entrenador);
@@ -341,10 +341,10 @@ export class ScheduleService {
           throw new ApiError("La fecha de fin debe ser posterior a la fecha de inicio.", 400);
         }
         
-        // Validar que la duración no sea excesiva (máximo 4 horas)
+        // Validar que la duración no sea excesiva (máximo 2 horas)
         const duracionHoras = (fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60);
-        if (duracionHoras > 4) {
-          throw new ApiError("La duración del entrenamiento no puede exceder 4 horas.", 400);
+        if (duracionHoras > 2) {
+          throw new ApiError("La duración del entrenamiento no puede exceder 2 horas.", 400);
         }
       }
 
@@ -686,8 +686,8 @@ export class ScheduleService {
           {
             model: User,
             as: "usuario",
-            where: { estado: true },
-            attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+            required: true, // Solo incluir entrenadores que tienen usuario
+            attributes: ["id", "nombre", "apellido", "correo", "telefono", "estado"],
           },
         ],
         attributes: ["id", "codigo", "especialidad", "estado"],
@@ -696,24 +696,43 @@ export class ScheduleService {
       
       console.log(`SERVICIO: Query ejecutado. Entrenadores encontrados: ${trainers.length}`);
       
-      // Devolver los datos en la estructura que espera el frontend
-      const mappedTrainers = trainers
-        .filter(trainer => trainer.usuario && trainer.usuario.estado) // Solo incluir entrenadores con usuario activo
-        .map((trainer) => ({
-          id: trainer.id, // ID del entrenador (tabla Trainer)
+      // Debug: Mostrar información detallada de los entrenadores
+      trainers.forEach((trainer, index) => {
+        console.log(`SERVICIO: Entrenador ${index + 1}:`, {
+          id: trainer.id,
           codigo: trainer.codigo,
-          especialidad: trainer.especialidad,
           estado: trainer.estado,
-          usuario: {
-            id: trainer.usuario!.id,
-            nombre: trainer.usuario!.nombre,
-            apellido: trainer.usuario!.apellido,
-            correo: trainer.usuario!.correo,
-            telefono: trainer.usuario!.telefono || null
-          }
-        }));
+          usuario: trainer.usuario ? {
+            id: trainer.usuario.id,
+            nombre: trainer.usuario.nombre,
+            apellido: trainer.usuario.apellido,
+            estado: trainer.usuario.estado
+          } : null
+        });
+      });
       
-      console.log(`SERVICIO: Se encontraron ${mappedTrainers.length} entrenadores activos después del filtro.`);
+      // Filtrar por usuarios activos después del query
+      const activeTrainers = trainers.filter(trainer => 
+        trainer.usuario && trainer.usuario.estado === true
+      );
+      
+      console.log(`SERVICIO: Entrenadores con usuarios activos: ${activeTrainers.length}`);
+      
+      const mappedTrainers = activeTrainers.map((trainer) => ({
+        id: trainer.id, // ID del entrenador (tabla Trainer)
+        codigo: trainer.codigo,
+        especialidad: trainer.especialidad,
+        estado: trainer.estado,
+        usuario: {
+          id: trainer.usuario!.id,
+          nombre: trainer.usuario!.nombre,
+          apellido: trainer.usuario!.apellido,
+          correo: trainer.usuario!.correo,
+          telefono: trainer.usuario!.telefono || null
+        }
+      }));
+      
+      console.log(`SERVICIO: Se encontraron ${mappedTrainers.length} entrenadores activos después del mapeo.`);
       return mappedTrainers;
     } catch (error: any) {
       console.error("----------------- ERROR DETALLADO (ENTRENADORES) -----------------");
