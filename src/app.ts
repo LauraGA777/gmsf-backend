@@ -22,11 +22,28 @@ const app: Application = express();
 
 // Middlewares
 app.use(morgan('dev'));
-app.use(cors({
-    origin: env.FRONTEND_URL,
+
+// Configuración CORS restrictiva
+const whitelist = env.NODE_ENV === 'development'
+    ? ['http://localhost:3000', 'https://gmsf-strongfitgym.web.app']
+    : ['https://gmsf-strongfitgym.web.app'];
+
+const corsOptions = {
+    origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+        if (whitelist.indexOf(origin || '') !== -1 || !origin) {
+            callback(null, true);
+        } else {
+            console.log(`Acceso bloqueado para origen: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, '../public')));
