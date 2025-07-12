@@ -1,8 +1,9 @@
 import express, { Application } from 'express';
-import cors from 'cors';
 import morgan from 'morgan';
 import path from 'path';
-import { env } from './config/env';
+
+// Importar CORS desde archivo de configuración
+import corsMiddleware from './config/cors.config';
 
 // Importar rutas
 import authRoutes from './routes/auth.routes';
@@ -20,32 +21,17 @@ import { errorHandler } from './middlewares/error.middleware';
 
 const app: Application = express();
 
-// Middlewares
+// Middlewares básicos
 app.use(morgan('dev'));
 
-// Configuración CORS restrictiva
-const whitelist = env.NODE_ENV === 'development'
-    ? ['http://localhost:3000', 'https://gmsf-strongfitgym.web.app']
-    : ['https://gmsf-strongfitgym.web.app'];
+// ✅ CORS simplificado
+app.use(corsMiddleware);
 
-const corsOptions = {
-    origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-        if (whitelist.indexOf(origin || '') !== -1 || !origin) {
-            callback(null, true);
-        } else {
-            console.log(`Acceso bloqueado para origen: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-    optionsSuccessStatus: 204
-};
+// Parsers
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-app.use(cors(corsOptions));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Archivos estáticos
 app.use(express.static(path.join(__dirname, '../public')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 

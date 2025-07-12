@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { z } from 'zod';
 import Attendance from '../models/attendance';
@@ -11,7 +11,6 @@ import DateTimeUtils from '../utils/datetime.utils';
 import {
     listAttendanceSchema,
     searchAttendanceSchema,
-    updateAttendanceSchema,
     idSchema,
 } from '../validators/attendance.validator';
 
@@ -22,9 +21,8 @@ const statsQuerySchema = z.object({
     month: z.string().optional(),
     year: z.string().optional()
 });
-
 export class AttendanceController {
-    // Obtener todas las asistencias con paginación y filtros
+    // Obtener todas las asistencias con paginación y filtros ✅
     public async getAll(req: Request, res: Response) {
         try {
             const validatedParams = listAttendanceSchema.parse(req.query);
@@ -385,7 +383,7 @@ export class AttendanceController {
         }
     }
 
-    // Obtener detalles de una asistencia
+    // Obtener detalles de una asistencia✅
     public async getById(req: Request, res: Response) {
         try {
             const { id } = idSchema.parse(req.params);
@@ -444,7 +442,7 @@ export class AttendanceController {
         }
     }
 
-    // Actualizar asistencia
+    /* // Actualizar asistencia
     public async update(req: Request, res: Response) {
         try {
             const { id } = idSchema.parse(req.params);
@@ -488,9 +486,9 @@ export class AttendanceController {
             }
             return ApiResponse.error(res, "Error al actualizar la asistencia");
         }
-    }
+    } */
 
-    // Eliminar asistencia (borrado lógico)
+    // Eliminar asistencia (borrado lógico)✅
     public async delete(req: Request, res: Response) {
         try {
             const { id } = idSchema.parse(req.params);
@@ -542,14 +540,14 @@ export class AttendanceController {
         }
     }
 
-    // Obtener estadísticas de asistencia
+    // Obtener estadísticas de asistencia✅
     public async getStats(req: Request, res: Response) {
         try {
             const { period, date, month, year } = statsQuerySchema.parse(req.query);
-            
+
             let startDate: Date;
             let endDate: Date;
-            
+
             // Configurar fechas según el período
             if (period === 'daily') {
                 const targetDate = date ? new Date(date) : new Date();
@@ -641,18 +639,155 @@ export class AttendanceController {
             return ApiResponse.error(res, "Error al obtener las estadísticas de asistencia");
         }
     }
+
+    public async getClientAttendanceHistory(req: Request, res: Response) {
+        try {
+            const { userId } = req.params;
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 20;
+            const offset = (page - 1) * limit;
+
+            // Obtener la persona asociada al usuario directamente
+            const person = await Person.findOne({
+                where: {
+                    id_usuario: userId,
+                    estado: true
+                },
+                attributes: ['id_persona']
+            });
+
+            if (!person) {
+                return ApiResponse.error(
+                    res,
+                    "Cliente no encontrado",
+                    404
+                );
+            }
+
+            const { count, rows: attendances } = await Attendance.findAndCountAll({
+                where: {
+                    id_persona: person.id_persona,
+                    estado: "Activo"
+                },
+                include: [{
+                    model: Contract,
+                    as: "contrato",
+                    attributes: ['codigo'],
+                    include: [{
+                        model: Membership,
+                        as: "membresia",
+                        attributes: ['nombre']
+                    }]
+                }],
+                order: [['fecha_uso', 'DESC']],
+                limit,
+                offset,
+                attributes: [
+                    'id', 'fecha_uso', 'hora_registro', 'estado', 'fecha_registro'
+                ]
+            });
+
+            return ApiResponse.success(
+                res,
+                attendances,
+                "Historial de asistencias obtenido exitosamente",
+                {
+                    total: count,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(count / limit)
+                }
+            );
+
+        } catch (error) {
+            console.error("Error al obtener historial de asistencias:", error);
+            return ApiResponse.error(res, "Error al obtener el historial de asistencias");
+        }
+    }
+
+    // Método auxiliar para obtener estadísticas de asistencia
+    public async getClientAttendanceStats(personId: number | undefined, startDate: Date, endDate: Date) {
+        if (!personId) {
+            return {
+                totalAttendances: 0,
+                currentMonth: 0,
+                currentWeek: 0,
+                averagePerWeek: 0,
+                lastAttendance: null
+            };
+        }
+
+        const [total, currentPeriod, lastAttendance] = await Promise.all([
+            Attendance.count({
+                where: {
+                    id_persona: personId,
+                    estado: "Activo"
+                }
+            }),
+            Attendance.count({
+                where: {
+                    id_persona: personId,
+                    fecha_uso: {
+                        [Op.between]: [startDate, endDate]
+                    },
+                    estado: "Activo"
+                }
+            }),
+            Attendance.findOne({
+                where: {
+                    id_persona: personId,
+                    estado: "Activo"
+                },
+                order: [['fecha_uso', 'DESC']],
+                attributes: ['fecha_uso', 'hora_registro']
+            })
+        ]);
+
+        // Calcular promedio semanal
+        const weeksDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+        const averagePerWeek = weeksDiff > 0 ? currentPeriod / weeksDiff : 0;
+
+        return {
+            totalAttendances: total,
+            currentPeriod,
+            averagePerWeek: Math.round(averagePerWeek * 100) / 100,
+            lastAttendance
+        };
+    }
+
+    // Método auxiliar para obtener rangos de fecha según el período
+    public getClientDateRangeByPeriod(period: string) {
+        const now = DateTimeUtils.nowInBogota();
+
+        switch (period) {
+            case 'daily':
+                return DateTimeUtils.getTodayRange();
+            case 'weekly':
+                return DateTimeUtils.getCurrentWeekRange();
+            case 'monthly':
+                return DateTimeUtils.getCurrentMonthRange();
+            case 'yearly':
+                return DateTimeUtils.getCurrentYearRange();
+            default:
+                return DateTimeUtils.getCurrentMonthRange();
+        }
+    }
 }
+
 
 // Crear una instancia del controlador
 const attendanceController = new AttendanceController();
 
 // Exportar las funciones del controlador
 export const registerAttendance = attendanceController.create.bind(attendanceController);
-export const getAttendances = attendanceController.getAll.bind(attendanceController);
-export const searchAttendances = attendanceController.search.bind(attendanceController);
+export const getAttendances = attendanceController.getAll.bind(attendanceController); 
+export const searchAttendances = attendanceController.search.bind(attendanceController); 
 export const getAttendanceDetails = attendanceController.getById.bind(attendanceController);
 export const deleteAttendances = attendanceController.delete.bind(attendanceController);
-export const getAttendanceStats = attendanceController.getStats.bind(attendanceController);
+export const getStats = attendanceController.getStats.bind(attendanceController);
+export const getClientAttendanceHistory = attendanceController.getClientAttendanceHistory.bind(attendanceController);
+export const getClientDateRangeByPeriod = attendanceController.getClientDateRangeByPeriod.bind(attendanceController);
+export const getClientAttendanceStats = attendanceController.getClientAttendanceStats.bind(attendanceController);
 
 // Exportar el controlador por defecto
 export default attendanceController;

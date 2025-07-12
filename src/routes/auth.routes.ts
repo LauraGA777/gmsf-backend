@@ -18,8 +18,7 @@ router.post('/logout', logout as unknown as RequestHandler);
 // Ruta de recuperación de contraseña ✅
 router.post('/forgot-password', forgotPassword as unknown as RequestHandler);
 
-// Ruta de cambio de contraseña ✅
-router.post('/reset-password/:token', resetPassword as unknown as RequestHandler);
+
 
 // Ruta de cambio de contraseña del usuario autenticado ✅
 router.post('/change-password', verifyToken as unknown as RequestHandler, changePassword as unknown as RequestHandler);
@@ -29,5 +28,8 @@ router.get('/profile', verifyToken as unknown as RequestHandler, getProfile as u
 
 // Ruta de actualización de perfil del usuario autenticado ✅
 router.put('/profile', verifyToken as unknown as RequestHandler, updateProfile as unknown as RequestHandler);
+
+// Ruta de cambio de contraseña ✅
+router.post('/reset-password/:token', resetPassword as unknown as RequestHandler);
 
 export default router;

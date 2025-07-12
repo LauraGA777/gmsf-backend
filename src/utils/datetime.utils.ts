@@ -25,8 +25,8 @@ export class DateTimeUtils {
      * Obtiene la hora actual en formato HH:mm:ss en zona horaria de Bogotá
      */
     static currentTimeInBogota(): string {
-        const now = this.nowInBogota();
-        return format(now, 'HH:mm:ss');
+        const now = new Date(); // UTC
+        return formatTz(now, 'HH:mm:ss', { timeZone: BOGOTA_TIMEZONE });
     }
 
     /**
@@ -47,8 +47,7 @@ export class DateTimeUtils {
      * Formatea una fecha en zona horaria de Bogotá
      */
     static formatInBogota(date: Date, formatStr: string = 'yyyy-MM-dd HH:mm:ss'): string {
-        const zonedDate = this.toBogotaTime(date);
-        return format(zonedDate, formatStr);
+        return formatTz(date, formatStr, { timeZone: BOGOTA_TIMEZONE });
     }
 
     /**
@@ -102,8 +101,40 @@ export class DateTimeUtils {
      * Obtiene información legible de la zona horaria actual
      */
     static getTimezoneInfo(): string {
+        const now = new Date();
+        const formatted = formatTz(now, 'yyyy-MM-dd HH:mm:ss zzz', { timeZone: BOGOTA_TIMEZONE });
+        return `Zona horaria: ${BOGOTA_TIMEZONE}, Fecha/Hora actual: ${formatted}`;
+    }
+
+    // Obtener rango del mes actual
+    public static getCurrentMonthRange(): { start: Date; end: Date } {
         const now = this.nowInBogota();
-        return `Zona horaria: ${BOGOTA_TIMEZONE}, Fecha/Hora actual: ${this.formatInBogota(now)}`;
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        return { start, end };
+    }
+
+    // Obtener rango de la semana actual
+    public static getCurrentWeekRange(): { start: Date; end: Date } {
+        const now = this.nowInBogota();
+        const dayOfWeek = now.getDay();
+        const start = new Date(now);
+        start.setDate(now.getDate() - dayOfWeek);
+        start.setHours(0, 0, 0, 0);
+        
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+        
+        return { start, end };
+    }
+
+    // Obtener rango del año actual
+    public static getCurrentYearRange(): { start: Date; end: Date } {
+        const now = this.nowInBogota();
+        const start = new Date(now.getFullYear(), 0, 1);
+        const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+        return { start, end };
     }
 }
 

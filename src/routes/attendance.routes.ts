@@ -7,7 +7,10 @@ import {
     canUpdateAttendances,
     canDeleteAttendances,
     canViewAttendanceStats,
-    canViewOwnAttendances
+    canViewOwnAttendances,
+    canViewClientInfo,
+    canViewClientStats,
+    canViewClientHistory
 } from '../middlewares/attendance.middleware';
 import { 
     registerAttendance,
@@ -15,7 +18,10 @@ import {
     searchAttendances,
     getAttendanceDetails,
     deleteAttendances,
-    getAttendanceStats
+    getStats,
+    getClientAttendanceHistory,
+    getClientDateRangeByPeriod,
+    getClientAttendanceStats
 } from '../controllers/attendance.controller';
 
 const router = Router();
@@ -43,9 +49,30 @@ router.get('/search',
 // ✅ Ruta para obtener estadísticas de asistencia (ASIST_STATS)
 router.get('/stats', 
     canViewAttendanceStats as unknown as RequestHandler,
-    getAttendanceStats as unknown as RequestHandler
+    getStats as unknown as RequestHandler
+);
+// ✅ Ruta para obtener estadísticas de asistencia por período (ASIST_CLIENT_STATS)
+router.get('/my-attendances/stats', 
+    canViewClientStats as unknown as RequestHandler,
+    getClientAttendanceStats as unknown as RequestHandler
 );
 
+// ✅ Ruta para obtener estadísticas de asistencia por rango de fechas (ASIST_CLIENT_HISTORY)
+router.get('/my-attendances/date-range', 
+    canViewClientHistory as unknown as RequestHandler,
+    getClientDateRangeByPeriod as unknown as RequestHandler
+);
+
+//✅ Ruta para obtener historial de asistencias de un cliente (ASIST_CLIENT_INFO)   
+router.get('/my-attendances/:personId', 
+    canViewClientInfo as unknown as RequestHandler,  // Permite filtro por usuario para clientes
+    getClientAttendanceHistory as unknown as RequestHandler
+);
+// ✅ Ruta para eliminar registros de asistencia (ASIST_DELETE)
+router.delete('/delete/:id', 
+    canDeleteAttendances as unknown as RequestHandler,
+    deleteAttendances as unknown as RequestHandler
+);
 // ✅ Ruta para obtener detalles de una asistencia (ASIST_DETAILS)
 router.get('/:id', 
     canViewAttendanceDetails as unknown as RequestHandler,
@@ -56,12 +83,6 @@ router.get('/:id',
 router.put('/:id', 
     canUpdateAttendances as unknown as RequestHandler,
     // updateAttendance as unknown as RequestHandler  // Necesitarías crear este método
-);
-
-// ✅ Ruta para eliminar registros de asistencia (ASIST_DELETE)
-router.delete('/delete/:id', 
-    canDeleteAttendances as unknown as RequestHandler,
-    deleteAttendances as unknown as RequestHandler
 );
 
 export default router; 

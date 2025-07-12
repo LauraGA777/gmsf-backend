@@ -2,20 +2,20 @@ import { Router, RequestHandler } from 'express';
 import { verifyToken } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import { TrainerController } from '../controllers/trainer.controller';
-import { 
-    canViewTrainers, 
-    canCreateTrainers, 
-    canUpdateTrainers, 
+import {
+    canViewTrainers,
+    canCreateTrainers,
+    canUpdateTrainers,
     canActivateTrainers,
-    canDeactivateTrainers, 
+    canDeactivateTrainers,
     canDeleteTrainers,
     canSearchTrainers
 } from '../middlewares/trainer.middleware';
-import { 
-    idSchema, 
-    createTrainerSchema, 
-    updateTrainerSchema, 
-    searchTrainerSchema 
+import {
+    idSchema,
+    createTrainerSchema,
+    updateTrainerSchema,
+    searchTrainerSchema
 } from '../validators/trainer.validator';
 
 const router = Router();
