@@ -64,7 +64,7 @@ router.get('/my-attendances/date-range',
 );
 
 //✅ Ruta para obtener historial de asistencias de un cliente (ASIST_CLIENT_INFO)   
-router.get('/my-attendances/:personId', 
+router.get('/my-attendances/:id', 
     canViewClientInfo as unknown as RequestHandler,  // Permite filtro por usuario para clientes
     getClientAttendanceHistory as unknown as RequestHandler
 );
