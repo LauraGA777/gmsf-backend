@@ -642,7 +642,7 @@ export class AttendanceController {
 
     public async getClientAttendanceHistory(req: Request, res: Response) {
         try {
-            const { userId } = req.params;
+            const { id } = req.params;
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 20;
             const offset = (page - 1) * limit;
@@ -650,7 +650,7 @@ export class AttendanceController {
             // Obtener la persona asociada al usuario directamente
             const person = await Person.findOne({
                 where: {
-                    id_usuario: userId,
+                    id_usuario: id,
                     estado: true
                 },
                 attributes: ['id_persona']
@@ -755,21 +755,132 @@ export class AttendanceController {
         };
     }
 
-    // Método auxiliar para obtener rangos de fecha según el período
-    public getClientDateRangeByPeriod(period: string) {
-        const now = DateTimeUtils.nowInBogota();
+    // Controlador para obtener rangos de fecha según el período
+    public async getClientDateRangeByPeriod(req: Request, res: Response) {
+        try {
+            const { period = 'monthly' } = req.query;
+            const userId = (req.user as any)?.id;
 
-        switch (period) {
-            case 'daily':
-                return DateTimeUtils.getTodayRange();
-            case 'weekly':
-                return DateTimeUtils.getCurrentWeekRange();
-            case 'monthly':
-                return DateTimeUtils.getCurrentMonthRange();
-            case 'yearly':
-                return DateTimeUtils.getCurrentYearRange();
-            default:
-                return DateTimeUtils.getCurrentMonthRange();
+            if (!userId) {
+                return ApiResponse.error(res, "Usuario no autenticado", 401);
+            }
+
+            // Obtener la persona asociada al usuario
+            const person = await Person.findOne({
+                where: { id_usuario: userId, estado: true },
+                attributes: ['id_persona']
+            });
+
+            if (!person) {
+                return ApiResponse.error(res, "Cliente no encontrado", 404);
+            }
+
+            let dateRange;
+            switch (period) {
+                case 'daily':
+                    dateRange = DateTimeUtils.getTodayRange();
+                    break;
+                case 'weekly':
+                    dateRange = DateTimeUtils.getCurrentWeekRange();
+                    break;
+                case 'monthly':
+                    dateRange = DateTimeUtils.getCurrentMonthRange();
+                    break;
+                case 'yearly':
+                    dateRange = DateTimeUtils.getCurrentYearRange();
+                    break;
+                default:
+                    dateRange = DateTimeUtils.getCurrentMonthRange();
+            }
+
+            // Obtener asistencias en el rango de fechas
+            const attendances = await Attendance.findAll({
+                where: {
+                    id_persona: person.id_persona,
+                    fecha_uso: {
+                        [Op.between]: [dateRange.start, dateRange.end]
+                    },
+                    estado: "Activo"
+                },
+                order: [['fecha_uso', 'ASC']],
+                attributes: ['id', 'fecha_uso', 'hora_registro']
+            });
+
+            return ApiResponse.success(
+                res,
+                {
+                    period,
+                    dateRange,
+                    attendances,
+                    total: attendances.length
+                },
+                "Rango de fechas obtenido exitosamente"
+            );
+
+        } catch (error) {
+            console.error("Error al obtener rango de fechas:", error);
+            return ApiResponse.error(res, "Error al obtener el rango de fechas");
+        }
+    }
+
+    // Controlador para obtener estadísticas del cliente
+    public async getClientStatsController(req: Request, res: Response) {
+        try {
+            const { period = 'monthly' } = req.query;
+            const userId = (req.user as any)?.id;
+
+            if (!userId) {
+                return ApiResponse.error(res, "Usuario no autenticado", 401);
+            }
+
+            // Obtener la persona asociada al usuario
+            const person = await Person.findOne({
+                where: { id_usuario: userId, estado: true },
+                attributes: ['id_persona']
+            });
+
+            if (!person) {
+                return ApiResponse.error(res, "Cliente no encontrado", 404);
+            }
+
+            let dateRange;
+            switch (period) {
+                case 'daily':
+                    dateRange = DateTimeUtils.getTodayRange();
+                    break;
+                case 'weekly':
+                    dateRange = DateTimeUtils.getCurrentWeekRange();
+                    break;
+                case 'monthly':
+                    dateRange = DateTimeUtils.getCurrentMonthRange();
+                    break;
+                case 'yearly':
+                    dateRange = DateTimeUtils.getCurrentYearRange();
+                    break;
+                default:
+                    dateRange = DateTimeUtils.getCurrentMonthRange();
+            }
+
+            // Obtener estadísticas usando el método auxiliar
+            const stats = await this.getClientAttendanceStats(
+                person.id_persona,
+                dateRange.start,
+                dateRange.end
+            );
+
+            return ApiResponse.success(
+                res,
+                {
+                    period,
+                    dateRange,
+                    stats
+                },
+                "Estadísticas del cliente obtenidas exitosamente"
+            );
+
+        } catch (error) {
+            console.error("Error al obtener estadísticas del cliente:", error);
+            return ApiResponse.error(res, "Error al obtener las estadísticas del cliente");
         }
     }
 }
@@ -787,7 +898,7 @@ export const deleteAttendances = attendanceController.delete.bind(attendanceCont
 export const getStats = attendanceController.getStats.bind(attendanceController);
 export const getClientAttendanceHistory = attendanceController.getClientAttendanceHistory.bind(attendanceController);
 export const getClientDateRangeByPeriod = attendanceController.getClientDateRangeByPeriod.bind(attendanceController);
-export const getClientAttendanceStats = attendanceController.getClientAttendanceStats.bind(attendanceController);
+export const getClientAttendanceStats = attendanceController.getClientStatsController.bind(attendanceController);
 
 // Exportar el controlador por defecto
 export default attendanceController;
