@@ -120,16 +120,13 @@ export class UserController {
 
     public async checkDocumentExists(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { numero_documento, tipo_documento } = req.query;
-            if (!numero_documento || !tipo_documento) {
-                return next(new ApiError('Tipo y número de documento son requeridos', 400));
+            const { numero_documento } = req.params;
+            const { excludeUserId } = req.query;
+            if (!numero_documento) {
+                throw new ApiError('Número de documento es requerido', 400);
             }
-
-            const result = await this.userService.checkDocumentExists(
-                tipo_documento as string,
-                numero_documento as string
-            );
-            ApiResponse.success(res, result, 'Usuario encontrado');
+            const result = await this.userService.checkDocumentExists(numero_documento, (excludeUserId as string) ?? '');
+            ApiResponse.success(res, result , result.userExists ? 'Documento ya existe' : 'Documento disponible');
         } catch (error) {
             next(error);
         }

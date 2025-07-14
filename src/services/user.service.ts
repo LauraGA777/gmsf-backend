@@ -314,27 +314,14 @@ export class UserService {
         };
     }
 
-    public async checkDocumentExists(tipo_documento: string, numero_documento: string) {
-        const user = await User.findOne({ 
-            where: { 
-                numero_documento, 
-                tipo_documento 
-            }
-        });
-
-        if (!user) {
-            // If user does not exist, return a clear response.
-            return { userExists: false, isTrainer: false, userData: null };
+    public async checkDocumentExists(numero_documento: string, excludeUserId?: string) {
+        const whereConditions: any = { numero_documento };
+        if (excludeUserId) {
+            whereConditions.id = { [Op.ne]: excludeUserId };
         }
 
-        // If user exists, check if they are a trainer.
-        const trainer = await Trainer.findOne({ where: { id_usuario: user.id } });
-        
-        return { 
-            userExists: true,
-            isTrainer: !!trainer,
-            userData: user.get()
-        };
+        const user = await User.findOne({ where: whereConditions });
+        return { userExists: !!user };
     }
 
     public async checkEmailExists(email: string, excludeUserId?: string) {
