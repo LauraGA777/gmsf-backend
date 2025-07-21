@@ -883,6 +883,124 @@ export class AttendanceController {
             return ApiResponse.error(res, "Error al obtener las estadísticas del cliente");
         }
     }
+
+    // Nuevo método para obtener historial de asistencias del cliente autenticado
+    public async getMyAttendanceHistory(req: Request, res: Response) {
+        try {
+            const userId = (req.user as any)?.id; // Obtiene el usuario del token
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 20;
+            
+            if (!userId) {
+                return ApiResponse.error(res, "Usuario no autenticado", 401);
+            }
+
+            // Buscar la persona asociada al usuario autenticado
+            const person = await Person.findOne({
+                where: { id_usuario: userId, estado: true },
+                attributes: ['id_persona']
+            });
+
+            if (!person) {
+                return ApiResponse.error(res, "Cliente no encontrado", 404);
+            }
+
+            // Obtener solo las asistencias del cliente autenticado
+            const { count, rows: attendances } = await Attendance.findAndCountAll({
+                where: {
+                    id_persona: person.id_persona,
+                    estado: "Activo"
+                },
+                include: [{
+                    model: Contract,
+                    as: "contrato",
+                    attributes: ['codigo'],
+                    include: [{
+                        model: Membership,
+                        as: "membresia",
+                        attributes: ['nombre']
+                    }]
+                }],
+                order: [['fecha_uso', 'DESC']],
+                limit,
+                offset: (page - 1) * limit,
+                attributes: [
+                    'id', 'fecha_uso', 'hora_registro', 'estado', 'fecha_registro'
+                ]
+            });
+
+            return ApiResponse.success(res, attendances, "Historial obtenido exitosamente", {
+                total: count,
+                page,
+                limit,
+                totalPages: Math.ceil(count / limit)
+            });
+        } catch (error) {
+            console.error("Error al obtener historial:", error);
+            return ApiResponse.error(res, "Error al obtener historial");
+        }
+    }
+
+    // Nuevo método para obtener estadísticas del cliente autenticado
+    public async getMyAttendanceStats(req: Request, res: Response) {
+        try {
+            const { period = 'monthly' } = req.query;
+            const userId = (req.user as any)?.id;
+
+            if (!userId) {
+                return ApiResponse.error(res, "Usuario no autenticado", 401);
+            }
+
+            // Obtener la persona asociada al usuario
+            const person = await Person.findOne({
+                where: { id_usuario: userId, estado: true },
+                attributes: ['id_persona']
+            });
+
+            if (!person) {
+                return ApiResponse.error(res, "Cliente no encontrado", 404);
+            }
+
+            let dateRange;
+            switch (period) {
+                case 'daily':
+                    dateRange = DateTimeUtils.getTodayRange();
+                    break;
+                case 'weekly':
+                    dateRange = DateTimeUtils.getCurrentWeekRange();
+                    break;
+                case 'monthly':
+                    dateRange = DateTimeUtils.getCurrentMonthRange();
+                    break;
+                case 'yearly':
+                    dateRange = DateTimeUtils.getCurrentYearRange();
+                    break;
+                default:
+                    dateRange = DateTimeUtils.getCurrentMonthRange();
+            }
+
+            // Obtener estadísticas usando el método auxiliar
+            const stats = await this.getClientAttendanceStats(
+                person.id_persona,
+                dateRange.start,
+                dateRange.end
+            );
+
+            return ApiResponse.success(
+                res,
+                {
+                    period,
+                    dateRange,
+                    stats
+                },
+                "Estadísticas obtenidas exitosamente"
+            );
+
+        } catch (error) {
+            console.error("Error al obtener estadísticas:", error);
+            return ApiResponse.error(res, "Error al obtener las estadísticas");
+        }
+    }
 }
 
 
@@ -899,6 +1017,8 @@ export const getStats = attendanceController.getStats.bind(attendanceController)
 export const getClientAttendanceHistory = attendanceController.getClientAttendanceHistory.bind(attendanceController);
 export const getClientDateRangeByPeriod = attendanceController.getClientDateRangeByPeriod.bind(attendanceController);
 export const getClientAttendanceStats = attendanceController.getClientStatsController.bind(attendanceController);
+export const getMyAttendanceHistory = attendanceController.getMyAttendanceHistory.bind(attendanceController);
+export const getMyAttendanceStats = attendanceController.getMyAttendanceStats.bind(attendanceController);
 
 // Exportar el controlador por defecto
 export default attendanceController;

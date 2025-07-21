@@ -517,3 +517,85 @@ export const canViewClientHistory = async (req: Request, res: Response, next: Ne
         });
     }
 };
+
+/**
+ * Middleware para verificar privilegio de ver historial personal de asistencias
+ * Privilegio: ASIST_MY_HISTORY
+ */
+export const canViewMyAttendanceHistory = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = (req.user as any)?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Usuario no autenticado'
+            });
+        }
+
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+
+        // Verificar privilegio específico para historial personal
+        if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.ASIST_MY_HISTORY)) {
+            return res.status(403).json({
+                status: 'error',
+                message: 'No tienes permisos para ver tu historial de asistencias'
+            });
+        }
+
+        next();
+    } catch (error) {
+        console.error('Error en middleware canViewMyAttendanceHistory:', error);
+        return res.status(500).json({
+            status: 'error',
+            message: 'Error interno del servidor'
+        });
+    }
+};
+
+/**
+ * Middleware para verificar privilegio de ver estadísticas personales de asistencias
+ * Privilegio: ASIST_MY_STATS
+ */
+export const canViewMyAttendanceStats = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = (req.user as any)?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Usuario no autenticado'
+            });
+        }
+
+        // Verificar si es administrador primero
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        if (isAdmin) {
+            return next();
+        }
+
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+
+        // Verificar privilegio específico para estadísticas personales
+        if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.ASIST_MY_STATS)) {
+            return res.status(403).json({
+                status: 'error',
+                message: 'No tienes permisos para ver tus estadísticas de asistencias'
+            });
+        }
+
+        next();
+    } catch (error) {
+        console.error('Error en middleware canViewMyAttendanceStats:', error);
+        return res.status(500).json({
+            status: 'error',
+            message: 'Error interno del servidor'
+        });
+    }
+};

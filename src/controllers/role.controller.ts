@@ -370,6 +370,67 @@ export const deactivateRole = async (req: Request, res: Response, next: NextFunc
     }
 };
 
+// Activar rol
+export const activateRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const transaction: Transaction = await sequelize.transaction();
+
+    try {
+        const { id } = idSchema.parse({ id: req.params.id });
+
+        // Buscar rol
+        const role = await Role.findByPk(id, {
+            include: [
+                {
+                    model: User,
+                    as: 'usuarios'
+                }
+            ],
+            transaction
+        });
+
+        if (!role) {
+            await transaction.rollback();
+            res.status(404).json({
+                status: 'error',
+                message: "Rol no encontrado"
+            });
+            return;
+        }
+
+        // Verificar si el rol ya está activo
+        if (role.estado) {
+            await transaction.rollback();
+            res.status(400).json({
+                status: 'error',
+                message: "El rol ya está activo"
+            });
+            return;
+        }
+
+        // Activar rol
+        await role.update({ estado: true }, { transaction });
+
+        await transaction.commit();
+
+        res.status(200).json({
+            status: 'success',
+            message: "Rol activado exitosamente",
+            data: { role }
+        });
+
+    } catch (error) {
+        await transaction.rollback();
+        if (error instanceof z.ZodError) {
+            res.status(400).json({
+                status: 'error',
+                message: "ID de rol inválido"
+            });
+            return;
+        }
+        next(error);
+    }
+};
+
 // Eliminar rol
 export const deleteRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const transaction: Transaction = await sequelize.transaction();
@@ -1102,3 +1163,4 @@ export const getUsersByRole = async (req: Request, res: Response, next: NextFunc
         next(error);
     }
 };
+

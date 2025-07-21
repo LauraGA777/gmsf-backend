@@ -10,7 +10,9 @@ import {
     canViewOwnAttendances,
     canViewClientInfo,
     canViewClientStats,
-    canViewClientHistory
+    canViewClientHistory,
+    canViewMyAttendanceHistory,
+    canViewMyAttendanceStats
 } from '../middlewares/attendance.middleware';
 import { 
     registerAttendance,
@@ -21,7 +23,9 @@ import {
     getStats,
     getClientAttendanceHistory,
     getClientDateRangeByPeriod,
-    getClientAttendanceStats
+    getClientAttendanceStats,
+    getMyAttendanceHistory,
+    getMyAttendanceStats
 } from '../controllers/attendance.controller';
 
 const router = Router();
@@ -51,8 +55,21 @@ router.get('/stats',
     canViewAttendanceStats as unknown as RequestHandler,
     getStats as unknown as RequestHandler
 );
-// ✅ Ruta para obtener estadísticas de asistencia por período (ASIST_CLIENT_STATS)
+
+// ✅ Ruta para obtener historial de asistencias del usuario autenticado (ASIST_MY_HISTORY)
+router.get('/my-attendances/me', 
+    canViewMyAttendanceHistory as unknown as RequestHandler,
+    getMyAttendanceHistory as unknown as RequestHandler
+);
+
+// ✅ Ruta para obtener estadísticas de asistencia del usuario autenticado (ASIST_MY_STATS)
 router.get('/my-attendances/stats', 
+    canViewMyAttendanceStats as unknown as RequestHandler,
+    getMyAttendanceStats as unknown as RequestHandler
+);
+
+// ✅ Ruta para obtener estadísticas de asistencia por período (ASIST_CLIENT_STATS) - Para administradores
+router.get('/client-attendances/stats', 
     canViewClientStats as unknown as RequestHandler,
     getClientAttendanceStats as unknown as RequestHandler
 );

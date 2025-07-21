@@ -4,6 +4,7 @@ import {
     createRole,
     updateRole,
     deactivateRole,
+    activateRole,
     deleteRole,
     searchRoles,
     listPermissionsAndPrivileges,
@@ -165,6 +166,21 @@ router.delete('/:id/privileges',
 router.patch('/:id/deactivate', 
     canUpdateRoles as unknown as RequestHandler,
     deactivateRole as unknown as RequestHandler
+);
+
+/**
+ * @swagger
+ * /api/roles/{id}/activate:
+ *   patch:
+ *     summary: Activar un rol
+ *     tags: [Roles]
+ *     security:
+ *       - bearerAuth: []
+ */
+// ✅ Activa un rol (SYSTEM_UPDATE_ROLES)
+router.patch('/:id/activate', 
+    canUpdateRoles as unknown as RequestHandler,
+    activateRole as unknown as RequestHandler
 );
 
 /**
