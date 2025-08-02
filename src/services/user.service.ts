@@ -1,6 +1,5 @@
 import { Op, WhereOptions, Transaction } from 'sequelize';
 import bcrypt from 'bcrypt';
-import { z } from 'zod';
 import User from '../models/user';
 import Role from '../models/role';
 import UserHistory from '../models/userHistory';
@@ -13,6 +12,7 @@ import { ApiError } from '../errors/apiError';
 import { UpdateUserType, SearchUserType, UserCreateType } from '../validators/user.validator';
 import Person from '../models/person.model';
 import Trainer from '../models/trainer';
+import { enviarCorreoBienvenida } from '../utils/email.utils';
 
 interface UserData {
     nombre: string;
@@ -125,22 +125,46 @@ export class UserService {
         }
 
         const codigo = await this.generateUserCode();
-        const contrasena_hash = await bcrypt.hash(userData.contrasena, 10);
+        
+        // SIEMPRE usar número de documento como contraseña inicial
+        const contrasena_hash = await bcrypt.hash(userData.numero_documento, 10);
 
+        // Crear usuario
         const user = await User.create({
             ...userData,
             codigo,
             contrasena_hash,
             estado: true,
             fecha_actualizacion: new Date(),
-            asistencias_totales: 0
+            asistencias_totales: 0,
+            primer_acceso: true // Siempre es primer acceso
         }, { transaction });
+
+        // Siempre enviar email de bienvenida
+        try {
+            await enviarCorreoBienvenida(userData.correo, {
+                nombre: userData.nombre,
+                apellido: userData.apellido,
+                numeroDocumento: userData.numero_documento,
+            });
+        } catch (emailError) {
+            console.error('Error enviando email de bienvenida:', emailError);
+            // No fallar la creación del usuario si el email falla
+        }
 
         const accessToken = generateAccessToken(user.id);
 
-        const createdUser = await User.findByPk(user.id, { transaction, include: [{ model: Role, as: 'rol'}] });
+        const createdUser = await User.findByPk(user.id, { 
+            transaction, 
+            attributes: { exclude: ['contrasena_hash'] },
+            include: [{ model: Role, as: 'rol'}] 
+        });
 
-        return { user: createdUser, accessToken };
+        return {
+            user: createdUser,
+            accessToken,
+            message: 'Usuario creado exitosamente. Se ha enviado un email con las credenciales de acceso.'
+        };
     }
 
     public async update(id: number, data: UpdateUserType, transaction?: Transaction) {
@@ -332,4 +356,4 @@ export class UserService {
         const user = await User.findOne({ where: whereConditions });
         return { exists: !!user };
     }
-} 
+}

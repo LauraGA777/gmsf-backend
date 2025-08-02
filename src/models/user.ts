@@ -1,7 +1,7 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/db';
 
-interface UserAttributes {
+export interface UserAttributes {
     id: number;
     codigo: string;
     nombre: string;
@@ -18,6 +18,8 @@ interface UserAttributes {
     fecha_nacimiento: Date;
     estado: boolean;
     id_rol?: number;
+    primer_acceso?: boolean; // Para controlar si debe cambiar contraseña
+    fecha_ultimo_cambio_password?: Date; // Para tracking de cambios
 }
 
 interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'fecha_actualizacion' | 'asistencias_totales' | 'estado'> {}
@@ -39,6 +41,8 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
     public fecha_nacimiento!: Date;
     public estado!: boolean;
     public id_rol!: number;
+    public primer_acceso!: boolean; // Para controlar si debe cambiar contraseña
+    public fecha_ultimo_cambio_password!: Date; // Para tracking de cambios
 
     // Asociaciones (sin importar los tipos)
     public rol?: any;
@@ -175,6 +179,14 @@ User.init({
             key: 'id'
         },
         onDelete: 'SET NULL'
+    },
+    primer_acceso: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
+    },
+    fecha_ultimo_cambio_password: {
+        type: DataTypes.DATE,
+        allowNull: true
     }
 }, {
     sequelize,

@@ -39,8 +39,8 @@ export const env = cleanEnv(process.env, {
     SMTP_USER: str(),
     SMTP_PASS: str(),
     SMTP_FROM: str(),
-    FRONTEND_URL: str({ default: 'http://localhost:5173' })
+    FRONTEND_URL: str({ default: 'https://gmsf-strongfitgym.web.app/' })
 });
 
-// Exportación tipo segura
+// Exportación tipo segura 
 export type EnvVariables = typeof env;

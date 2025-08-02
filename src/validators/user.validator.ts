@@ -8,7 +8,6 @@ export const userCreateSchema = z.object({
     nombre: z.string().min(3).max(100),
     apellido: z.string().min(3).max(100),
     correo: z.string().email(),
-    contrasena: z.string().min(6),
     telefono: z.string().regex(/^\d{7,15}$/).optional(),
     direccion: z.string().optional(),
     genero: z.enum(['M', 'F', 'O']).optional(),
