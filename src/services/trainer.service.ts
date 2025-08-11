@@ -57,7 +57,7 @@ export class TrainerService {
                 if (!userData.contrasena) {
                     throw new ApiError('La contraseña es requerida para crear un nuevo usuario.', 400);
                 }
-                const { user: newUser } = await this.userService.create({ ...userData, contrasena: userData.contrasena, id_rol: trainerRole.id }, transaction);
+                const { user: newUser } = await this.userService.create({ ...userData, id_rol: trainerRole.id }, transaction);
                 user = newUser;
             }
 

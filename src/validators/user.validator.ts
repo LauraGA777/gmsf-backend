@@ -38,7 +38,23 @@ export const searchUserSchema = z.object({
     direccion: z.enum(['ASC', 'DESC']).default('ASC')
 });
 
+// Agregar un esquema específico para creación de entrenadores
+export const trainerCreateSchema = z.object({
+    nombre: z.string().min(3).max(100),
+    apellido: z.string().min(3).max(100),
+    correo: z.string().email(),
+    contrasena: z.string().min(6), // Contraseña requerida para entrenadores
+    telefono: z.string().regex(/^\d{7,15}$/).optional(),
+    direccion: z.string().optional(),
+    genero: z.enum(['M', 'F', 'O']).optional(),
+    tipo_documento: z.enum(['CC', 'CE', 'TI', 'PP', 'DIE']),
+    numero_documento: z.string().min(5).max(20),
+    fecha_nacimiento: z.string().transform(val => new Date(val)),
+    id_rol: z.number().optional()
+});
+
 export type IdSchemaType = z.infer<typeof idSchema>;
 export type UserCreateType = z.infer<typeof userCreateSchema>;
 export type UpdateUserType = z.infer<typeof updateUserSchema>;
 export type SearchUserType = z.infer<typeof searchUserSchema>;
+export type TrainerCreateType = z.infer<typeof trainerCreateSchema>;
