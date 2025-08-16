@@ -9,7 +9,6 @@ import {
 } from "../validators/client.validator";
 import  ApiResponse  from "../utils/apiResponse";
 import { ApiError } from "../errors/apiError";
-
 export class ClientController {
   private clientService: ClientService;
 
@@ -133,6 +132,66 @@ export class ClientController {
         "Beneficiarios obtenidos correctamente"
       );
     } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Obtener información propia del cliente autenticado
+   */
+  public async getMyInfo(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = (req.user as any)?.id;
+      
+      if (!userId) {
+        res.status(401).json({
+          status: 'error',
+          message: 'Usuario no autenticado'
+        });
+        return;
+      }
+
+      console.log("--- [Controller] Getting my info for userId:", userId);
+
+      const client = await this.clientService.findByUserId(userId);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Tu información obtenida correctamente',
+        data: client
+      });
+    } catch (error) {
+      console.error('Error en getMyInfo:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * Obtener beneficiarios propios del cliente autenticado
+   */
+  public async getMyBeneficiaries(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = (req.user as any)?.id;
+      
+      if (!userId) {
+        res.status(401).json({
+          status: 'error',
+          message: 'Usuario no autenticado'
+        });
+        return;
+      }
+
+      console.log("--- [Controller] Get My Beneficiaries: User ID ---", userId);
+
+      const beneficiaries = await this.clientService.getBeneficiariesByUserId(userId);
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'Tus beneficiarios obtenidos correctamente',
+        data: beneficiaries
+      });
+    } catch (error) {
+      console.error("--- [Controller] ERROR in getMyBeneficiaries ---", error);
       next(error);
     }
   }

@@ -5,8 +5,12 @@ import {
     canViewClients, 
     canCreateClients, 
     canUpdateClients, 
-    canDeleteClients, 
-    canSearchClients 
+    canDeleteClients,
+    canSearchClients,
+    canAccessClientData,
+    canViewClientDetails,
+    canUpdateOwnClientData,
+    canViewBeneficiaries
 } from '../middlewares/client.middleware';
 
 const router = Router();
@@ -15,6 +19,11 @@ router.use(verifyToken as unknown as RequestHandler);
 
 
 const clientController = new ClientController();
+router.get('/me', canViewClientDetails as unknown as RequestHandler, 
+    clientController.getMyInfo.bind(clientController) as unknown as RequestHandler);
+
+router.get('/me/beneficiaries', canViewBeneficiaries as unknown as RequestHandler, 
+    clientController.getMyBeneficiaries.bind(clientController) as unknown as RequestHandler);
 
 // GET /api/clients - Get all clients
 router.get("/", canViewClients as unknown as RequestHandler,
@@ -36,7 +45,7 @@ router.post("/", canCreateClients as unknown as RequestHandler,
     clientController.create.bind(clientController) as unknown as RequestHandler
 );
 
-// PUT /api/clients/:id - Update an existing client
+// PUT /api/clients/:id - Update an existing client     
 router.put("/:id", canUpdateClients as unknown as RequestHandler,
     clientController.update.bind(clientController) as unknown as RequestHandler
 );

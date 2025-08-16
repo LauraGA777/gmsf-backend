@@ -382,4 +382,129 @@ export class ClientService {
 
     return beneficiaries;
   }
+
+  /**
+ * Buscar cliente por ID de usuario (para rutas /me)
+ */
+public async findByUserId(userId: number) {
+    try {
+        console.log("--- [Service] Finding client by userId:", userId);
+        
+        // Primero buscar el usuario
+        const user = await User.findByPk(userId, {
+            include: [
+                {
+                    model: Role,
+                    as: 'rol',
+                    attributes: ['id', 'codigo', 'nombre']
+                }
+            ],
+            attributes: { exclude: ['contrasena_hash'] }
+        });
+
+        if (!user) {
+            throw new ApiError('Usuario no encontrado', 404);
+        }
+
+        console.log("--- [Service] User found:", user.toJSON());
+
+        // Si es un cliente, buscar la información completa de persona
+        const persona = await Person.findOne({
+            where: { id_usuario: userId },
+            include: [
+                {
+                    model: User,
+                    as: 'usuario',
+                    attributes: { exclude: ['contrasena_hash'] },
+                    include: [
+                        {
+                            model: Role,
+                            as: 'rol',
+                            attributes: ['id', 'codigo', 'nombre']
+                        }
+                    ]
+                },
+                {
+                    model: EmergencyContact,
+                    as: 'contactos_emergencia'
+                },
+                {
+                    model: Beneficiary,
+                    as: 'beneficiarios',
+                    include: [
+                        {
+                            model: Person,
+                            as: 'persona_beneficiaria',
+                            include: [
+                                {
+                                    model: User,
+                                    as: 'usuario',
+                                    attributes: { exclude: ['contrasena_hash'] }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        });
+
+        if (persona) {
+            console.log("--- [Service] Persona found:", persona.toJSON());
+            return persona;
+        } else {
+            // Si no tiene persona, devolver solo el usuario
+            console.log("--- [Service] No persona found, returning user only");
+            return user;
+        }
+    } catch (error) {
+        console.error('--- [Service] Error in findByUserId:', error);
+        throw error;
+    }
+}
+
+/**
+ * Obtener beneficiarios por ID de usuario
+ */
+public async getBeneficiariesByUserId(userId: number) {
+    try {
+        console.log("--- [Service] Getting beneficiaries by userId:", userId);
+        
+        // Buscar la persona del usuario
+        const persona = await Person.findOne({
+            where: { id_usuario: userId }
+        });
+
+        if (!persona) {
+            console.log("--- [Service] No persona found for userId:", userId);
+            return [];
+        }
+
+        // Buscar beneficiarios
+        const beneficiaries = await Beneficiary.findAll({
+            where: { 
+                id_cliente: persona.id_persona,
+                estado: true 
+            },
+            include: [
+                {
+                    model: Person,
+                    as: 'persona_beneficiaria',
+                    include: [
+                        {
+                            model: User,
+                            as: 'usuario',
+                            attributes: { exclude: ['contrasena_hash'] }
+                        }
+                    ]
+                }
+            ]
+        });
+
+        console.log("--- [Service] Beneficiaries found:", beneficiaries.length);
+        return beneficiaries;
+    } catch (error) {
+        console.error('--- [Service] Error in getBeneficiariesByUserId:', error);
+        throw error;
+    }
+}
 }
