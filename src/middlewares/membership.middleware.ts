@@ -405,8 +405,10 @@ export const canChangeMembershipStatus = async (req: Request, res: Response, nex
 export const canViewMyMembership = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const userId = (req.user as any)?.id;
+        console.log('🔍 Verificando privilegio MEMBERSHIP_MY_VIEW para usuario:', userId);
 
         if (!userId) {
+            console.log('❌ Usuario no autenticado');
             res.status(401).json({
                 status: 'error',
                 message: 'Usuario no autenticado'
@@ -415,8 +417,12 @@ export const canViewMyMembership = async (req: Request, res: Response, next: Nex
         }
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        console.log('📋 Privilegios del usuario:', userInfo.privileges);
+        console.log('🎯 Privilegio requerido:', PRIVILEGES.MEMBERSHIP_MY_VIEW);
 
-        if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.MEMBERSHIP_READ)) {
+        // ✅ CAMBIO: Usar el privilegio específico para clientes
+        if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.MEMBERSHIP_MY_VIEW)) {
+            console.log('❌ Usuario sin privilegio MEMBERSHIP_MY_VIEW');
             res.status(403).json({
                 status: 'error',
                 message: 'No tienes permisos para ver tu membresía'
@@ -424,9 +430,10 @@ export const canViewMyMembership = async (req: Request, res: Response, next: Nex
             return;
         }
         
+        console.log('✅ Privilegio verificado correctamente');
         next();
     } catch (error) {
-        console.error('Error in canViewMyMembership middleware:', error);
+        console.error('💥 Error in canViewMyMembership middleware:', error);
         res.status(500).json({
             status: 'error',
             message: 'Error de servidor en middleware de autorización'
@@ -449,7 +456,8 @@ export const canViewMyMembershipHistory = async (req: Request, res: Response, ne
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
-        if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.MEMBERSHIP_READ)) {
+        // ✅ CAMBIO: Usar el privilegio específico
+        if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.MEMBERSHIP_MY_HISTORY)) {
             res.status(403).json({
                 status: 'error',
                 message: 'No tienes permisos para ver tu historial de membresías'
@@ -482,7 +490,8 @@ export const canViewMyMembershipBenefits = async (req: Request, res: Response, n
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
-        if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.MEMBERSHIP_READ)) {
+        // ✅ CAMBIO: Usar el privilegio específico
+        if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.MEMBERSHIP_MY_BENEFITS)) {
             res.status(403).json({
                 status: 'error',
                 message: 'No tienes permisos para ver los beneficios de tu membresía'
