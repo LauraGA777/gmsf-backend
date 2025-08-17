@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { userHasPrivilege, PRIVILEGES } from '../utils/permissions';
+import { userHasPrivilege, PRIVILEGES }  from '../utils/permissions';
 import RolePermissionManager from '../utils/rolePermissionManager';
 
 /**
@@ -397,6 +397,105 @@ export const canChangeMembershipStatus = async (req: Request, res: Response, nex
         return res.status(500).json({
             status: 'error',
             message: 'Error interno del servidor'
+        });
+    }
+};
+
+// Middleware para ver mi membresía activa
+export const canViewMyMembership = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const userId = (req.user as any)?.id;
+
+        if (!userId) {
+            res.status(401).json({
+                status: 'error',
+                message: 'Usuario no autenticado'
+            });
+            return;
+        }
+
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+
+        if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.MEMBERSHIP_READ)) {
+            res.status(403).json({
+                status: 'error',
+                message: 'No tienes permisos para ver tu membresía'
+            });
+            return;
+        }
+        
+        next();
+    } catch (error) {
+        console.error('Error in canViewMyMembership middleware:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Error de servidor en middleware de autorización'
+        });
+    }
+};
+
+// Middleware para ver mi historial de membresías
+export const canViewMyMembershipHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const userId = (req.user as any)?.id;
+
+        if (!userId) {
+            res.status(401).json({
+                status: 'error',
+                message: 'Usuario no autenticado'
+            });
+            return;
+        }
+
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        
+        if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.MEMBERSHIP_READ)) {
+            res.status(403).json({
+                status: 'error',
+                message: 'No tienes permisos para ver tu historial de membresías'
+            });
+            return;
+        }
+        
+        next();
+    } catch (error) {
+        console.error('Error in canViewMyMembershipHistory middleware:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Error de servidor en middleware de autorización'
+        });
+    }
+};
+
+// Middleware para ver beneficios de mi membresía
+export const canViewMyMembershipBenefits = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const userId = (req.user as any)?.id;
+
+        if (!userId) {
+            res.status(401).json({
+                status: 'error',
+                message: 'Usuario no autenticado'
+            });
+            return;
+        }
+
+        const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
+        
+        if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.MEMBERSHIP_READ)) {
+            res.status(403).json({
+                status: 'error',
+                message: 'No tienes permisos para ver los beneficios de tu membresía'
+            });
+            return;
+        }
+        
+        next();
+    } catch (error) {
+        console.error('Error in canViewMyMembershipBenefits middleware:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Error de servidor en middleware de autorización'
         });
     }
 };

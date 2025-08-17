@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { Op, fn, col } from 'sequelize';
 import Membership from '../models/membership';
 import Contract from '../models/contract';
+import Person from '../models/person.model';
+import User from '../models/user';
 import { z } from 'zod';
 import sequelize from '../config/db';
 import {
@@ -764,6 +766,301 @@ export const getMembershipStats = async (req: Request, res: Response, next: Next
             500,
             process.env.NODE_ENV === 'development' ? error : undefined
         );
+    }
+};
+
+// Obtener membresía activa del cliente autenticado
+export const getMyActiveMembership = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+        const userId = (req.user as any)?.id;
+
+        if (!userId) {
+            return ApiResponse.error(res, "Usuario no autenticado", 401);
+        }
+
+        // Buscar el contrato activo del usuario con su membresía
+        const activeContract = await Contract.findOne({
+            where: {
+                estado: 'Activo',
+                fecha_inicio: { [Op.lte]: new Date() },
+                fecha_fin: { [Op.gte]: new Date() }
+            },
+            include: [
+                {
+                    model: Membership,
+                    as: 'membresia',
+                    attributes: [
+                        'id',
+                        'codigo',
+                        'nombre',
+                        'descripcion',
+                        'dias_acceso',
+                        'vigencia_dias',
+                        'precio'
+                    ]
+                },
+                {
+                    model: Person,
+                    as: 'persona',
+                    include: [{
+                        model: User,
+                        as: 'usuario',
+                        where: { id: userId },
+                        attributes: ['id', 'nombre', 'apellido']
+                    }]
+                }
+            ]
+        });
+
+        if (!activeContract) {
+            return ApiResponse.error(res, "No tienes una membresía activa", 404);
+        }
+
+        const membership = activeContract.membresia;
+        const now = new Date();
+        const fechaInicio = new Date(activeContract.fecha_inicio);
+        const fechaFin = new Date(activeContract.fecha_fin);
+        
+        // Calcular días transcurridos y restantes
+        const diasTranscurridos = Math.floor((now.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24));
+        const diasRestantes = Math.max(0, Math.floor((fechaFin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+        
+        // Calcular porcentaje de uso
+        const totalDias = Math.floor((fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24));
+        const porcentajeUso = Math.min(100, Math.max(0, (diasTranscurridos / totalDias) * 100));
+
+        // Determinar estado de la membresía
+        let estadoMembresia = 'Activa';
+        if (diasRestantes <= 7) {
+            estadoMembresia = 'Próxima a vencer';
+        } else if (diasRestantes <= 0) {
+            estadoMembresia = 'Vencida';
+        }
+
+        const membershipStatus = {
+            contrato: {
+                id: activeContract.id,
+                codigo: activeContract.codigo,
+                estado: activeContract.estado,
+                fecha_inicio: fechaInicio,
+                fecha_fin: fechaFin
+            },
+            membresia: {
+                ...membership?.toJSON(),
+                precio_formato: new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP'
+                }).format(membership?.precio || 0)
+            },
+            estado: {
+                estado_actual: estadoMembresia,
+                dias_transcurridos: diasTranscurridos,
+                dias_restantes: diasRestantes,
+                porcentaje_uso: Math.round(porcentajeUso),
+                acceso_disponible: diasRestantes > 0
+            }
+        };
+
+        return ApiResponse.success(
+            res,
+            membershipStatus,
+            "Estado de membresía obtenido exitosamente"
+        );
+
+    } catch (error) {
+        console.error('Error getting my active membership:', error);
+        return ApiResponse.error(res, "Error al obtener el estado de la membresía", 500);
+    }
+};
+
+// Obtener historial de membresías del cliente
+export const getMyMembershipHistory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+        const userId = (req.user as any)?.id;
+        const { page = '1', limit = '10' } = req.query;
+
+        if (!userId) {
+            return ApiResponse.error(res, "Usuario no autenticado", 401);
+        }
+
+        const pageNum = Math.max(1, parseInt(page as string));
+        const limitNum = Math.min(50, Math.max(1, parseInt(limit as string)));
+        const offset = (pageNum - 1) * limitNum;
+
+        // Buscar todos los contratos del usuario (activos e inactivos)
+        const [contracts, total] = await Promise.all([
+            Contract.findAll({
+                include: [
+                    {
+                        model: Membership,
+                        as: 'membresia',
+                        attributes: [
+                            'id',
+                            'codigo',
+                            'nombre',
+                            'descripcion',
+                            'precio'
+                        ]
+                    },
+                    {
+                        model: Person,
+                        as: 'persona',
+                        include: [{
+                            model: User,
+                            as: 'usuario',
+                            where: { id: userId },
+                            attributes: ['id', 'nombre', 'apellido']
+                        }]
+                    }
+                ],
+                order: [['fecha_inicio', 'DESC']],
+                limit: limitNum,
+                offset: offset
+            }),
+            Contract.count({
+                include: [{
+                    model: Person,
+                    as: 'persona',
+                    include: [{
+                        model: User,
+                        as: 'usuario',
+                        where: { id: userId }
+                    }]
+                }]
+            })
+        ]);
+
+        const membershipHistory = contracts.map(contract => {
+            const now = new Date();
+            const fechaInicio = new Date(contract.fecha_inicio);
+            const fechaFin = new Date(contract.fecha_fin);
+            
+            let estadoDetallado = contract.estado;
+            if (contract.estado === 'Activo' && fechaFin < now) {
+                estadoDetallado = 'Vencido';
+            } else if (contract.estado === 'Activo' && fechaFin > now) {
+                const diasRestantes = Math.floor((fechaFin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                if (diasRestantes <= 7) {
+                    estadoDetallado = 'Por vencer';
+                }
+            }
+
+            return {
+                contrato_id: contract.id,
+                codigo_contrato: contract.codigo,
+                membresia: {
+                    nombre: contract.membresia?.nombre,
+                    descripcion: contract.membresia?.descripcion,
+                    precio: contract.membresia?.precio,
+                    precio_formato: new Intl.NumberFormat('es-CO', {
+                        style: 'currency',
+                        currency: 'COP'
+                    }).format(contract.membresia?.precio || 0)
+                },
+                periodo: {
+                    fecha_inicio: fechaInicio,
+                    fecha_fin: fechaFin,
+                    duracion_dias: Math.floor((fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24))
+                },
+                estado: contract.estado,
+                estado_detallado: estadoDetallado
+            };
+        });
+
+        return ApiResponse.success(
+            res,
+            {
+                total,
+                page: pageNum,
+                limit: limitNum,
+                totalPages: Math.ceil(total / limitNum),
+                historial: membershipHistory
+            },
+            "Historial de membresías obtenido exitosamente"
+        );
+
+    } catch (error) {
+        console.error('Error getting membership history:', error);
+        return ApiResponse.error(res, "Error al obtener el historial de membresías", 500);
+    }
+};
+
+// Obtener beneficios y detalles de la membresía actual
+export const getMyMembershipBenefits = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+        const userId = (req.user as any)?.id;
+
+        if (!userId) {
+            return ApiResponse.error(res, "Usuario no autenticado", 401);
+        }
+
+        // Buscar el contrato activo del usuario
+        const activeContract = await Contract.findOne({
+            where: {
+                estado: 'Activo',
+                fecha_inicio: { [Op.lte]: new Date() },
+                fecha_fin: { [Op.gte]: new Date() }
+            },
+            include: [
+                {
+                    model: Membership,
+                    as: 'membresia'
+                },
+                {
+                    model: Person,
+                    as: 'persona',
+                    include: [{
+                        model: User,
+                        as: 'usuario',
+                        where: { id: userId }
+                    }]
+                }
+            ]
+        });
+
+        if (!activeContract) {
+            return ApiResponse.error(res, "No tienes una membresía activa", 404);
+        }
+
+        const membership = activeContract.membresia;
+        const now = new Date();
+        const fechaFin = new Date(activeContract.fecha_fin);
+        const diasRestantes = Math.max(0, Math.floor((fechaFin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+
+        const benefits = {
+            membresia: {
+                nombre: membership?.nombre,
+                descripcion: membership?.descripcion,
+                acceso_total: `${membership?.dias_acceso}/${membership?.vigencia_dias} días`
+            },
+            acceso: {
+                puede_ingresar: diasRestantes > 0,
+                dias_restantes: diasRestantes,
+                acceso_hasta: fechaFin
+            },
+            servicios_incluidos: [
+                "Acceso completo al área de pesas",
+                "Uso de máquinas cardiovasculares",
+                "Acceso a vestidores y duchas",
+                "Asesoría básica de entrenamiento"
+            ],
+            horarios: {
+                lunes_viernes: "05:00 AM - 10:00 PM",
+                sabados: "06:00 AM - 08:00 PM",
+                domingos: "07:00 AM - 06:00 PM",
+                festivos: "07:00 AM - 02:00 PM"
+            }
+        };
+
+        return ApiResponse.success(
+            res,
+            benefits,
+            "Beneficios de membresía obtenidos exitosamente"
+        );
+
+    } catch (error) {
+        console.error('Error getting membership benefits:', error);
+        return ApiResponse.error(res, "Error al obtener los beneficios de la membresía", 500);
     }
 };
 
