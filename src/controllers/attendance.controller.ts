@@ -269,12 +269,14 @@ export class AttendanceController {
 
             // 6. Crear asistencia con try-catch específico
             let newAttendance;
+            const bogotaTime = DateTimeUtils.nowInBogota();
+            const horaString = `${bogotaTime.getHours().toString().padStart(2, '0')}:${bogotaTime.getMinutes().toString().padStart(2, '0')}:${bogotaTime.getSeconds().toString().padStart(2, '0')}`;
             try {
                 const attendanceData = {
                     id_persona: person.id_persona,
                     id_contrato: contract.id,
                     fecha_uso: DateTimeUtils.todayInBogota(),
-                    hora_registro: DateTimeUtils.currentTimeInBogota(),
+                    hora_registro: horaString,
                     estado: "Activo" as "Activo",
                     usuario_registro: userId,
                     fecha_registro: DateTimeUtils.nowInBogota(),
@@ -890,7 +892,7 @@ export class AttendanceController {
             const userId = (req.user as any)?.id; // Obtiene el usuario del token
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 20;
-            
+
             if (!userId) {
                 return ApiResponse.error(res, "Usuario no autenticado", 401);
             }
@@ -1009,8 +1011,8 @@ const attendanceController = new AttendanceController();
 
 // Exportar las funciones del controlador
 export const registerAttendance = attendanceController.create.bind(attendanceController);
-export const getAttendances = attendanceController.getAll.bind(attendanceController); 
-export const searchAttendances = attendanceController.search.bind(attendanceController); 
+export const getAttendances = attendanceController.getAll.bind(attendanceController);
+export const searchAttendances = attendanceController.search.bind(attendanceController);
 export const getAttendanceDetails = attendanceController.getById.bind(attendanceController);
 export const deleteAttendances = attendanceController.delete.bind(attendanceController);
 export const getStats = attendanceController.getStats.bind(attendanceController);

@@ -208,12 +208,10 @@ export class UserService {
             throw new ApiError('El usuario ya está inactivo', 400);
         }
 
-        const activeContracts = await Contract.count({
-            where: { usuario_registro: user.id, estado: 'Activo' }
-        });
-
-        if (activeContracts > 0) {
-            throw new ApiError('No se puede desactivar el usuario porque tiene contratos activos', 400);
+        // ✅ MEJORA 1: Verificar múltiples tipos de contratos activos
+        const contractValidation = await this.validateUserContractsForDeactivation(user.id);
+        if (!contractValidation.canDeactivate) {
+            throw new ApiError(contractValidation.message, 409);
         }
 
         const t = await sequelize.transaction();
@@ -224,28 +222,13 @@ export class UserService {
                 estado_nuevo: false,
                 usuario_cambio: adminId
             }, { transaction: t });
-    
+
             user.estado = false;
             user.fecha_actualizacion = new Date();
             await user.save({ transaction: t });
 
-            // Lógica de desactivación en cascada
-            const role = await Role.findByPk(user.id_rol, { transaction: t });
-            if (role) {
-                if (role.nombre === 'Cliente') {
-                    const person = await Person.findOne({ where: { id_usuario: user.id }, transaction: t });
-                    if (person) {
-                        person.estado = false;
-                        await person.save({ transaction: t });
-                    }
-                } else if (role.nombre === 'Entrenador') {
-                    const trainer = await Trainer.findOne({ where: { id_usuario: user.id }, transaction: t });
-                    if (trainer) {
-                        trainer.estado = false;
-                        await trainer.save({ transaction: t });
-                    }
-                }
-            }
+            // ✅ MEJORA 2: Lógica de desactivación en cascada mejorada
+            await this.deactivateAssociatedRecords(user, t);
             
             await t.commit();
             return { success: true, message: 'Usuario y roles asociados desactivados exitosamente' };
@@ -253,6 +236,145 @@ export class UserService {
         } catch (error) {
             await t.rollback();
             throw error;
+        }
+    }
+
+    // ✅ NUEVO MÉTODO: Validación completa de contratos
+    private async validateUserContractsForDeactivation(userId: number): Promise<{
+        canDeactivate: boolean;
+        message: string;
+        details?: any;
+    }> {
+        try {
+            // Verificar contratos donde el usuario es el titular (a través de persona)
+            const userAsClientContracts = await Contract.findAll({
+                include: [
+                    {
+                        model: Person,
+                        as: 'persona',
+                        where: { id_usuario: userId },
+                        attributes: ['id_persona', 'codigo']
+                    }
+                ],
+                where: {
+                    estado: 'Activo',
+                    fecha_inicio: { [Op.lte]: new Date() },
+                    fecha_fin: { [Op.gte]: new Date() }
+                },
+                attributes: ['id', 'codigo', 'fecha_inicio', 'fecha_fin']
+            });
+
+            // Verificar contratos que el usuario registró (como empleado/admin)
+            const userRegisteredContracts = await Contract.count({
+                where: { 
+                    usuario_registro: userId, 
+                    estado: 'Activo',
+                    fecha_inicio: { [Op.lte]: new Date() },
+                    fecha_fin: { [Op.gte]: new Date() }
+                }
+            });
+
+            const totalActiveContracts = userAsClientContracts.length + userRegisteredContracts;
+
+            if (totalActiveContracts > 0) {
+                let message = `No se puede desactivar el usuario porque tiene ${totalActiveContracts} contrato(s) activo(s)`;
+                
+                if (userAsClientContracts.length > 0) {
+                    const contractCodes = userAsClientContracts.map(c => c.codigo).join(', ');
+                    message += `. Como cliente: ${contractCodes}`;
+                }
+                
+                if (userRegisteredContracts > 0) {
+                    message += `. Contratos registrados por este usuario: ${userRegisteredContracts}`;
+                }
+                
+                message += '. Debe finalizar o cancelar los contratos antes de desactivar el usuario.';
+
+                return {
+                    canDeactivate: false,
+                    message,
+                    details: {
+                        userAsClient: userAsClientContracts.length,
+                        userAsRegistrator: userRegisteredContracts,
+                        contracts: userAsClientContracts
+                    }
+                };
+            }
+
+            return { canDeactivate: true, message: 'Validación exitosa' };
+
+        } catch (error) {
+            console.error('Error validating contracts for user deactivation:', error);
+            throw new ApiError('Error al validar contratos del usuario', 500);
+        }
+    }
+
+    // ✅ NUEVO MÉTODO: Desactivación en cascada mejorada
+    private async deactivateAssociatedRecords(user: any, transaction: Transaction): Promise<void> {
+        try {
+            const role = await Role.findByPk(user.id_rol, { transaction });
+            if (!role) return;
+
+            switch (role.nombre) {
+                case 'Cliente':
+                    await this.deactivateClientRecords(user.id, transaction);
+                    break;
+                case 'Entrenador':
+                    await this.deactivateTrainerRecords(user.id, transaction);
+                    break;
+                case 'Administrador':
+                case 'Empleado':
+                    // Los administradores/empleados no tienen registros adicionales que desactivar
+                    console.log(`Usuario ${role.nombre} desactivado - sin registros adicionales`);
+                    break;
+                default:
+                    console.log(`Rol desconocido: ${role.nombre}`);
+            }
+        } catch (error) {
+            console.error('Error en desactivación en cascada:', error);
+            throw error;
+        }
+    }
+
+    // ✅ MÉTODO ESPECÍFICO: Desactivar registros de cliente
+    private async deactivateClientRecords(userId: number, transaction: Transaction): Promise<void> {
+        const person = await Person.findOne({ 
+            where: { id_usuario: userId }, 
+            transaction 
+        });
+        
+        if (person) {
+            person.estado = false;
+            await person.save({ transaction });
+            console.log(`Persona ${person.codigo} desactivada`);
+        }
+    }
+
+    // ✅ MÉTODO ESPECÍFICO: Desactivar registros de entrenador
+    private async deactivateTrainerRecords(userId: number, transaction: Transaction): Promise<void> {
+        const trainer = await Trainer.findOne({ 
+            where: { id_usuario: userId }, 
+            transaction 
+        });
+        
+        if (trainer) {
+            // Verificar si tiene entrenamientos activos pendientes
+            // const activeTrainings = await Training.count({
+            //     where: {
+            //         id_entrenador: trainer.id,
+            //         estado: 'Programado',
+            //         fecha_inicio: { [Op.gte]: new Date() }
+            //     },
+            //     transaction
+            // });
+            
+            // if (activeTrainings > 0) {
+            //     throw new ApiError(`El entrenador tiene ${activeTrainings} entrenamientos programados pendientes`, 409);
+            // }
+            
+            trainer.estado = false;
+            await trainer.save({ transaction });
+            console.log(`Entrenador ${trainer.codigo} desactivado`);
         }
     }
 

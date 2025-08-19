@@ -1,5 +1,10 @@
 import { RequestHandler, Router } from 'express';
-import { login, logout, forgotPassword, resetPassword, changePassword, getProfile, updateProfile, getRoles} from '../controllers/auth.controller';
+import { login, logout, forgotPassword, resetPassword, changePassword, getProfile, updateProfile, getRoles } from '../controllers/auth.controller';
+import {
+    getPermissionsByRole,
+    checkPermissionChanges,
+    getAccessibleModules
+} from '../controllers/permissions.controller';
 import { verifyToken } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -18,7 +23,9 @@ router.post('/logout', logout as unknown as RequestHandler);
 // Ruta de recuperación de contraseña ✅
 router.post('/forgot-password', forgotPassword as unknown as RequestHandler);
 
-
+router.get('/permissions/:roleId', verifyToken as unknown as RequestHandler, getPermissionsByRole as unknown as RequestHandler);
+router.get('/permissions/check/:roleId', verifyToken as unknown as RequestHandler, checkPermissionChanges as unknown as RequestHandler);
+router.get('/permissions/modules/:roleId', verifyToken as unknown as RequestHandler, getAccessibleModules as unknown as RequestHandler);
 
 // Ruta de cambio de contraseña del usuario autenticado ✅
 router.post('/change-password', verifyToken as unknown as RequestHandler, changePassword as unknown as RequestHandler);

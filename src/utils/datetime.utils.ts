@@ -76,7 +76,7 @@ export class DateTimeUtils {
         const targetDate = this.toBogotaTime(date);
         
         return isDateToday(targetDate) && 
-               format(targetDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
+                format(targetDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
     }
 
     /**
