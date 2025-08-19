@@ -213,8 +213,6 @@ export const enviarCorreoBienvenida = async (
                             🚀 Acceder al Sistema
                         </a>
                     </div>
-
-                    <p>¡Estamos aquí para apoyarte en tu journey fitness!</p>
                     <p style="color: #666;">Si tienes alguna pregunta o necesitas ayuda, no dudes en contactarnos.</p>
                     
                     <hr style="border: 1px solid #eee; margin: 20px 0;">
