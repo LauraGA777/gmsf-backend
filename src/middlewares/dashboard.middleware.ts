@@ -18,8 +18,10 @@ export const canViewDashboard = async (req: Request, res: Response, next: NextFu
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
-        // Permitir acceso a admin y entrenadores por defecto
-        if (userInfo.role === 'R001' || userInfo.role === 'R002') {
+        // Permitir acceso a admin y entrenadores por defecto (robusto a códigos faltantes)
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        const isTrainer = await RolePermissionManager.isUserTrainer(userId);
+        if (isAdmin || isTrainer || userInfo.role === 'R001' || userInfo.role === 'R002') {
             return next();
         }
         
