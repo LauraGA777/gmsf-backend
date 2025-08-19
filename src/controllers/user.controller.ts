@@ -95,18 +95,30 @@ export class UserController {
     }
 
     public async deleteUser(req: Request, res: Response, next: NextFunction): Promise<void> {
-        try {
-            const { id } = idSchema.parse(req.params);
-            const adminId = (req.user as any)?.id;
-            if (!adminId) throw new ApiError('Usuario no autenticado', 401);
-            
-            const { motivo } = req.body;
-            const result = await this.userService.delete(id, adminId, motivo);
-            ApiResponse.success(res, result, result.message);
-        } catch (error) {
-            next(error);
+    try {
+        const { id } = idSchema.parse(req.params);
+        const adminId = (req.user as any)?.id;
+        if (!adminId) throw new ApiError('Usuario no autenticado', 401);
+
+        // ✅ FLEXIBLE: Aceptar motivo desde query params O body
+        let motivo: string;
+        
+        if (req.query.motivo) {
+            motivo = req.query.motivo as string;
+        } else if (req.body.motivo) {
+            motivo = req.body.motivo;
+        } else {
+            throw new ApiError('El motivo es requerido (como query parameter o en el body)', 400);
         }
+
+        console.log(`🗑️ Eliminando usuario ${id} por motivo: ${motivo}`);
+        
+        const result = await this.userService.delete(id, adminId, motivo);
+        ApiResponse.success(res, result, result.message);
+    } catch (error) {
+        next(error);
     }
+}
 
     public async searchUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
