@@ -17,6 +17,13 @@ export const canViewContracts = async (req: Request, res: Response, next: NextFu
             });
         }
 
+        // Admin y entrenador: acceso por defecto a la vista de contratos
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        const isTrainer = await RolePermissionManager.isUserTrainer(userId);
+        if (isAdmin || isTrainer) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.CONTRACT_READ)) {
@@ -120,6 +127,13 @@ export const canViewContractDetails = async (req: Request, res: Response, next: 
                 status: 'error',
                 message: 'Usuario no autenticado'
             });
+        }
+
+        // Admin/entrenador pueden ver detalles
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        const isTrainer = await RolePermissionManager.isUserTrainer(userId);
+        if (isAdmin || isTrainer) {
+            return next();
         }
 
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
@@ -518,6 +532,14 @@ export const canViewOwnContracts = async (req: Request, res: Response, next: Nex
             });
         }
 
+        // Permitir a administradores y entrenadores sin exigir privilegios granulares
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        const isTrainer = await RolePermissionManager.isUserTrainer(userId);
+        if (isAdmin || isTrainer) {
+            console.log("✅ DEBUG canViewOwnContracts: Admin/Entrenador detectado, acceso permitido");
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         console.log("🔍 DEBUG canViewOwnContracts: Información del usuario:", userInfo);
         
@@ -560,7 +582,7 @@ export const canViewOwnContracts = async (req: Request, res: Response, next: Nex
                     message: 'Error al verificar información del cliente'
                 });
             }
-        } else {
+    } else {
             console.log("🔍 DEBUG canViewOwnContracts: Usuario NO es cliente/beneficiario, no aplicando filtro");
         }
 

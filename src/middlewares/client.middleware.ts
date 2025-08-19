@@ -13,6 +13,13 @@ export const canViewClients = async (req: Request, res: Response, next: NextFunc
             });
         }
 
+        // Admins y entrenadores pueden ver clientes por defecto
+        const isAdmin = await RolePermissionManager.isUserAdmin(userId);
+        const isTrainer = await RolePermissionManager.isUserTrainer(userId);
+        if (isAdmin || isTrainer) {
+            return next();
+        }
+
         const userInfo = await RolePermissionManager.getUserRoleInfo(userId);
         
         if (!userHasPrivilege(userInfo.privileges, PRIVILEGES.CLIENT_READ)) {
