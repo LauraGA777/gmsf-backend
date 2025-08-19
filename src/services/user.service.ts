@@ -470,6 +470,73 @@ export class UserService {
         return { userExists: !!user };
     }
 
+    public async checkUserByDocument(tipo_documento: string, numero_documento: string, excludeUserId?: string) {
+        const whereConditions: any = { 
+            tipo_documento, 
+            numero_documento: { [Op.iLike]: numero_documento } // Búsqueda insensible a mayúsculas/minúsculas
+        };
+        if (excludeUserId) {
+            whereConditions.id = { [Op.ne]: excludeUserId };
+        }
+
+        const user = await User.findOne({ 
+            where: whereConditions,
+            attributes: { exclude: ["contrasena_hash", "contrasena"] },
+            include: [
+                {
+                    model: Role,
+                    as: 'rol',
+                    attributes: ['id', 'nombre']
+                }
+            ]
+        });
+
+        if (!user) {
+            // No se encontró el usuario - debe completar todos los campos
+            return { 
+                userExists: false, 
+                isTrainer: false, 
+                userData: null,
+                message: "Usuario no encontrado. Complete todos los campos para registrar un nuevo usuario y entrenador."
+            };
+        }
+
+        // Verificar si el usuario ya es entrenador
+        const trainer = await Trainer.findOne({
+            where: { id_usuario: user.id }
+        });
+
+        if (trainer) {
+            // El usuario ya es entrenador - no se puede registrar nuevamente
+            return {
+                userExists: true,
+                isTrainer: true,
+                userData: null,
+                message: "Este usuario ya está registrado como entrenador."
+            };
+        }
+
+        // El usuario existe pero no es entrenador - puede convertirse en entrenador
+        return {
+            userExists: true,
+            isTrainer: false,
+            userData: {
+                id: user.id,
+                nombre: user.nombre,
+                apellido: user.apellido,
+                correo: user.correo,
+                telefono: user.telefono,
+                direccion: (user as any).direccion,
+                genero: (user as any).genero,
+                tipo_documento: user.tipo_documento,
+                numero_documento: user.numero_documento,
+                fecha_nacimiento: (user as any).fecha_nacimiento,
+                rol: user.rol
+            },
+            message: "Usuario encontrado. Los datos se han autocompletado. Solo complete la especialidad para registrarlo como entrenador."
+        };
+    }
+
     public async checkEmailExists(email: string, excludeUserId?: string) {
         const whereConditions: any = { correo: email.toLowerCase() };
         if (excludeUserId) {

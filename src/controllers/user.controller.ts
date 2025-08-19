@@ -118,15 +118,44 @@ export class UserController {
         }
     }
 
+    public async checkUserByDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { tipo_documento, numero_documento } = req.params;
+            const { excludeUserId } = req.query;
+            
+            if (!tipo_documento || !numero_documento) {
+                throw new ApiError('Tipo de documento y número de documento son requeridos', 400);
+            }
+            
+            const result = await this.userService.checkUserByDocument(tipo_documento, numero_documento, excludeUserId as string);
+            
+            // Siempre devolver status 200, pero con información clara sobre el estado
+            ApiResponse.success(res, result, result.message || (result.userExists ? 'Usuario encontrado' : 'Usuario no encontrado'));
+        } catch (error) {
+            next(error);
+        }
+    }
+
     public async checkDocumentExists(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { numero_documento } = req.params;
+            // Obtener numero_documento desde params o query
+            const numero_documento = req.params.numero_documento || req.query.numero_documento as string;
+            const tipo_documento = req.query.tipo_documento as string;
             const { excludeUserId } = req.query;
+            
             if (!numero_documento) {
                 throw new ApiError('Número de documento es requerido', 400);
             }
-            const result = await this.userService.checkDocumentExists(numero_documento, (excludeUserId as string) ?? '');
-            ApiResponse.success(res, result , result.userExists ? 'Documento ya existe' : 'Documento disponible');
+            
+            // Si se proporciona tipo_documento, usar el método extendido para trainers
+            if (tipo_documento) {
+                const result = await this.userService.checkUserByDocument(tipo_documento, numero_documento, excludeUserId as string);
+                ApiResponse.success(res, result, result.userExists ? 'Usuario encontrado' : 'Usuario no encontrado');
+            } else {
+                // Método original para compatibilidad
+                const result = await this.userService.checkDocumentExists(numero_documento, (excludeUserId as string) ?? '');
+                ApiResponse.success(res, result , result.userExists ? 'Documento ya existe' : 'Documento disponible');
+            }
         } catch (error) {
             next(error);
         }
