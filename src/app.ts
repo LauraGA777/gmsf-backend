@@ -18,6 +18,7 @@ import trainerRoutes from './routes/trainer.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import gymSettingsRoutes from './routes/gymSettings.routes';
 import { errorHandler } from './middlewares/error.middleware';
+import { env } from './config/env';
 
 const app: Application = express();
 

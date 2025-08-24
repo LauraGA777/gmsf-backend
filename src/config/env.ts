@@ -39,7 +39,7 @@ export const env = cleanEnv(process.env, {
     SMTP_USER: str(),
     SMTP_PASS: str(),
     SMTP_FROM: str(),
-    FRONTEND_URL: str({ default: 'https://gmsf-strongfitgym.web.app/' })
+    FRONTEND_URL: str({ default: 'https://gmsf-strongfitgym.web.app' })
 });
 
 // Exportación tipo segura 

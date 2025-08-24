@@ -317,42 +317,44 @@ export class DashboardController {
 
     // Obtener estadísticas de membresías
     private async getMembershipStats(startDate: Date, endDate: Date) {
-        try {
-            const [
-                totalMemberships,
-                activeMemberships,
-                inactiveMemberships,
-                newMemberships
-            ] = await Promise.all([
-                Membership.count(),
-                Membership.count({
-                    where: { estado: true }
-                }),
-                Membership.count({
-                    where: { estado: false }
-                }),
-                Membership.count({
-                    where: {
-                        fecha_creacion: { [Op.between]: [startDate, endDate] }
-                    }
-                })
-            ]);
+    console.log("🔍 === DIAGNÓSTICO MEMBRESÍAS ===");
+    console.log("Fecha inicio:", startDate);
+    console.log("Fecha fin:", endDate);
+    
+    try {
+        const [
+            totalMemberships,
+            activeMemberships,
+            inactiveMemberships,
+            newMemberships
+        ] = await Promise.all([
+            Membership.count(),
+            Membership.count({ where: { estado: true } }),
+            Membership.count({ where: { estado: false } }),
+            Membership.count({
+                where: {
+                    fecha_creacion: { [Op.between]: [startDate, endDate] }
+                }
+            })
+        ]);
 
-            return {
-                totalMemberships,
-                activeMemberships,
-                inactiveMemberships,
-                newMemberships
-            };
-        } catch (error) {
-            console.error('Error getting membership stats:', error);
-            return {
-                totalMemberships: 0,
-                activeMemberships: 0,
-                inactiveMemberships: 0,
-                newMemberships: 0
-            };
-        }
+        console.log("📊 Resultados membresías:");
+        console.log("- Total:", totalMemberships);
+        console.log("- Activas:", activeMemberships);
+        console.log("- Inactivas:", inactiveMemberships);
+        console.log("- Nuevas:", newMemberships);
+        console.log("================================");
+
+        return {
+            totalMemberships,
+            activeMemberships,
+            inactiveMemberships,
+            newMemberships
+        };
+    } catch (error) {
+        console.error("❌ Error en getMembershipStats:", error);
+        throw error;
+    }
     }
 
     // Obtener estadísticas de clientes
@@ -552,7 +554,7 @@ export class DashboardController {
                 where: {
                     estado: true
                 },
-                group: ['Membership.id'],
+                group: ['membresia.id'],
                 order: [[fn('COUNT', col('contratos.id')), 'DESC']],
                 raw: true
             });
