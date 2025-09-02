@@ -6,6 +6,8 @@ import {
     trainingQuerySchema,
     trainingIdSchema,
     availabilitySchema,
+    clientAvailableSlotsSchema,
+    clientCreateTrainingSchema,
 } from "../validators/schedule.validator";
 import ApiResponse from "../utils/apiResponse";
 import { validate } from "../middlewares/validate.middleware";
@@ -17,7 +19,11 @@ import {
     canDeleteSchedules,
     canViewScheduleAvailability,
     canViewDailySchedules,
-    canViewWeeklySchedules
+    canViewWeeklySchedules,
+    isClient,
+    canViewClientSchedules,
+    canCreateClientTraining,
+    denyClientModification
 } from "../middlewares/schedule.middleware";
 import { canViewTrainers } from "../middlewares/trainer.middleware";
 import { canViewClients } from "../middlewares/client.middleware";
@@ -56,6 +62,42 @@ router.get("/active-clients",
     verifyToken as unknown as RequestHandler,
     canViewClients as unknown as RequestHandler,
     scheduleController.getActiveClients.bind(scheduleController) as unknown as RequestHandler
+);
+
+// === RUTAS ESPECÍFICAS PARA CLIENTES ===
+
+// Obtener horarios disponibles para agendar (solo clientes)
+router.get("/client/available-slots",
+    verifyToken as unknown as RequestHandler,
+    isClient as unknown as RequestHandler,
+    canViewClientSchedules as unknown as RequestHandler,
+    validate(clientAvailableSlotsSchema, "query"),
+    scheduleController.getAvailableTimeSlots.bind(scheduleController) as unknown as RequestHandler
+);
+
+// Crear entrenamiento para clientes (con restricciones)
+router.post("/client/book",
+    verifyToken as unknown as RequestHandler,
+    isClient as unknown as RequestHandler,
+    canCreateClientTraining as unknown as RequestHandler,
+    validate(clientCreateTrainingSchema, "body"),
+    scheduleController.createTrainingForClient.bind(scheduleController) as unknown as RequestHandler
+);
+
+// Intento de actualización por cliente (denegado)
+router.put("/client/:id",
+    verifyToken as unknown as RequestHandler,
+    isClient as unknown as RequestHandler,
+    validate(trainingIdSchema, "params"),
+    scheduleController.clientAttemptUpdate.bind(scheduleController) as unknown as RequestHandler
+);
+
+// Intento de eliminación por cliente (denegado)
+router.delete("/client/:id",
+    verifyToken as unknown as RequestHandler,
+    isClient as unknown as RequestHandler,
+    validate(trainingIdSchema, "params"),
+    scheduleController.clientAttemptDelete.bind(scheduleController) as unknown as RequestHandler
 );
 
 // Routes for specific schedules (client, trainer, daily, weekly, monthly)
@@ -111,6 +153,7 @@ router.post("/",
 // Update an existing training session
 router.put("/:id",
     verifyToken as unknown as RequestHandler,
+    denyClientModification as unknown as RequestHandler,
     canUpdateSchedules as unknown as RequestHandler,
     validate(trainingIdSchema, "params"),
     validate(updateTrainingSchema, "body"),
@@ -120,6 +163,7 @@ router.put("/:id",
 // Delete a training session
 router.delete("/:id",
     verifyToken as unknown as RequestHandler,
+    denyClientModification as unknown as RequestHandler,
     canDeleteSchedules as unknown as RequestHandler,
     validate(trainingIdSchema, "params"),
     scheduleController.delete.bind(scheduleController) as unknown as RequestHandler

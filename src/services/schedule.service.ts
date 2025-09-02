@@ -41,6 +41,8 @@ export class ScheduleService {
     id_cliente?: number;
     fecha_inicio?: string;
     fecha_fin?: string;
+    userId?: number; // Para filtrar por usuario autenticado
+    userRole?: number; // Para aplicar filtros específicos por rol
   }) {
     const {
       page = 1,
@@ -51,10 +53,37 @@ export class ScheduleService {
       id_cliente,
       fecha_inicio,
       fecha_fin,
+      userId,
+      userRole
     } = options;
     const offset = (page - 1) * limit;
 
     const whereClause: any = {};
+
+    // Si es un cliente (roles 3 o 4), filtrar solo sus entrenamientos
+    if (userRole && (userRole === 3 || userRole === 4) && userId) {
+      // Obtener el id_persona del usuario cliente
+      const clientPerson = await Person.findOne({
+        where: { id_usuario: userId }
+      });
+      
+      if (clientPerson) {
+        whereClause.id_cliente = clientPerson.id_persona;
+      } else {
+        // Si no se encuentra la persona, retornar vacío
+        return {
+          trainings: [],
+          totalRecords: 0,
+          totalPages: 0,
+          currentPage: page,
+          hasNextPage: false,
+          hasPreviousPage: false
+        };
+      }
+    } else if (id_cliente) {
+      // Para admin/entrenador que consulta por cliente específico
+      whereClause.id_cliente = id_cliente;
+    }
 
     if (estado) {
       whereClause.estado = estado;
@@ -62,10 +91,6 @@ export class ScheduleService {
 
     if (id_entrenador) {
       whereClause.id_entrenador = id_entrenador;
-    }
-
-    if (id_cliente) {
-      whereClause.id_cliente = id_cliente;
     }
 
     if (fecha_inicio) {
@@ -816,5 +841,305 @@ export class ScheduleService {
       console.error("--------------------------------------------------------------");
       throw new ApiError(`Error al obtener clientes activos: ${error.message}`, 500);
     }
+  }
+
+  // === MÉTODOS ESPECÍFICOS PARA CLIENTES ===
+
+  // Obtener horarios disponibles para que los clientes puedan agendar
+  async getAvailableTimeSlots(data: {
+    fecha: string;
+    id_entrenador?: number;
+  }) {
+    console.log("SERVICIO: Obteniendo horarios disponibles para clientes", data);
+    const { fecha, id_entrenador } = data;
+
+    try {
+      // Definir horarios estándar del gimnasio (6:00 AM - 9:00 PM, solo en punto)
+      const horariosEstandar = [];
+      for (let hora = 6; hora <= 20; hora++) { // Hasta las 8 PM para empezar (termina a las 9 PM)
+        const horaFormateada = `${hora.toString().padStart(2, '0')}:00`;
+        horariosEstandar.push(horaFormateada);
+      }
+
+      const fechaSeleccionada = new Date(fecha);
+      const inicioDelDia = new Date(fechaSeleccionada);
+      inicioDelDia.setHours(6, 0, 0, 0);
+      
+      const finDelDia = new Date(fechaSeleccionada);
+      finDelDia.setHours(20, 59, 59, 999); // Hasta las 8:59 PM para entrenamientos que empiezan
+
+      // Obtener entrenamientos ya agendados para la fecha
+      const whereClause: any = {
+        fecha_inicio: {
+          [Op.between]: [inicioDelDia, finDelDia],
+        },
+        estado: { [Op.ne]: "Cancelado" },
+      };
+
+      if (id_entrenador) {
+        whereClause.id_entrenador = id_entrenador;
+      }
+
+      const entrenamientosOcupados = await Training.findAll({
+        where: whereClause,
+        attributes: ["fecha_inicio", "fecha_fin", "id_entrenador"],
+        include: [
+          {
+            model: Trainer,
+            as: "entrenador",
+            attributes: ["id", "codigo"],
+            include: [
+              {
+                model: User,
+                as: "usuario",
+                attributes: ["nombre", "apellido"],
+              },
+            ],
+          },
+        ],
+      });
+
+      // Obtener entrenadores activos si no se especifica uno
+      let entrenadoresDisponibles: any[] = [];
+      if (!id_entrenador) {
+        entrenadoresDisponibles = await this.getActiveTrainers();
+      } else {
+        const entrenador = await Trainer.findOne({
+          where: { 
+            id: id_entrenador,
+            estado: true 
+          },
+          include: [
+            {
+              model: User,
+              as: "usuario",
+              attributes: ["id", "nombre", "apellido", "correo", "telefono"],
+            },
+          ],
+        });
+        
+        if (entrenador && entrenador.usuario?.estado) {
+          entrenadoresDisponibles = [{
+            id: entrenador.id,
+            codigo: entrenador.codigo,
+            especialidad: entrenador.especialidad,
+            estado: entrenador.estado,
+            usuario: entrenador.usuario
+          }];
+        }
+      }
+
+      // Calcular disponibilidad por horario y entrenador
+      const horariosDisponibles = horariosEstandar.map(hora => {
+        const [horaNum, minuto] = hora.split(':').map(Number);
+        const inicioSlot = new Date(fechaSeleccionada);
+        inicioSlot.setHours(horaNum, minuto, 0, 0);
+        
+        const finSlot = new Date(inicioSlot);
+        finSlot.setHours(horaNum + 1, minuto, 0, 0); // Sesiones de 1 hora
+
+        // Verificar si el horario ya pasó
+        const ahora = new Date();
+        if (inicioSlot <= ahora) {
+          return {
+            hora,
+            disponible: false,
+            razon: "Horario ya pasado",
+            entrenadores: []
+          };
+        }
+
+        // Filtrar entrenadores disponibles para este horario
+        const entrenadoresLibres = entrenadoresDisponibles.filter(entrenador => {
+          return !entrenamientosOcupados.some(entrenamiento => {
+            const inicioExistente = new Date(entrenamiento.fecha_inicio);
+            const finExistente = new Date(entrenamiento.fecha_fin);
+            
+            return entrenamiento.id_entrenador === entrenador.id &&
+                   ((inicioSlot >= inicioExistente && inicioSlot < finExistente) ||
+                    (finSlot > inicioExistente && finSlot <= finExistente) ||
+                    (inicioSlot <= inicioExistente && finSlot >= finExistente));
+          });
+        });
+
+        return {
+          hora,
+          disponible: entrenadoresLibres.length > 0,
+          razon: entrenadoresLibres.length === 0 ? "No hay entrenadores disponibles" : null,
+          entrenadores: entrenadoresLibres
+        };
+      }).filter(slot => slot.disponible); // Solo retornar horarios disponibles
+
+      return horariosDisponibles;
+    } catch (error: any) {
+      console.error("Error al obtener horarios disponibles:", error);
+      throw new ApiError(`Error al obtener horarios disponibles: ${error.message}`, 500);
+    }
+  }
+
+  // Crear entrenamiento para cliente con validaciones específicas
+  async createTrainingForClient(data: any, userId: number) {
+    console.log("SERVICIO: Creando entrenamiento para cliente", { data, userId });
+    const transaction = await sequelize.transaction();
+
+    try {
+      // Obtener el id_persona del usuario cliente
+      const clientPerson = await Person.findOne({
+        where: { id_usuario: userId },
+        transaction
+      });
+
+      if (!clientPerson) {
+        throw new ApiError("No se pudo identificar el perfil del cliente.", 400);
+      }
+
+      const clientId = clientPerson.id_persona;
+
+      // Validar que el cliente solo pueda agendar para sí mismo (si se especifica)
+      if (data.id_cliente && data.id_cliente !== clientId) {
+        throw new ApiError("Solo puedes agendar entrenamientos para ti mismo.", 403);
+      }
+
+      // Asignar el id_cliente correcto
+      data.id_cliente = clientId;
+
+      // Validaciones adicionales para clientes
+      const fechaInicio = new Date(data.fecha_inicio);
+      const fechaFin = new Date(data.fecha_fin);
+      const ahora = new Date();
+
+      // No permitir agendar en el pasado
+      if (fechaInicio <= ahora) {
+        throw new ApiError("No puedes agendar entrenamientos en fechas pasadas.", 400);
+      }
+
+      // Validar que sea con al menos 2 horas de anticipación
+      const dosHorasAdelante = new Date(ahora.getTime() + (2 * 60 * 60 * 1000));
+      if (fechaInicio < dosHorasAdelante) {
+        throw new ApiError("Debes agendar con al menos 2 horas de anticipación.", 400);
+      }
+
+      // Validar que no sea más de 30 días en el futuro
+      const treintaDiasAdelante = new Date(ahora.getTime() + (30 * 24 * 60 * 60 * 1000));
+      if (fechaInicio > treintaDiasAdelante) {
+        throw new ApiError("No puedes agendar entrenamientos con más de 30 días de anticipación.", 400);
+      }
+
+      // Validar duración estándar (1 hora)
+      const duracionHoras = (fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60);
+      if (duracionHoras !== 1) {
+        throw new ApiError("Las sesiones de entrenamiento deben durar exactamente 1 hora.", 400);
+      }
+
+      // Validar horarios permitidos (6:00 AM - 9:00 PM)
+      const hora = fechaInicio.getHours();
+      if (hora < 6 || hora > 20) {
+        throw new ApiError("Los entrenamientos solo pueden agendarse entre 6:00 AM y 8:00 PM (para terminar a las 9:00 PM).", 400);
+      }
+
+      // Validar que sea en horarios exactos (solo en punto)
+      const minutos = fechaInicio.getMinutes();
+      if (minutos !== 0) {
+        throw new ApiError("Los entrenamientos solo pueden iniciarse en punto (ej: 8:00, 9:00, etc.).", 400);
+      }
+
+      // Verificar que el cliente tenga contrato activo
+      const activeContract = await Contract.findOne({
+        where: {
+          id_persona: clientId,
+          estado: { [Op.in]: ["Activo", "Por Vencer"] }
+        },
+        transaction
+      });
+
+      if (!activeContract) {
+        throw new ApiError("No tienes un contrato activo para agendar entrenamientos.", 400);
+      }
+
+      // Verificar disponibilidad del entrenador
+      const availabilityResult = await this.checkAvailability({
+        fecha_inicio: data.fecha_inicio,
+        fecha_fin: data.fecha_fin,
+        id_entrenador: data.id_entrenador
+      });
+
+      if (!availabilityResult.available) {
+        throw new ApiError("El horario seleccionado no está disponible.", 409);
+      }
+
+      // Usar el método create existente pero con validaciones adicionales aplicadas
+      const trainingData = {
+        ...data,
+        estado: "Programado", // Los clientes siempre crean como "Programado"
+        titulo: data.titulo || "Sesión de Entrenamiento Personal"
+      };
+
+      const training = await this.create(trainingData);
+      
+      await transaction.commit();
+      return training;
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Error al crear entrenamiento para cliente:", error);
+      throw error;
+    }
+  }
+
+  // Intentar actualizar/cancelar entrenamiento (denegado para clientes)
+  async clientAttemptUpdate(userId: number, trainingId: number) {
+    console.log("SERVICIO: Cliente intenta modificar entrenamiento", { userId, trainingId });
+    
+    // Obtener el id_persona del usuario cliente
+    const clientPerson = await Person.findOne({
+      where: { id_usuario: userId }
+    });
+
+    if (!clientPerson) {
+      throw new ApiError("No se pudo identificar el perfil del cliente.", 400);
+    }
+    
+    // Verificar que el entrenamiento pertenece al cliente
+    const training = await Training.findOne({
+      where: {
+        id: trainingId,
+        id_cliente: clientPerson.id_persona
+      }
+    });
+
+    if (!training) {
+      throw new ApiError("Entrenamiento no encontrado o no tienes acceso a él.", 404);
+    }
+
+    // Siempre denegar la modificación con mensaje específico
+    throw new ApiError("Para modificar o cancelar su entrenamiento, por favor contacte con administración.", 403);
+  }
+
+  // Intentar eliminar entrenamiento (denegado para clientes)
+  async clientAttemptDelete(userId: number, trainingId: number) {
+    console.log("SERVICIO: Cliente intenta eliminar entrenamiento", { userId, trainingId });
+    
+    // Obtener el id_persona del usuario cliente
+    const clientPerson = await Person.findOne({
+      where: { id_usuario: userId }
+    });
+
+    if (!clientPerson) {
+      throw new ApiError("No se pudo identificar el perfil del cliente.", 400);
+    }
+    
+    // Verificar que el entrenamiento pertenece al cliente
+    const training = await Training.findOne({
+      where: {
+        id: trainingId,
+        id_cliente: clientPerson.id_persona
+      }
+    });
+
+    if (!training) {
+      throw new ApiError("Entrenamiento no encontrado o no tienes acceso a él.", 404);
+    }
+
+    // Siempre denegar la eliminación con mensaje específico
+    throw new ApiError("Para modificar o cancelar su entrenamiento, por favor contacte con administración.", 403);
   }
 }

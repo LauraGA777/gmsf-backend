@@ -51,3 +51,27 @@ export const availabilitySchema = z.object({
   }),
   id_entrenador: z.number().optional(),
 });
+
+// === VALIDADORES ESPECÍFICOS PARA CLIENTES ===
+
+// Schema for client available time slots query
+export const clientAvailableSlotsSchema = z.object({
+  fecha: z.string().refine((date) => !isNaN(Date.parse(date)), {
+    message: "Fecha inválida",
+  }),
+  id_entrenador: z.string().transform(Number).optional(),
+});
+
+// Schema for client training creation (más restrictivo)
+export const clientCreateTrainingSchema = z.object({
+  titulo: z.string().min(1).max(100).optional().default("Sesión de Entrenamiento Personal"),
+  descripcion: z.string().max(500).optional(),
+  fecha_inicio: z.string().refine((date) => !isNaN(Date.parse(date)), {
+    message: "Fecha de inicio inválida",
+  }),
+  fecha_fin: z.string().refine((date) => !isNaN(Date.parse(date)), {
+    message: "Fecha de fin inválida",
+  }),
+  id_entrenador: z.number().min(1, "Debe seleccionar un entrenador"),
+  notas: z.string().max(200).optional(),
+});

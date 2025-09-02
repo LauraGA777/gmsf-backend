@@ -18,7 +18,18 @@ export class ScheduleController {
     try {
       const query = trainingQuerySchema.parse(req.query);
       console.log("CONTROLADOR: Query validado:", query);
-      const result = await scheduleService.findAll(query);
+      
+      // Pasar información del usuario autenticado
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.id_rol;
+      
+      const queryWithUser = {
+        ...query,
+        userId,
+        userRole
+      };
+      
+      const result = await scheduleService.findAll(queryWithUser);
       console.log("CONTROLADOR: Sesiones de entrenamiento obtenidas del servicio.");
 
       return ApiResponse.success(
@@ -141,9 +152,21 @@ export class ScheduleController {
   async getClientSchedule(req: Request, res: Response, next: NextFunction) {
     console.log("CONTROLADOR: Petición GET a /schedules/client/:id recibida", { params: req.params });
     try {
-      const { id } = trainingIdSchema.parse(req.params);
-      console.log("CONTROLADOR: ID de cliente parseado:", id);
-      const schedule = await scheduleService.getClientSchedule(id);
+      // Permitir ":id" explícito (id_persona) o derivar desde el usuario autenticado
+      let clientPersonId: number | null = null;
+      if (req.params.id && !isNaN(Number(req.params.id))) {
+        clientPersonId = Number(req.params.id);
+      } else if ((req.user as any)?.id) {
+        const person = await (await import('../models/person.model')).default.findOne({ where: { id_usuario: (req.user as any).id } });
+        clientPersonId = person ? person.id_persona : null;
+      }
+
+      if (!clientPersonId) {
+        return ApiResponse.error(res, 'No se pudo identificar el cliente', 400);
+      }
+
+      console.log("CONTROLADOR: ID de cliente para agenda:", clientPersonId);
+      const schedule = await scheduleService.getClientSchedule(clientPersonId);
       console.log("CONTROLADOR: Agenda del cliente obtenida.");
 
       return ApiResponse.success(
@@ -267,6 +290,112 @@ export class ScheduleController {
       );
     } catch (error) {
       console.error("CONTROLADOR: Error en getActiveClients:", error);
+      next(error);
+    }
+  }
+
+  // === MÉTODOS ESPECÍFICOS PARA CLIENTES ===
+
+  // Obtener horarios disponibles para clientes
+  async getAvailableTimeSlots(req: Request, res: Response, next: NextFunction) {
+    console.log("CONTROLADOR: Petición GET a /schedules/client/available-slots recibida", { query: req.query });
+    try {
+      const { fecha, id_entrenador } = req.query as { fecha: string; id_entrenador?: string };
+      
+      if (!fecha) {
+        return ApiResponse.error(res, "La fecha es requerida", 400);
+      }
+
+      const data = {
+        fecha,
+        id_entrenador: id_entrenador ? parseInt(id_entrenador, 10) : undefined
+      };
+
+      console.log("CONTROLADOR: Datos para obtener horarios disponibles:", data);
+      const availableSlots = await scheduleService.getAvailableTimeSlots(data);
+      console.log("CONTROLADOR: Horarios disponibles obtenidos.");
+
+      return ApiResponse.success(
+        res,
+        availableSlots,
+        "Horarios disponibles obtenidos correctamente"
+      );
+    } catch (error) {
+      console.error("CONTROLADOR: Error en getAvailableTimeSlots:", error);
+      next(error);
+    }
+  }
+
+  // Crear entrenamiento específico para clientes
+  async createTrainingForClient(req: Request, res: Response, next: NextFunction) {
+    console.log("CONTROLADOR: Petición POST a /schedules/client/book recibida", { body: req.body });
+    try {
+      const user = (req.user as any);
+      
+      if (!user?.id) {
+        return ApiResponse.error(res, "Usuario no autenticado", 401);
+      }
+
+      const userId = user.id;
+      console.log("CONTROLADOR: Usuario identificado:", userId);
+
+      console.log("CONTROLADOR: Datos para crear entrenamiento (cliente):", req.body);
+      const training = await scheduleService.createTrainingForClient(req.body, userId);
+      console.log("CONTROLADOR: Entrenamiento creado exitosamente para cliente.");
+
+      return ApiResponse.success(
+        res,
+        training,
+        "Entrenamiento agendado correctamente",
+        undefined,
+        201
+      );
+    } catch (error) {
+      console.error("CONTROLADOR: Error al crear entrenamiento para cliente:", error);
+      next(error);
+    }
+  }
+
+  // Manejar intento de actualización por parte de cliente (denegado)
+  async clientAttemptUpdate(req: Request, res: Response, next: NextFunction) {
+    console.log("CONTROLADOR: Cliente intenta actualizar entrenamiento", { params: req.params });
+    try {
+      const user = (req.user as any);
+      const trainingId = parseInt(req.params.id, 10);
+      
+      if (!user?.id) {
+        return ApiResponse.error(res, "Usuario no autenticado", 401);
+      }
+
+      const userId = user.id;
+      await scheduleService.clientAttemptUpdate(userId, trainingId);
+      
+      // Esta línea nunca se ejecutará debido a la excepción en el servicio
+      return ApiResponse.error(res, "Operación no permitida", 403);
+    } catch (error) {
+      console.error("CONTROLADOR: Error en clientAttemptUpdate:", error);
+      next(error);
+    }
+  }
+
+  // Manejar intento de eliminación por parte de cliente (denegado)
+  async clientAttemptDelete(req: Request, res: Response, next: NextFunction) {
+    console.log("CONTROLADOR: Cliente intenta eliminar entrenamiento", { params: req.params });
+    try {
+      const user = (req.user as any);
+      const trainingId = parseInt(req.params.id, 10);
+      
+      if (!user?.id) {
+        return ApiResponse.error(res, "Usuario no autenticado", 401);
+      }
+
+      const userId = user.id;
+      await scheduleService.clientAttemptDelete(userId, trainingId);
+      
+      // Esta línea nunca se ejecutará debido a la excepción en el servicio
+      return ApiResponse.error(res, "Operación no permitida", 403);
+    } catch (error) {
+      console.error("CONTROLADOR: Error en clientAttemptDelete:", error);
       next(error);
     }
   }
