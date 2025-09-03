@@ -1,6 +1,11 @@
 import { RequestHandler, Router } from 'express';
 import { UserController } from '../controllers/user.controller';
 import { verifyToken } from '../middlewares/auth.middleware';
+import { 
+    strictLengthValidation, 
+    sanitizePhoneNumbers, 
+    sanitizeEmails 
+} from "../middlewares/strictValidation.middleware";
 import { canViewUsers, canSearchUsers, canViewUserDetails, canCreateUsers, canUpdateUsers, canActivateUsers, canDeactivateUsers, canDeleteUsers, canCheckDocument, canCheckEmail, canViewUserRoles } from '../middlewares/user.middleware';
 
 const router = Router();
@@ -30,7 +35,13 @@ router.get('/check-document/:numero_documento', canCheckDocument as unknown as R
 router.get('/:id', canViewUserDetails as unknown as RequestHandler, userController.getUserById.bind(userController) as unknown as RequestHandler);
 
 // Update user route ✅
-router.put('/:id', canUpdateUsers as unknown as RequestHandler, userController.updateUser.bind(userController) as unknown as RequestHandler);
+router.put('/:id', 
+    sanitizeEmails as unknown as RequestHandler,
+    sanitizePhoneNumbers as unknown as RequestHandler,
+    strictLengthValidation as unknown as RequestHandler,
+    canUpdateUsers as unknown as RequestHandler, 
+    userController.updateUser.bind(userController) as unknown as RequestHandler
+);
 
 // Activar usuario ✅
 router.post('/:id/activate', canActivateUsers as unknown as RequestHandler, userController.activateUser.bind(userController) as unknown as RequestHandler);
@@ -42,6 +53,12 @@ router.post('/:id/deactivate', canDeactivateUsers as unknown as RequestHandler, 
 router.delete('/:id/permanent', canDeleteUsers as unknown as RequestHandler, userController.deleteUser.bind(userController) as unknown as RequestHandler);
 
 // Register route ✅
-router.post('/register', canCreateUsers as unknown as RequestHandler, userController.register.bind(userController) as unknown as RequestHandler);
+router.post('/register', 
+    sanitizeEmails as unknown as RequestHandler,
+    sanitizePhoneNumbers as unknown as RequestHandler,
+    strictLengthValidation as unknown as RequestHandler,
+    canCreateUsers as unknown as RequestHandler, 
+    userController.register.bind(userController) as unknown as RequestHandler
+);
 
 export default router;

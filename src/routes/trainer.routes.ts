@@ -1,6 +1,11 @@
 import { Router, RequestHandler } from 'express';
 import { verifyToken } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
+import { 
+    strictLengthValidation, 
+    sanitizePhoneNumbers, 
+    sanitizeEmails 
+} from "../middlewares/strictValidation.middleware";
 import { TrainerController } from '../controllers/trainer.controller';
 import {
     canViewTrainers,
@@ -47,6 +52,9 @@ router.get(
 // POST /api/trainers - Crear un nuevo entrenador
 router.post(
     '/',
+    sanitizeEmails as unknown as RequestHandler,
+    sanitizePhoneNumbers as unknown as RequestHandler,
+    strictLengthValidation as unknown as RequestHandler,
     canCreateTrainers as unknown as RequestHandler,
     validate(createTrainerSchema, 'body'),
     trainerController.create
@@ -55,6 +63,9 @@ router.post(
 // PUT /api/trainers/:id - Actualizar un entrenador
 router.put(
     '/:id',
+    sanitizeEmails as unknown as RequestHandler,
+    sanitizePhoneNumbers as unknown as RequestHandler,
+    strictLengthValidation as unknown as RequestHandler,
     canUpdateTrainers as unknown as RequestHandler,
     validate(idSchema, 'params'),
     validate(updateTrainerSchema, 'body'),

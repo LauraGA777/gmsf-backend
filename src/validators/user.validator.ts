@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { emailValidator, phoneValidator } from './contact.validator';
 
 export const idSchema = z.object({
     id: z.string().or(z.number()).transform(val => Number(val))
@@ -7,8 +8,8 @@ export const idSchema = z.object({
 export const userCreateSchema = z.object({
     nombre: z.string().min(3).max(100),
     apellido: z.string().min(3).max(100),
-    correo: z.string().email(),
-    telefono: z.string().regex(/^\d{7,15}$/).optional(),
+    correo: emailValidator,
+    telefono: phoneValidator.optional(),
     direccion: z.string().optional(),
     genero: z.enum(['M', 'F', 'O']).optional(),
     tipo_documento: z.enum(['CC', 'CE', 'TI', 'PP', 'DIE']),
@@ -20,8 +21,8 @@ export const userCreateSchema = z.object({
 export const updateUserSchema = z.object({
     nombre: z.string().min(3).max(100).optional(),
     apellido: z.string().min(3).max(100).optional(),
-    correo: z.string().email().optional(),
-    telefono: z.string().regex(/^\d{7,15}$/).optional(),
+    correo: emailValidator.optional(),
+    telefono: phoneValidator.optional(),
     direccion: z.string().optional(),
     genero: z.enum(['M', 'F', 'O']).optional(),
     tipo_documento: z.enum(['CC', 'CE', 'TI', 'PP', 'DIE']).optional(),
@@ -42,9 +43,9 @@ export const searchUserSchema = z.object({
 export const trainerCreateSchema = z.object({
     nombre: z.string().min(3).max(100),
     apellido: z.string().min(3).max(100),
-    correo: z.string().email(),
+    correo: emailValidator,
     contrasena: z.string().min(6), // Contraseña requerida para entrenadores
-    telefono: z.string().regex(/^\d{7,15}$/).optional(),
+    telefono: phoneValidator.optional(),
     direccion: z.string().optional(),
     genero: z.enum(['M', 'F', 'O']).optional(),
     tipo_documento: z.enum(['CC', 'CE', 'TI', 'PP', 'DIE']),

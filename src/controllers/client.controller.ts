@@ -49,15 +49,27 @@ export class ClientController {
   public async checkUserByDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { tipo_documento, numero_documento } = clientDocumentSchema.parse(req.params);
-      const user = await this.clientService.findByDocument(tipo_documento, numero_documento);
-
-      ApiResponse.success(res, user, "Usuario encontrado correctamente");
-    } catch (error) {
-      if (error instanceof ApiError && error.statusCode === 404) {
-        ApiResponse.error(res, error.message, 404);
-      } else {
-        next(error);
+      
+      try {
+        const user = await this.clientService.findByDocument(tipo_documento, numero_documento);
+        // Usuario encontrado
+        ApiResponse.success(res, { 
+          userExists: true, 
+          userData: user 
+        }, "Usuario encontrado correctamente");
+      } catch (error) {
+        if (error instanceof ApiError && error.statusCode === 404) {
+          // Usuario no encontrado - esto es válido, no es un error
+          ApiResponse.success(res, { 
+            userExists: false, 
+            userData: null 
+          }, "Usuario no encontrado");
+        } else {
+          throw error;
+        }
       }
+    } catch (error) {
+      next(error);
     }
   }
 

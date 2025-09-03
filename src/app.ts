@@ -17,6 +17,7 @@ import roleRoutes from './routes/role.routes';
 import trainerRoutes from './routes/trainer.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import gymSettingsRoutes from './routes/gymSettings.routes';
+import validationRoutes from './routes/validation.routes';
 import { errorHandler } from './middlewares/error.middleware';
 import { env } from './config/env';
 
@@ -48,6 +49,7 @@ app.use('/roles', roleRoutes);
 app.use('/trainers', trainerRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/gym-settings', gymSettingsRoutes);
+app.use('/validation', validationRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {

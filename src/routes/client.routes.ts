@@ -2,6 +2,11 @@ import { RequestHandler, Router } from "express";
 import { ClientController } from "../controllers/client.controller";
 import { verifyToken } from "../middlewares/auth.middleware";
 import { 
+    strictLengthValidation, 
+    sanitizePhoneNumbers, 
+    sanitizeEmails 
+} from "../middlewares/strictValidation.middleware";
+import { 
     canViewClients, 
     canCreateClients, 
     canUpdateClients, 
@@ -41,12 +46,20 @@ router.get("/:id", canViewClients as unknown as RequestHandler,
 );
 
 // POST /api/clients - Create a new client
-router.post("/", canCreateClients as unknown as RequestHandler,
+router.post("/", 
+    sanitizeEmails as unknown as RequestHandler,
+    sanitizePhoneNumbers as unknown as RequestHandler,
+    strictLengthValidation as unknown as RequestHandler,
+    canCreateClients as unknown as RequestHandler,
     clientController.create.bind(clientController) as unknown as RequestHandler
 );
 
 // PUT /api/clients/:id - Update an existing client     
-router.put("/:id", canUpdateClients as unknown as RequestHandler,
+router.put("/:id", 
+    sanitizeEmails as unknown as RequestHandler,
+    sanitizePhoneNumbers as unknown as RequestHandler,
+    strictLengthValidation as unknown as RequestHandler,
+    canUpdateClients as unknown as RequestHandler,
     clientController.update.bind(clientController) as unknown as RequestHandler
 );
 

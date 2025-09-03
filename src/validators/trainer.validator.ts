@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { userCreateSchema, updateUserSchema } from './user.validator';
+import { emailValidator, phoneValidator } from './contact.validator';
 
 // Esquema para validar que el ID sea un número
 export const idSchema = z.object({
@@ -11,14 +12,73 @@ const trainerUserSchema = z.object({
     id: z.number().optional(), // Si tiene ID, es usuario existente
     nombre: z.string().min(3).max(100),
     apellido: z.string().min(3).max(100),
-    correo: z.string().email(),
+    correo: emailValidator,
     contrasena: z.string().optional(), // Opcional porque puede ser usuario existente
-    telefono: z.string().regex(/^\d{7,15}$/).optional(),
-    direccion: z.string().optional(),
+    telefono: phoneValidator.optional(),
+    direccion: z.string()
+        .min(5, "La dirección debe tener al menos 5 caracteres")
+        .max(200, "La dirección no puede tener más de 200 caracteres")
+        .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s#\-]+$/, "La dirección contiene caracteres no permitidos")
+        .refine(
+            (address) => {
+                if (!address) return true; // Opcional
+                const trimmed = address.trim().toLowerCase();
+                const roadTypes = ['calle', 'carrera', 'diagonal', 'transversal', 'avenida', 'autopista', 'cl', 'cra', 'dg', 'tv', 'av', 'aut'];
+                return roadTypes.some(type => trimmed.startsWith(type));
+            },
+            { message: "La dirección debe comenzar con un tipo de vía válido (Calle, Carrera, Diagonal, etc.)" }
+        )
+        .refine(
+            (address) => {
+                if (!address) return true; // Opcional
+                return /\d/.test(address);
+            },
+            { message: "La dirección debe contener números" }
+        )
+        .optional(),
     genero: z.enum(['M', 'F', 'O']).optional(),
     tipo_documento: z.enum(['CC', 'CE', 'TI', 'PP', 'DIE']),
-    numero_documento: z.string().min(5).max(20),
-    fecha_nacimiento: z.string().transform(val => new Date(val)),
+    numero_documento: z.string()
+        .min(5, "El número de documento debe tener al menos 5 caracteres")
+        .max(20, "El número de documento no puede tener más de 20 caracteres"),
+    fecha_nacimiento: z.string().transform(val => new Date(val)).refine(
+      (date) => {
+        if (isNaN(date.getTime())) return false;
+        
+        const today = new Date();
+        let age = today.getFullYear() - date.getFullYear();
+        const m = today.getMonth() - date.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
+          age--;
+        }
+        return age >= 16;
+      },
+      { message: "El entrenador debe tener al menos 16 años" }
+    ).refine(
+      (date) => {
+        if (isNaN(date.getTime())) return false;
+        
+        // No permitir fechas futuras
+        const today = new Date();
+        return date <= today;
+      },
+      { message: "La fecha de nacimiento no puede ser una fecha futura" }
+    ).refine(
+      (date) => {
+        if (isNaN(date.getTime())) return false;
+        
+        // Validar fechas inconsistentes (como 31/02)
+        const day = date.getDate();
+        const month = date.getMonth();
+        const year = date.getFullYear();
+        
+        const reconstructedDate = new Date(year, month, day);
+        return reconstructedDate.getDate() === day && 
+               reconstructedDate.getMonth() === month && 
+               reconstructedDate.getFullYear() === year;
+      },
+      { message: "Fecha inconsistente o inválida" }
+    ),
     id_rol: z.number().optional()
 }).refine(
     (data) => {
@@ -31,6 +91,29 @@ const trainerUserSchema = z.object({
     {
         message: "La contraseña es requerida y debe tener al menos 6 caracteres para usuarios nuevos",
         path: ["contrasena"]
+    }
+).refine(
+    (data) => {
+        // Validación específica del número de documento según el tipo
+        const { tipo_documento, numero_documento } = data;
+        
+        if (!tipo_documento || !numero_documento) return true;
+        
+        switch (tipo_documento) {
+            case 'CC': // Cédula de ciudadanía: solo números
+            case 'CE': // Cédula de extranjería: solo números
+            case 'TI': // Tarjeta de identidad: solo números
+                return /^\d+$/.test(numero_documento);
+            case 'PP': // Pasaporte: números y letras
+            case 'DIE': // Documento de identificación extranjera: números y letras
+                return /^[A-Za-z0-9]+$/.test(numero_documento);
+            default:
+                return true;
+        }
+    },
+    {
+        message: "El formato del número de documento no es válido para el tipo seleccionado",
+        path: ["numero_documento"]
     }
 );
 
