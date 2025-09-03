@@ -16,6 +16,7 @@ import scheduleRoutes from './routes/schedule.routes';
 import roleRoutes from './routes/role.routes';
 import trainerRoutes from './routes/trainer.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import dashboardMobileRoutes from './routes/dashboardmobile.routes';
 import gymSettingsRoutes from './routes/gymSettings.routes';
 import validationRoutes from './routes/validation.routes';
 import { errorHandler } from './middlewares/error.middleware';
@@ -48,6 +49,7 @@ app.use('/schedules', scheduleRoutes);
 app.use('/roles', roleRoutes);
 app.use('/trainers', trainerRoutes);
 app.use('/dashboard', dashboardRoutes);
+app.use('/dashboard-mobile', dashboardMobileRoutes);
 app.use('/gym-settings', gymSettingsRoutes);
 app.use('/validation', validationRoutes);
 
