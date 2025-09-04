@@ -14,7 +14,11 @@ import ApiResponse from '../utils/apiResponse';
 // Esquema de validación para dashboard móvil
 const mobileQuerySchema = z.object({
     period: z.enum(['today', 'week', 'month']).optional().default('today'),
-    compact: z.boolean().optional().default(true)
+    compact: z.union([
+        z.boolean(),
+        z.string().transform((val) => val === 'true' || val === '1'),
+        z.undefined()
+    ]).optional().default(true)
 });
 
 export class DashboardMobileController {
