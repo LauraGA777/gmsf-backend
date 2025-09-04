@@ -53,11 +53,12 @@ app.use('/dashboard-mobile', dashboardMobileRoutes);
 app.use('/gym-settings', gymSettingsRoutes);
 app.use('/validation', validationRoutes);
 
-// Ruta de prueba
+// Ruta de prueba - Mobile dashboard API available
 app.get('/', (req, res) => {
     res.status(200).json({
         status: 'success',
-        message: 'API funcionando!'
+        message: 'API funcionando!',
+        mobile_dashboard: 'Available at /dashboard-mobile/*'
     });
 });
 

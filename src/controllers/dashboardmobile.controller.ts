@@ -23,43 +23,60 @@ export class DashboardMobileController {
         try {
             console.log('📱 Dashboard Mobile Quick Summary - Request started');
             console.log('📱 Query params:', req.query);
+            console.log('📱 Request URL:', req.url);
+            console.log('📱 Request method:', req.method);
             
             const { period, compact } = mobileQuerySchema.parse(req.query);
             console.log('📱 Parsed params:', { period, compact });
             
             // Obtener métricas principales optimizadas para móvil
-            console.log('📱 Starting parallel queries...');
+            console.log('📱 Starting individual queries with detailed logging...');
             
-            const [
-                todayStats,
-                quickCounters,
-                revenueGrowth,
-                topMembership
-            ] = await Promise.all([
-                this.getTodayStats().catch(err => {
-                    console.error('❌ Error in getTodayStats:', err);
-                    return { revenue: 0, newContracts: 0, attendance: 0, activeClients: 0, date: format(new Date(), 'dd/MM/yyyy') };
-                }),
-                this.getQuickCounters().catch(err => {
-                    console.error('❌ Error in getQuickCounters:', err);
-                    return { users: 0, trainers: 0, clients: 0 };
-                }),
-                this.getRevenueGrowth().catch(err => {
-                    console.error('❌ Error in getRevenueGrowth:', err);
-                    return { current: 0, previous: 0, growthPercentage: 0, isPositive: true };
-                }),
-                this.getTopMembership().catch(err => {
-                    console.error('❌ Error in getTopMembership:', err);
-                    return null;
-                })
-            ]);
+            // Query 1: Today Stats
+            console.log('📱 Step 1: Getting today stats...');
+            let todayStats;
+            try {
+                todayStats = await this.getTodayStats();
+                console.log('✅ Today stats successful:', todayStats);
+            } catch (err) {
+                console.error('❌ Error in getTodayStats:', err);
+                todayStats = { revenue: 0, newContracts: 0, attendance: 0, activeClients: 0, date: format(new Date(), 'dd/MM/yyyy') };
+            }
 
-            console.log('📱 Query results:', {
-                todayStats,
-                quickCounters,
-                revenueGrowth,
-                topMembership
-            });
+            // Query 2: Quick Counters
+            console.log('📱 Step 2: Getting quick counters...');
+            let quickCounters;
+            try {
+                quickCounters = await this.getQuickCounters();
+                console.log('✅ Quick counters successful:', quickCounters);
+            } catch (err) {
+                console.error('❌ Error in getQuickCounters:', err);
+                quickCounters = { users: 0, trainers: 0, clients: 0 };
+            }
+
+            // Query 3: Revenue Growth
+            console.log('📱 Step 3: Getting revenue growth...');
+            let revenueGrowth;
+            try {
+                revenueGrowth = await this.getRevenueGrowth();
+                console.log('✅ Revenue growth successful:', revenueGrowth);
+            } catch (err) {
+                console.error('❌ Error in getRevenueGrowth:', err);
+                revenueGrowth = { current: 0, previous: 0, growthPercentage: 0, isPositive: true };
+            }
+
+            // Query 4: Top Membership
+            console.log('📱 Step 4: Getting top membership...');
+            let topMembership;
+            try {
+                topMembership = await this.getTopMembership();
+                console.log('✅ Top membership successful:', topMembership);
+            } catch (err) {
+                console.error('❌ Error in getTopMembership:', err);
+                topMembership = null;
+            }
+
+            console.log('📱 All queries completed. Building response...');
 
             const mobileData = {
                 todayStats,
@@ -69,7 +86,7 @@ export class DashboardMobileController {
                 lastUpdate: new Date().toISOString()
             };
 
-            console.log('✅ Dashboard Mobile Quick Summary - Response ready');
+            console.log('✅ Dashboard Mobile Quick Summary - Response ready:', JSON.stringify(mobileData, null, 2));
 
             return ApiResponse.success(
                 res,
@@ -80,6 +97,9 @@ export class DashboardMobileController {
         } catch (error) {
             console.error('❌ Dashboard Mobile Quick Summary - Fatal error:', error);
             console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
+            console.error('❌ Error type:', typeof error);
+            console.error('❌ Error constructor:', error?.constructor?.name);
+            
             return ApiResponse.error(
                 res,
                 "Error al obtener resumen rápido móvil",
@@ -87,7 +107,8 @@ export class DashboardMobileController {
                 process.env.NODE_ENV === 'development' ? { 
                     error: error instanceof Error ? error.message : String(error),
                     stack: error instanceof Error ? error.stack : undefined,
-                    details: error
+                    details: error,
+                    timestamp: new Date().toISOString()
                 } : undefined
             );
         }
