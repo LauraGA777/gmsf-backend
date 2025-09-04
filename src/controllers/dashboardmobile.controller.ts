@@ -27,65 +27,77 @@ export class DashboardMobileController {
         try {
             console.log('📱 Dashboard Mobile Quick Summary - Request started');
             console.log('📱 Query params:', req.query);
-            console.log('📱 Request URL:', req.url);
-            console.log('📱 Request method:', req.method);
             
-            // Validación básica primero
-            let parsedParams;
+            const { period, compact } = mobileQuerySchema.parse(req.query);
+            console.log('📱 Parsed params:', { period, compact });
+            
+            // Obtener métricas principales optimizadas para móvil
+            console.log('📱 Starting individual queries with detailed logging...');
+            
+            // Query 1: Today Stats
+            console.log('📱 Step 1: Getting today stats...');
+            let todayStats;
             try {
-                parsedParams = mobileQuerySchema.parse(req.query);
-                console.log('📱 Parsed params:', parsedParams);
-            } catch (parseError) {
-                console.error('❌ Parse error:', parseError);
-                return ApiResponse.error(res, "Error en parámetros de consulta", 400);
+                todayStats = await this.getTodayStats();
+                console.log('✅ Today stats successful:', todayStats);
+            } catch (err) {
+                console.error('❌ Error in getTodayStats:', err);
+                todayStats = { revenue: 0, newContracts: 0, attendance: 0, activeClients: 0, date: format(new Date(), 'dd/MM/yyyy') };
             }
-            
-            const { period, compact } = parsedParams;
-            
-            // Prueba de respuesta básica primero
-            console.log('📱 Testing basic response...');
-            
-            const basicData = {
-                todayStats: {
-                    revenue: 0,
-                    newContracts: 0,
-                    attendance: 0,
-                    activeClients: 0,
-                    date: format(new Date(), 'dd/MM/yyyy')
-                },
-                quickCounters: {
-                    users: 0,
-                    trainers: 0,
-                    clients: 0
-                },
-                revenueGrowth: {
-                    current: 0,
-                    previous: 0,
-                    growthPercentage: 0,
-                    isPositive: true
-                },
-                topMembership: null,
-                lastUpdate: new Date().toISOString(),
-                debug: {
-                    period,
-                    compact,
-                    timestamp: new Date().toISOString(),
-                    mode: 'basic_test'
-                }
+
+            // Query 2: Quick Counters
+            console.log('📱 Step 2: Getting quick counters...');
+            let quickCounters;
+            try {
+                quickCounters = await this.getQuickCounters();
+                console.log('✅ Quick counters successful:', quickCounters);
+            } catch (err) {
+                console.error('❌ Error in getQuickCounters:', err);
+                quickCounters = { users: 0, trainers: 0, clients: 0 };
+            }
+
+            // Query 3: Revenue Growth
+            console.log('📱 Step 3: Getting revenue growth...');
+            let revenueGrowth;
+            try {
+                revenueGrowth = await this.getRevenueGrowth();
+                console.log('✅ Revenue growth successful:', revenueGrowth);
+            } catch (err) {
+                console.error('❌ Error in getRevenueGrowth:', err);
+                revenueGrowth = { current: 0, previous: 0, growthPercentage: 0, isPositive: true };
+            }
+
+            // Query 4: Top Membership
+            console.log('📱 Step 4: Getting top membership...');
+            let topMembership;
+            try {
+                topMembership = await this.getTopMembership();
+                console.log('✅ Top membership successful:', topMembership);
+            } catch (err) {
+                console.error('❌ Error in getTopMembership:', err);
+                topMembership = null;
+            }
+
+            console.log('📱 All queries completed. Building response...');
+
+            const mobileData = {
+                todayStats,
+                quickCounters,
+                revenueGrowth,
+                topMembership,
+                lastUpdate: new Date().toISOString()
             };
 
-            console.log('✅ Basic response ready');
+            console.log('✅ Dashboard Mobile Quick Summary - Response ready');
 
             return ApiResponse.success(
                 res,
-                basicData,
-                "Resumen rápido móvil obtenido exitosamente (modo básico)"
+                mobileData,
+                "Resumen rápido móvil obtenido exitosamente"
             );
 
         } catch (error) {
             console.error('❌ Dashboard Mobile Quick Summary - Fatal error:', error);
-            console.error('❌ Error type:', typeof error);
-            console.error('❌ Error message:', error instanceof Error ? error.message : String(error));
             console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
             
             return ApiResponse.error(
@@ -95,8 +107,7 @@ export class DashboardMobileController {
                 {
                     error: error instanceof Error ? error.message : String(error),
                     stack: error instanceof Error ? error.stack : undefined,
-                    timestamp: new Date().toISOString(),
-                    mode: 'error_debug'
+                    timestamp: new Date().toISOString()
                 }
             );
         }
@@ -301,75 +312,52 @@ export class DashboardMobileController {
         }
     }
 
-    // Obtener membresía top (más vendida) - CORREGIDO
+    // Obtener membresía top (más vendida) - CORREGIDO Y SIMPLIFICADO
     private async getTopMembership() {
         try {
             console.log('🔍 Getting top membership...');
             
-            // Estrategia 1: Query directa con subquery para evitar problemas de GROUP BY
+            // Estrategia 1: Query simplificada para obtener membresía con más contratos
             const topMembershipQuery = `
-                SELECT m.id, m.nombre, m.precio, COALESCE(contract_count.count, 0) as sales
+                SELECT m.id, m.nombre, m.precio, COUNT(c.id) as sales
                 FROM membresias m
-                LEFT JOIN (
-                    SELECT id_membresia, COUNT(*) as count
-                    FROM contratos 
-                    WHERE estado = 'Activo'
-                    GROUP BY id_membresia
-                ) contract_count ON m.id = contract_count.id_membresia
+                LEFT JOIN contratos c ON m.id = c.id_membresia AND c.estado = 'Activo'
                 WHERE m.estado = true
-                ORDER BY COALESCE(contract_count.count, 0) DESC
+                GROUP BY m.id, m.nombre, m.precio
+                ORDER BY COUNT(c.id) DESC
                 LIMIT 1;
             `;
 
-            const [results] = await sequelize.query(topMembershipQuery, {
+            const results = await sequelize.query(topMembershipQuery, {
                 type: QueryTypes.SELECT
             });
 
-            console.log('🔍 Top membership with active contracts (raw query):', results);
+            console.log('🔍 Top membership query results:', results);
 
-            if (results && (results as any).sales > 0) {
+            if (results && results.length > 0) {
+                const result = results[0] as any;
+                console.log('🔍 Processing result:', result);
+                
                 return {
-                    name: (results as any).nombre,
-                    price: Number((results as any).precio),
-                    sales: Number((results as any).sales)
+                    name: result.nombre,
+                    price: Number(result.precio),
+                    sales: Number(result.sales)
                 };
             }
 
-            // Estrategia 2: Si no hay contratos activos, buscar cualquier contrato
-            const anyContractQuery = `
-                SELECT m.id, m.nombre, m.precio, COALESCE(contract_count.count, 0) as sales
-                FROM membresias m
-                LEFT JOIN (
-                    SELECT id_membresia, COUNT(*) as count
-                    FROM contratos 
-                    GROUP BY id_membresia
-                ) contract_count ON m.id = contract_count.id_membresia
-                WHERE m.estado = true
-                ORDER BY COALESCE(contract_count.count, 0) DESC
-                LIMIT 1;
-            `;
-
-            const [anyResults] = await sequelize.query(anyContractQuery, {
-                type: QueryTypes.SELECT
-            });
-
-            console.log('🔍 Top membership with any contracts (raw query):', anyResults);
-
-            if (anyResults && (anyResults as any).sales > 0) {
-                return {
-                    name: (anyResults as any).nombre,
-                    price: Number((anyResults as any).precio),
-                    sales: Number((anyResults as any).sales)
-                };
-            }
-
-            // Estrategia 3: Obtener la primera membresía activa
-            console.log('🔍 No contracts found, getting first active membership...');
+            // Estrategia 2: Si no hay resultados, obtener la primera membresía activa
+            console.log('🔍 No query results, getting first active membership...');
             
             const firstMembership = await Membership.findOne({
                 where: { estado: true },
                 order: [['id', 'ASC']]
             });
+
+            console.log('🔍 First membership found:', firstMembership ? {
+                id: firstMembership.id,
+                nombre: firstMembership.nombre,
+                precio: firstMembership.precio
+            } : null);
 
             if (firstMembership) {
                 return {
@@ -383,6 +371,7 @@ export class DashboardMobileController {
             return null;
         } catch (error) {
             console.error('❌ Error getting top membership:', error);
+            console.error('❌ Error details:', error instanceof Error ? error.message : String(error));
             return null;
         }
     }
@@ -484,74 +473,43 @@ export class DashboardMobileController {
         }
     }
 
-    // Obtener membresía más popular - CORREGIDO
+    // Obtener membresía más popular - CORREGIDO Y SIMPLIFICADO
     private async getPopularMembership() {
         try {
             console.log('🔍 Getting popular membership for main metrics...');
             
-            // Estrategia 1: Query directa para evitar problemas de GROUP BY con includes
+            // Query simplificada para obtener membresía con más contratos
             const popularMembershipQuery = `
-                SELECT m.id, m.nombre, m.precio, m.descripcion, COALESCE(contract_count.count, 0) as contract_count
+                SELECT m.id, m.nombre, m.precio, m.descripcion, COUNT(c.id) as contract_count
                 FROM membresias m
-                LEFT JOIN (
-                    SELECT id_membresia, COUNT(*) as count
-                    FROM contratos 
-                    WHERE estado = 'Activo'
-                    GROUP BY id_membresia
-                ) contract_count ON m.id = contract_count.id_membresia
+                LEFT JOIN contratos c ON m.id = c.id_membresia AND c.estado = 'Activo'
                 WHERE m.estado = true
-                ORDER BY COALESCE(contract_count.count, 0) DESC
+                GROUP BY m.id, m.nombre, m.precio, m.descripcion
+                ORDER BY COUNT(c.id) DESC
                 LIMIT 1;
             `;
 
-            const [results] = await sequelize.query(popularMembershipQuery, {
+            const results = await sequelize.query(popularMembershipQuery, {
                 type: QueryTypes.SELECT
             });
 
-            console.log('🔍 Popular membership with active contracts (raw query):', results);
+            console.log('🔍 Popular membership query results:', results);
 
-            if (results && (results as any).contract_count > 0) {
+            if (results && results.length > 0) {
+                const result = results[0] as any;
+                console.log('🔍 Processing popular membership result:', result);
+                
                 return {
-                    id: (results as any).id,
-                    name: (results as any).nombre,
-                    price: Number((results as any).precio),
-                    description: (results as any).descripcion || 'Sin descripción',
-                    activeContracts: Number((results as any).contract_count)
+                    id: result.id,
+                    name: result.nombre,
+                    price: Number(result.precio),
+                    description: result.descripcion || 'Sin descripción',
+                    activeContracts: Number(result.contract_count)
                 };
             }
 
-            // Estrategia 2: Si no hay contratos activos, buscar cualquier contrato
-            const anyContractQuery = `
-                SELECT m.id, m.nombre, m.precio, m.descripcion, COALESCE(contract_count.count, 0) as contract_count
-                FROM membresias m
-                LEFT JOIN (
-                    SELECT id_membresia, COUNT(*) as count
-                    FROM contratos 
-                    GROUP BY id_membresia
-                ) contract_count ON m.id = contract_count.id_membresia
-                WHERE m.estado = true
-                ORDER BY COALESCE(contract_count.count, 0) DESC
-                LIMIT 1;
-            `;
-
-            const [anyResults] = await sequelize.query(anyContractQuery, {
-                type: QueryTypes.SELECT
-            });
-
-            console.log('🔍 Popular membership with any contracts (raw query):', anyResults);
-
-            if (anyResults && (anyResults as any).contract_count > 0) {
-                return {
-                    id: (anyResults as any).id,
-                    name: (anyResults as any).nombre,
-                    price: Number((anyResults as any).precio),
-                    description: (anyResults as any).descripcion || 'Sin descripción',
-                    activeContracts: Number((anyResults as any).contract_count)
-                };
-            }
-
-            // Estrategia 3: Obtener la primera membresía activa
-            console.log('🔍 No contracts found, getting first active membership...');
+            // Estrategia de fallback: Obtener la primera membresía activa
+            console.log('🔍 No query results, getting first active membership...');
             
             const firstMembership = await Membership.findOne({
                 where: { estado: true },
@@ -572,6 +530,7 @@ export class DashboardMobileController {
             return null;
         } catch (error) {
             console.error('❌ Error getting popular membership:', error);
+            console.error('❌ Error details:', error instanceof Error ? error.message : String(error));
             return null;
         }
     }
