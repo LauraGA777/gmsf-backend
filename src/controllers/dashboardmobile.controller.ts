@@ -26,90 +26,74 @@ export class DashboardMobileController {
             console.log('📱 Request URL:', req.url);
             console.log('📱 Request method:', req.method);
             
-            const { period, compact } = mobileQuerySchema.parse(req.query);
-            console.log('📱 Parsed params:', { period, compact });
+            // Validación básica primero
+            let parsedParams;
+            try {
+                parsedParams = mobileQuerySchema.parse(req.query);
+                console.log('📱 Parsed params:', parsedParams);
+            } catch (parseError) {
+                console.error('❌ Parse error:', parseError);
+                return ApiResponse.error(res, "Error en parámetros de consulta", 400);
+            }
             
-            // Obtener métricas principales optimizadas para móvil
-            console.log('📱 Starting individual queries with detailed logging...');
+            const { period, compact } = parsedParams;
             
-            // Query 1: Today Stats
-            console.log('📱 Step 1: Getting today stats...');
-            let todayStats;
-            try {
-                todayStats = await this.getTodayStats();
-                console.log('✅ Today stats successful:', todayStats);
-            } catch (err) {
-                console.error('❌ Error in getTodayStats:', err);
-                todayStats = { revenue: 0, newContracts: 0, attendance: 0, activeClients: 0, date: format(new Date(), 'dd/MM/yyyy') };
-            }
-
-            // Query 2: Quick Counters
-            console.log('📱 Step 2: Getting quick counters...');
-            let quickCounters;
-            try {
-                quickCounters = await this.getQuickCounters();
-                console.log('✅ Quick counters successful:', quickCounters);
-            } catch (err) {
-                console.error('❌ Error in getQuickCounters:', err);
-                quickCounters = { users: 0, trainers: 0, clients: 0 };
-            }
-
-            // Query 3: Revenue Growth
-            console.log('📱 Step 3: Getting revenue growth...');
-            let revenueGrowth;
-            try {
-                revenueGrowth = await this.getRevenueGrowth();
-                console.log('✅ Revenue growth successful:', revenueGrowth);
-            } catch (err) {
-                console.error('❌ Error in getRevenueGrowth:', err);
-                revenueGrowth = { current: 0, previous: 0, growthPercentage: 0, isPositive: true };
-            }
-
-            // Query 4: Top Membership
-            console.log('📱 Step 4: Getting top membership...');
-            let topMembership;
-            try {
-                topMembership = await this.getTopMembership();
-                console.log('✅ Top membership successful:', topMembership);
-            } catch (err) {
-                console.error('❌ Error in getTopMembership:', err);
-                topMembership = null;
-            }
-
-            console.log('📱 All queries completed. Building response...');
-
-            const mobileData = {
-                todayStats,
-                quickCounters,
-                revenueGrowth,
-                topMembership,
-                lastUpdate: new Date().toISOString()
+            // Prueba de respuesta básica primero
+            console.log('📱 Testing basic response...');
+            
+            const basicData = {
+                todayStats: {
+                    revenue: 0,
+                    newContracts: 0,
+                    attendance: 0,
+                    activeClients: 0,
+                    date: format(new Date(), 'dd/MM/yyyy')
+                },
+                quickCounters: {
+                    users: 0,
+                    trainers: 0,
+                    clients: 0
+                },
+                revenueGrowth: {
+                    current: 0,
+                    previous: 0,
+                    growthPercentage: 0,
+                    isPositive: true
+                },
+                topMembership: null,
+                lastUpdate: new Date().toISOString(),
+                debug: {
+                    period,
+                    compact,
+                    timestamp: new Date().toISOString(),
+                    mode: 'basic_test'
+                }
             };
 
-            console.log('✅ Dashboard Mobile Quick Summary - Response ready:', JSON.stringify(mobileData, null, 2));
+            console.log('✅ Basic response ready');
 
             return ApiResponse.success(
                 res,
-                mobileData,
-                "Resumen rápido móvil obtenido exitosamente"
+                basicData,
+                "Resumen rápido móvil obtenido exitosamente (modo básico)"
             );
 
         } catch (error) {
             console.error('❌ Dashboard Mobile Quick Summary - Fatal error:', error);
-            console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
             console.error('❌ Error type:', typeof error);
-            console.error('❌ Error constructor:', error?.constructor?.name);
+            console.error('❌ Error message:', error instanceof Error ? error.message : String(error));
+            console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
             
             return ApiResponse.error(
                 res,
                 "Error al obtener resumen rápido móvil",
                 500,
-                process.env.NODE_ENV === 'development' ? { 
+                {
                     error: error instanceof Error ? error.message : String(error),
                     stack: error instanceof Error ? error.stack : undefined,
-                    details: error,
-                    timestamp: new Date().toISOString()
-                } : undefined
+                    timestamp: new Date().toISOString(),
+                    mode: 'error_debug'
+                }
             );
         }
     }
