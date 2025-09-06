@@ -56,6 +56,12 @@ router.get('/stats',
     getStats as unknown as RequestHandler
 );
 
+// ✅ Ruta para obtener tendencias (semanal/mensual) para dashboard
+router.get('/trends',
+    canViewAttendanceStats as unknown as RequestHandler,
+    (require('../controllers/attendance.controller') as any).getAttendanceTrends
+);
+
 // ✅ Ruta para obtener historial de asistencias del usuario autenticado (ASIST_MY_HISTORY)
 router.get('/my-attendances/me', 
     canViewMyAttendanceHistory as unknown as RequestHandler,

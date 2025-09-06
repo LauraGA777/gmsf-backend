@@ -132,6 +132,24 @@ export class ClientController {
     }
   }
 
+  // Activate client
+  public async activate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = clientIdSchema.parse(req.params);
+      const result = await this.clientService.activate(id);
+      ApiResponse.success(res, result, 'Cliente activado correctamente');
+    } catch (error) { next(error); }
+  }
+
+  // Deactivate client
+  public async deactivate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = clientIdSchema.parse(req.params);
+      const result = await this.clientService.deactivate(id);
+      ApiResponse.success(res, result, 'Cliente desactivado correctamente');
+    } catch (error) { next(error); }
+  }
+
   // Get client beneficiaries
   public async getBeneficiaries(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

@@ -68,6 +68,14 @@ router.delete("/:id", canDeleteClients as unknown as RequestHandler,
     clientController.delete.bind(clientController) as unknown as RequestHandler
 );
 
+// PATCH /api/clients/:id/activate - Activate client
+router.patch('/:id/activate', canUpdateClients as unknown as RequestHandler,
+    clientController.activate.bind(clientController) as unknown as RequestHandler);
+
+// PATCH /api/clients/:id/deactivate - Deactivate client
+router.patch('/:id/deactivate', canUpdateClients as unknown as RequestHandler,
+    clientController.deactivate.bind(clientController) as unknown as RequestHandler);
+
 // GET /api/clients/:id/beneficiaries - Get client beneficiaries
 router.get("/:id/beneficiaries", canViewClients as unknown as RequestHandler,
     clientController.getBeneficiaries.bind(clientController) as unknown as RequestHandler

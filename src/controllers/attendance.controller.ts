@@ -16,7 +16,8 @@ import {
 
 // Esquema de validación para las estadísticas
 const statsQuerySchema = z.object({
-    period: z.enum(['daily', 'monthly', 'yearly']).optional().default('monthly'),
+    // Se agrega 'weekly' para poder obtener estadísticas semanales
+    period: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional().default('monthly'),
     date: z.string().optional(),
     month: z.string().optional(),
     year: z.string().optional()
@@ -555,15 +556,29 @@ export class AttendanceController {
                 const targetDate = date ? new Date(date) : new Date();
                 startDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
                 endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+            } else if (period === 'weekly') {
+                const baseDate = date ? new Date(date) : new Date();
+                // Normalizamos a medianoche
+                const normalized = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+                // Suponemos semana inicia en lunes (ISO) -> getDay() domingo=0 ... sábado=6
+                const day = normalized.getDay();
+                const diffToMonday = (day === 0 ? 6 : day - 1); // si domingo, retroceder 6
+                startDate = new Date(normalized);
+                startDate.setDate(normalized.getDate() - diffToMonday);
+                endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + 6);
+                // Ajustar fin al final del día
+                endDate.setHours(23,59,59,999);
             } else if (period === 'monthly') {
                 const targetMonth = month ? parseInt(month) - 1 : new Date().getMonth();
                 const targetYear = year ? parseInt(year) : new Date().getFullYear();
                 startDate = new Date(targetYear, targetMonth, 1);
-                endDate = new Date(targetYear, targetMonth + 1, 0);
+                // fin de mes: último día con 23:59:59
+                endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
             } else { // yearly
                 const targetYear = year ? parseInt(year) : new Date().getFullYear();
                 startDate = new Date(targetYear, 0, 1);
-                endDate = new Date(targetYear, 11, 31);
+                endDate = new Date(targetYear, 11, 31, 23, 59, 59, 999);
             }
 
             // Obtener estadísticas
@@ -1003,6 +1018,76 @@ export class AttendanceController {
             return ApiResponse.error(res, "Error al obtener las estadísticas");
         }
     }
+
+    // Nuevo: Tendencias agrupadas (weekly, monthly) para dashboard
+    public async getAttendanceTrends(req: Request, res: Response) {
+        try {
+            const { mode = 'weekly', month, year } = req.query as { mode?: string; month?: string; year?: string };
+
+            // Determinar rango base (para monthly trends de un año, o semanas de un mes)
+            const targetYear = year ? parseInt(year) : new Date().getFullYear();
+            const targetMonth = month ? parseInt(month) - 1 : new Date().getMonth();
+
+            if (mode === 'weekly') {
+                // Obtener semanas del mes especificado
+                const startOfMonth = new Date(targetYear, targetMonth, 1);
+                const endOfMonth = new Date(targetYear, targetMonth + 1, 0, 23,59,59,999);
+
+                // Construir lista de semanas (lunes-domingo) que intersectan el mes
+                const weeks: { start: Date; end: Date; label: string }[] = [];
+                let cursor = new Date(startOfMonth);
+                // Ajustar cursor al lunes anterior o igual
+                const day = cursor.getDay();
+                const diffToMonday = (day === 0 ? 6 : day - 1);
+                cursor.setDate(cursor.getDate() - diffToMonday);
+
+                while (cursor <= endOfMonth) {
+                    const weekStart = new Date(cursor);
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekStart.getDate() + 6);
+                    weekEnd.setHours(23,59,59,999);
+                    weeks.push({
+                        start: weekStart,
+                        end: weekEnd,
+                        label: `${weekStart.getDate().toString().padStart(2,'0')}/${(weekStart.getMonth()+1).toString().padStart(2,'0')} - ${weekEnd.getDate().toString().padStart(2,'0')}/${(weekEnd.getMonth()+1).toString().padStart(2,'0')}`
+                    });
+                    cursor.setDate(cursor.getDate() + 7);
+                }
+
+                // Para cada semana contar asistencias activas limitadas al mes
+                const results = await Promise.all(weeks.map(async (w) => {
+                    const count = await Attendance.count({
+                        where: {
+                            fecha_uso: { [Op.between]: [w.start, w.end] },
+                            estado: 'Activo'
+                        }
+                    });
+                    return { label: w.label, value: count, start: w.start, end: w.end };
+                }));
+
+                return ApiResponse.success(res, { mode: 'weekly', month: targetMonth+1, year: targetYear, data: results }, 'Tendencias semanales obtenidas');
+            }
+
+            // mode === 'monthly' => 12 meses del año
+            const months = Array.from({ length: 12 }, (_, i) => i);
+            const results = await Promise.all(months.map(async (m) => {
+                const mStart = new Date(targetYear, m, 1);
+                const mEnd = new Date(targetYear, m + 1, 0, 23,59,59,999);
+                const count = await Attendance.count({
+                    where: {
+                        fecha_uso: { [Op.between]: [mStart, mEnd] },
+                        estado: 'Activo'
+                    }
+                });
+                return { label: `${(m+1).toString().padStart(2,'0')}/${targetYear}`, value: count, start: mStart, end: mEnd };
+            }));
+
+            return ApiResponse.success(res, { mode: 'monthly', year: targetYear, data: results }, 'Tendencias mensuales obtenidas');
+        } catch (error) {
+            console.error('Error al obtener tendencias de asistencia:', error);
+            return ApiResponse.error(res, 'Error al obtener tendencias de asistencia');
+        }
+    }
 }
 
 
@@ -1021,6 +1106,7 @@ export const getClientDateRangeByPeriod = attendanceController.getClientDateRang
 export const getClientAttendanceStats = attendanceController.getClientStatsController.bind(attendanceController);
 export const getMyAttendanceHistory = attendanceController.getMyAttendanceHistory.bind(attendanceController);
 export const getMyAttendanceStats = attendanceController.getMyAttendanceStats.bind(attendanceController);
+export const getAttendanceTrends = attendanceController.getAttendanceTrends.bind(attendanceController);
 
 // Exportar el controlador por defecto
 export default attendanceController;

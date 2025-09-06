@@ -50,6 +50,11 @@ export class UserController {
 
     public async register(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
+            // Procesar fecha_nacimiento antes de la validación
+            if (req.body.fecha_nacimiento) {
+                req.body.fecha_nacimiento = this.normalizeBirthDate(req.body.fecha_nacimiento);
+            }
+            
             const userData = userCreateSchema.parse(req.body);
             const result = await this.userService.create(userData);
             ApiResponse.success(res, result, 'Usuario registrado exitosamente', undefined, 201);
@@ -65,15 +70,52 @@ export class UserController {
         }
     }
 
-    public async updateUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+    // Método auxiliar para normalizar fechas de nacimiento
+    private normalizeBirthDate(dateInput: string | Date): Date {
         try {
-            const { id } = idSchema.parse(req.params);
-            const updateData = updateUserSchema.parse(req.body);
-            const updatedUser = await this.userService.update(id, updateData);
-            ApiResponse.success(res, { usuario: updatedUser }, 'Usuario actualizado exitosamente');
+            let date: Date;
+            
+            if (typeof dateInput === 'string') {
+                // Si viene como string (ej: "2024-01-24" o "24/01/2024")
+                if (dateInput.includes('/')) {
+                    // Formato DD/MM/YYYY
+                    const [day, month, year] = dateInput.split('/');
+                    date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                } else {
+                    // Formato YYYY-MM-DD - crear fecha local sin zona horaria
+                    const [year, month, day] = dateInput.split('-');
+                    date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                }
+            } else {
+                date = new Date(dateInput);
+            }
+            
+            // Asegurar que sea medianoche en hora local
+            date.setHours(12, 0, 0, 0); // Usar mediodía para evitar problemas de zona horaria
+            
+            console.log(`📅 Fecha original: ${dateInput}, Fecha normalizada: ${date.toISOString()}, Fecha local: ${date.toLocaleDateString()}`);
+            
+            return date;
         } catch (error) {
-            next(error);
+            console.error('Error normalizando fecha de nacimiento:', error);
+            throw new ApiError('Formato de fecha de nacimiento inválido', 400);
         }
+    }
+
+    public async updateUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const { id } = idSchema.parse(req.params);
+        
+        if (req.body.fecha_nacimiento) {
+            req.body.fecha_nacimiento = this.normalizeBirthDate(req.body.fecha_nacimiento);
+        }
+        
+        const updateData = updateUserSchema.parse(req.body);
+        const updatedUser = await this.userService.update(id, updateData);
+        ApiResponse.success(res, { usuario: updatedUser }, 'Usuario actualizado exitosamente');
+    } catch (error) {
+        next(error);
+    }
     }
 
     public async activateUser(req: Request, res: Response, next: NextFunction): Promise<void> {
