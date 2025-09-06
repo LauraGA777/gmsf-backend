@@ -360,6 +360,20 @@ export class ClientService {
       return { success: true, message: "Cliente desactivado correctamente" };
   }
 
+  async activate(id: number) {
+    const client = await Person.findByPk(id);
+    if (!client) throw new ApiError('Cliente no encontrado', 404);
+    await client.update({ estado: true });
+    return { success: true, message: 'Cliente activado correctamente' };
+  }
+
+  async deactivate(id: number) {
+    const client = await Person.findByPk(id);
+    if (!client) throw new ApiError('Cliente no encontrado', 404);
+    await client.update({ estado: false });
+    return { success: true, message: 'Cliente desactivado correctamente' };
+  }
+
   // Get client beneficiaries
   async getBeneficiaries(id: number) {
     const beneficiaries = await Beneficiary.findAll({
