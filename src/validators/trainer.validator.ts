@@ -51,9 +51,9 @@ const trainerUserSchema = z.object({
         if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
           age--;
         }
-        return age >= 16;
+        return age >= 16 && age <= 120;
       },
-      { message: "El entrenador debe tener al menos 16 años" }
+      { message: "El entrenador debe tener entre 16 y 120 años" }
     ).refine(
       (date) => {
         if (isNaN(date.getTime())) return false;

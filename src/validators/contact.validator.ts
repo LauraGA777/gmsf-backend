@@ -61,7 +61,14 @@ export const emailValidator = z.string()
 export const phoneValidator = z.string()
   .min(5, "El teléfono debe tener mínimo 5 caracteres")
   .max(20, "El teléfono debe tener máximo 20 caracteres")
-  .regex(/^\d+$/, "El teléfono solo puede contener números");
+  .regex(/^\d+$/, "El teléfono solo puede contener números")
+  .refine(
+    (phone) => {
+      // Verificar que no tenga 4 o más dígitos consecutivos iguales
+      return !/(\d)\1{3,}/.test(phone);
+    },
+    { message: "El teléfono no puede contener 4 o más dígitos consecutivos iguales" }
+  );
 
 // Esquemas completos para validación
 export const contactValidationSchema = z.object({

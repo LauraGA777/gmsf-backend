@@ -269,7 +269,7 @@ export class ClientService {
             codigo: newCode,
             id_persona: beneficiaryPerson.id_persona,
             id_cliente: titularPerson.id_persona,
-            relacion: bene.relacion,
+            relacion: bene.relacion_con_titular || bene.relacion,
             estado: true,
           }, { transaction });
         }
@@ -332,7 +332,7 @@ export class ClientService {
             codigo: newCode,
             id_persona: beneficiaryPerson.id_persona,
             id_cliente: person.id_persona,
-            relacion: bene.relacion,
+            relacion: bene.relacion_con_titular || bene.relacion,
             estado: true
           }, { transaction });
         }

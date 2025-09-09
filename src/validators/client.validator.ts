@@ -75,9 +75,9 @@ const userDataSchema = baseUserDataSchema.extend({
       if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
         age--;
       }
-      return age >= 13;
+      return age >= 13 && age <= 120;
     },
-    { message: "El cliente debe tener al menos 13 años" }
+    { message: "El cliente debe tener entre 13 y 120 años" }
   ).refine(
     (date) => {
       if (!date) return false;
@@ -133,7 +133,7 @@ const userDataSchema = baseUserDataSchema.extend({
 
 const beneficiarySchema = z.object({
   usuario: userDataSchema,
-  relacion: z.string()
+  relacion_con_titular: z.string()
     .min(3, "La relación debe tener al menos 3 caracteres")
     .max(50, "La relación no puede tener más de 50 caracteres"),
   contactos_emergencia: z.array(emergencyContactSchema).optional(),
@@ -141,10 +141,34 @@ const beneficiarySchema = z.object({
 
 const updateBeneficiarySchema = z.object({
   id: z.number().optional(),
-  usuario: baseUserDataSchema.partial().extend({
+  usuario: z.object({
     id: z.number().optional(),
-  }),
-  relacion: z.string()
+    nombre: z.string()
+      .min(3, "El nombre debe tener al menos 3 caracteres")
+      .max(100, "El nombre no puede tener más de 100 caracteres")
+      .optional(),
+    apellido: z.string()
+      .min(3, "El apellido debe tener al menos 3 caracteres")
+      .max(100, "El apellido no puede tener más de 100 caracteres")
+      .optional(),
+    correo: emailValidator.optional(),
+    telefono: phoneValidator.optional().nullable(),
+    direccion: z.union([
+      z.string().min(5, "La dirección debe tener al menos 5 caracteres").max(200, "La dirección no puede tener más de 200 caracteres"),
+      z.literal(""),
+      z.null(),
+      z.undefined()
+    ]).optional(),
+    genero: z.enum(["M", "F", "O"]).optional().nullable(),
+    tipo_documento: z.enum(["CC", "CE", "TI", "PP", "DIE"]).optional(),
+    numero_documento: z.string()
+      .min(5, "El número de documento debe tener al menos 5 caracteres")
+      .max(20, "El número de documento no puede tener más de 20 caracteres")
+      .optional(),
+    fecha_nacimiento: z.string().optional(),
+    id_rol: z.number().optional(),
+  }).partial(),
+  relacion_con_titular: z.string()
     .min(3, "La relación debe tener al menos 3 caracteres")
     .max(50, "La relación no puede tener más de 50 caracteres"),
 });
