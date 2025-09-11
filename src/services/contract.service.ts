@@ -249,6 +249,21 @@ export class ContractService {
         throw new ApiError("Membresía no encontrada", 404);
       }
       console.log("--- [Service] Step 2: Membership found ---", { id: membership.id, precio: membership.precio });
+
+      // Check if client already has an active contract
+      const existingActiveContract = await Contract.findOne({
+        where: {
+          id_persona: data.id_persona,
+          estado: ["Activo", "Congelado"] // Consider both active and frozen as active contracts
+        },
+        transaction,
+      });
+
+      if (existingActiveContract) {
+        await transaction.rollback();
+        throw new ApiError("El cliente ya tiene un contrato activo. No se pueden tener múltiples contratos activos al mismo tiempo.", 400);
+      }
+      console.log("--- [Service] Step 2.5: Verified client has no active contracts ---");
       
       // Use string comparison for dates to avoid timezone issues.
       const today = new Date();
